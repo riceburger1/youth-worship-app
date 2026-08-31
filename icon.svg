@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="104" fill="#1f4d3f"/>
+<path d="M92 145c52-22 103-15 164 24v224c-61-39-112-46-164-24V145Zm328 0c-52-22-103-15-164 24v224c61-39 112-46 164-24V145Z" fill="#fff"/>
+<path d="M256 169v224" stroke="#d9e8e1" stroke-width="10"/>
+<text x="256" y="290" text-anchor="middle" font-family="sans-serif" font-size="54" font-weight="800" fill="#1f4d3f">주의울림</text>
+</svg>

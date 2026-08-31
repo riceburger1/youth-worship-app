@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#1f4d3f" />
+  <meta name="description" content="양정중앙교회 청소년부 주의울림 예배 앱" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./styles.css" />
+  <title>주의울림 | 양정중앙교회 청소년부</title>
+</head>
+<body>
+  <div id="app">
+    <header class="hero">
+      <div class="brand">
+        <span class="church">양정중앙교회 청소년부</span>
+        <strong>주의울림</strong>
+        <span class="subtitle">말씀 · 나눔 · 기도 · 찬양</span>
+      </div>
+      <button id="installBtn" class="ghost hidden" type="button">앱 설치</button>
+    </header>
+
+    <section id="bannerArea" class="banner-wrap"></section>
+
+    <main>
+      <section id="studentIdentity" class="card identity-card">
+        <div>
+          <h2>내 정보</h2>
+          <p>말씀쓰기 완료 시 이 정보로 출석이 기록됩니다.</p>
+        </div>
+        <div class="identity-grid">
+          <label>학년
+            <select id="grade">
+              <option value="">학년 선택</option>
+              <option>중1</option><option>중2</option><option>중3</option>
+              <option>고1</option><option>고2</option><option>고3</option>
+            </select>
+          </label>
+          <label>이름
+            <input id="studentName" type="text" maxlength="30" autocomplete="name" placeholder="이름 입력" />
+          </label>
+        </div>
+      </section>
+
+      <nav class="tabs" aria-label="메뉴">
+        <button class="tab active" data-tab="word">말씀쓰기</button>
+        <button class="tab" data-tab="study">성경공부</button>
+        <button class="tab" data-tab="prayer">기도제목</button>
+        <button class="tab" data-tab="notice">공지사항</button>
+        <button class="tab" data-tab="worship">찬양단</button>
+        <button class="tab" data-tab="board">익명게시판</button>
+      </nav>
+
+      <section id="word" class="panel card">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">이번 주 말씀</span>
+            <h2 id="verseReference">불러오는 중...</h2>
+          </div>
+          <span id="progressText" class="pill">0%</span>
+        </div>
+        <blockquote id="verseText" class="verse">말씀을 불러오는 중입니다.</blockquote>
+        <div class="typing-note">
+          복사·붙여넣기, 드래그앤드롭 입력은 사용할 수 없습니다. 말씀을 직접 따라 써 주세요.
+        </div>
+        <label class="field-label">말씀 따라쓰기
+          <textarea id="verseInput" rows="7"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            placeholder="위 말씀을 직접 입력하세요."></textarea>
+        </label>
+        <div class="progress"><div id="progressBar"></div></div>
+        <p id="wordStatus" class="status">말씀을 불러오는 중입니다.</p>
+        <button id="completeWordBtn" class="primary" type="button" disabled>말씀쓰기 완료 및 출석</button>
+      </section>
+
+      <section id="study" class="panel card hidden">
+        <span class="eyebrow">이번 주 성경공부</span>
+        <h2 id="studyTitle">성경공부</h2>
+        <form id="studyForm">
+          <div id="studyQuestions"></div>
+          <button class="primary" type="submit">나눔 제출</button>
+          <p id="studyStatus" class="status"></p>
+        </form>
+      </section>
+
+      <section id="prayer" class="panel card hidden">
+        <span class="eyebrow">함께 기도해요</span>
+        <h2>이번 주 기도제목</h2>
+        <form id="prayerForm">
+          <label class="field-label">기도제목
+            <textarea id="prayerText" rows="6" maxlength="3000" placeholder="이번 주 기도제목을 적어 주세요."></textarea>
+          </label>
+          <label class="check-row"><input id="prayerPrivate" type="checkbox" checked /> 관리자만 확인</label>
+          <button class="primary" type="submit">기도제목 제출</button>
+          <p id="prayerStatus" class="status"></p>
+        </form>
+      </section>
+
+      <section id="notice" class="panel card hidden">
+        <span class="eyebrow">다가오는 일정</span>
+        <h2>공지사항</h2>
+        <div id="noticeList" class="list"></div>
+      </section>
+
+      <section id="worship" class="panel card hidden">
+        <span class="eyebrow">찬양단 게시판</span>
+        <h2>다음 주 찬양곡</h2>
+        <p class="muted">관리자가 등록한 예배 찬양곡을 순서대로 확인할 수 있습니다.</p>
+        <div id="songList" class="list"></div>
+      </section>
+
+      <section id="board" class="panel card hidden">
+        <span class="eyebrow">자유롭게 남겨 주세요</span>
+        <h2>익명 건의 · 문의 게시판</h2>
+        <form id="boardForm">
+          <label class="field-label">내용
+            <textarea id="boardText" rows="5" maxlength="3000" placeholder="건의사항이나 문의 내용을 적어 주세요."></textarea>
+          </label>
+          <button class="primary" type="submit">익명으로 등록</button>
+          <p id="boardStatus" class="status"></p>
+        </form>
+        <div id="boardList" class="list board-list"></div>
+      </section>
+
+      <section class="card admin-entry">
+        <button id="openAdminBtn" class="ghost" type="button">관리자 화면</button>
+      </section>
+
+      <section id="adminPanel" class="card hidden">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">관리자 전용</span>
+            <h2>콘텐츠 관리</h2>
+          </div>
+          <button id="adminLogoutBtn" class="ghost hidden" type="button">로그아웃</button>
+        </div>
+
+        <form id="adminLoginForm" class="admin-login">
+          <label>관리자 이메일<input id="adminEmail" type="email" autocomplete="username" required /></label>
+          <label>비밀번호<input id="adminPassword" type="password" autocomplete="current-password" required /></label>
+          <button class="primary" type="submit">관리자 로그인</button>
+          <p id="adminLoginStatus" class="status"></p>
+        </form>
+
+        <div id="adminWorkspace" class="hidden">
+          <div class="admin-grid">
+            <form id="weeklyForm" class="subcard">
+              <h3>이번 주 말씀 · 성경공부</h3>
+              <label>주 시작일<input id="weekStart" type="date" required /></label>
+              <label>말씀구절<input id="adminVerseRef" type="text" maxlength="120" required /></label>
+              <label>말씀본문<textarea id="adminVerseText" rows="5" maxlength="5000" required></textarea></label>
+              <label>성경공부 제목<input id="adminStudyTitle" type="text" maxlength="200" required /></label>
+              <label>질문 1<textarea id="adminQ1" rows="2" required></textarea></label>
+              <label>질문 2<textarea id="adminQ2" rows="2" required></textarea></label>
+              <label>질문 3 (선택)<textarea id="adminQ3" rows="2"></textarea></label>
+              <label class="check-row"><input id="weeklyPublished" type="checkbox" checked /> 학생에게 공개</label>
+              <button class="primary" type="submit">말씀·문제 저장</button>
+              <p id="weeklyAdminStatus" class="status"></p>
+            </form>
+
+            <form id="noticeAdminForm" class="subcard">
+              <h3>공지사항 등록</h3>
+              <label>제목<input id="noticeTitle" required maxlength="200" /></label>
+              <label>일정<input id="noticeDate" type="date" /></label>
+              <label>내용<textarea id="noticeBody" rows="4" maxlength="5000"></textarea></label>
+              <label class="check-row"><input id="noticeBanner" type="checkbox" checked /> 상단 배너 표시</label>
+              <button class="primary" type="submit">공지 등록</button>
+              <p id="noticeAdminStatus" class="status"></p>
+            </form>
+
+            <form id="songAdminForm" class="subcard">
+              <h3>다음 주 찬양곡 등록</h3>
+              <label>예배일<input id="songServiceDate" type="date" required /></label>
+              <label>순서<input id="songOrder" type="number" min="1" max="30" value="1" required /></label>
+              <label>곡명<input id="songTitle" maxlength="200" required placeholder="예: 주의 이름 높이며" /></label>
+              <label>아티스트 / 버전<input id="songArtist" maxlength="200" placeholder="예: 어노인팅" /></label>
+              <label>유튜브 링크<input id="songYoutube" type="url" maxlength="1000" placeholder="https://..." /></label>
+              <label>메모<textarea id="songNotes" rows="3" maxlength="2000" placeholder="키, 인도자, 특이사항 등"></textarea></label>
+              <button class="primary" type="submit">찬양곡 등록</button>
+              <p id="songAdminStatus" class="status"></p>
+            </form>
+
+            <div class="subcard">
+              <h3>이번 주 제출 현황</h3>
+              <div class="stats">
+                <div><span>말씀쓰기</span><strong id="statAttendance">0</strong></div>
+                <div><span>성경공부</span><strong id="statStudy">0</strong></div>
+                <div><span>기도제목</span><strong id="statPrayer">0</strong></div>
+                <div><span>익명글</span><strong id="statBoard">0</strong></div>
+              </div>
+              <button id="refreshAdminBtn" class="ghost full" type="button">현황 새로고침</button>
+            </div>
+          </div>
+
+          <div class="subcard">
+            <h3>학생 제출 기록</h3>
+            <div id="adminRecords" class="list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>양정중앙교회 청소년부 · 주의울림</footer>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

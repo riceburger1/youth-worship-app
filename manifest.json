@@ -1,0 +1,22 @@
+{
+  "name": "양정중앙교회 청소년부 주의울림",
+  "short_name": "주의울림",
+  "description": "양정중앙교회 청소년부 말씀쓰기, 성경공부, 기도제목, 공지, 찬양단, 익명게시판",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f3",
+  "theme_color": "#1f4d3f",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
