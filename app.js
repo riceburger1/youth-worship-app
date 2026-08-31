@@ -15,6 +15,9 @@ let questions = [];
 let deferredPrompt = null;
 let isAdmin = false;
 
+const PROFILE_STORAGE_KEY = "주의울림-profile-v2";
+const GRATITUDE_PREFIX = "주의울림-gratitude-v2:";
+
 function profile() {
   return { grade: $("#grade").value, name: clean($("#studentName").value) };
 }
@@ -22,28 +25,102 @@ function requireProfile(statusEl) {
   const p = profile();
   if (!p.grade || !p.name) {
     statusEl.textContent = "학년과 이름을 먼저 입력해 주세요.";
-    window.scrollTo({top:0,behavior:"smooth"});
+    $("#studentIdentity").scrollIntoView({behavior:"smooth", block:"center"});
     return null;
   }
   return p;
+}
+function saveProfile() {
+  const p = profile();
+  if (p.grade || p.name) localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(p));
+  renderGratitudeChallenge();
+}
+function restoreProfile() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "null");
+    if (p?.grade) $("#grade").value = p.grade;
+    if (p?.name) $("#studentName").value = p.name;
+  } catch {}
 }
 function fmtDate(v) {
   if (!v) return "일정 미정";
   const [y,m,d] = v.split("-").map(Number);
   return `${y}. ${m}. ${d}.`;
 }
-function nextSundayISO() {
-  const now = new Date();
-  const day = now.getDay();
-  const delta = day === 0 ? 7 : 7 - day;
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + delta);
-  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
+function localISODate(date = new Date()) {
+  return [date.getFullYear(), String(date.getMonth()+1).padStart(2,"0"), String(date.getDate()).padStart(2,"0")].join("-");
 }
+function addDaysISO(iso, days) {
+  const [y,m,d] = iso.split("-").map(Number);
+  const date = new Date(y,m-1,d);
+  date.setDate(date.getDate()+days);
+  return localISODate(date);
+}
+function gratitudeStorageKey(p) {
+  return `${GRATITUDE_PREFIX}${encodeURIComponent(p.grade)}:${encodeURIComponent(p.name.toLowerCase())}`;
+}
+function getLocalGratitude(p) {
+  if (!p?.grade || !p?.name) return [];
+  try {
+    const rows = JSON.parse(localStorage.getItem(gratitudeStorageKey(p)) || "[]");
+    return Array.isArray(rows) ? rows : [];
+  } catch { return []; }
+}
+function setLocalGratitude(p, rows) {
+  localStorage.setItem(gratitudeStorageKey(p), JSON.stringify(rows.slice(0,365)));
+}
+function streakStats(rows) {
+  const dates = [...new Set(rows.map(x=>x.date).filter(Boolean))].sort();
+  if (!dates.length) return {current:0,best:0};
+  let best=1, run=1;
+  for (let i=1;i<dates.length;i++) {
+    if (dates[i] === addDaysISO(dates[i-1],1)) run++;
+    else run=1;
+    best=Math.max(best,run);
+  }
+  const today=localISODate();
+  const yesterday=addDaysISO(today,-1);
+  const latest=dates[dates.length-1];
+  if (![today,yesterday].includes(latest)) return {current:0,best};
+  let current=1;
+  for (let i=dates.length-1;i>0;i--) {
+    if (dates[i-1] === addDaysISO(dates[i],-1)) current++;
+    else break;
+  }
+  return {current,best};
+}
+function renderGratitudeChallenge() {
+  const p = profile();
+  const ready = p.grade && p.name;
+  const rows = ready ? getLocalGratitude(p).sort((a,b)=>String(b.date).localeCompare(String(a.date))) : [];
+  const stats = streakStats(rows);
+  const today = localISODate();
+  const doneToday = rows.some(x=>x.date===today);
+  $("#gratitudeStreak").textContent = `${stats.current}일`;
+  $("#gratitudeBest").textContent = `${stats.best}일`;
+  $("#gratitudeToday").textContent = doneToday ? "완료 ✓" : "미기록";
+  $("#gratitudeCount").textContent = `${rows.length}회`;
+  $("#gratitudeSubmitBtn").disabled = doneToday;
+  if (!ready) {
+    $("#gratitudeHistory").innerHTML = '<p class="muted">내 정보에서 학년과 이름을 입력하면 챌린지 기록이 표시됩니다.</p>';
+    return;
+  }
+  $("#gratitudeHistory").innerHTML = rows.length ? rows.slice(0,14).map((r,i)=>`
+    <article class="gratitude-record ${i===0&&r.date===today?"today":""}">
+      <div class="gratitude-date"><span>${fmtDate(r.date)}</span>${r.date===today?'<b>오늘</b>':''}</div>
+      <p>${escapeHtml(r.text || "감사기도 기록 완료")}</p>
+    </article>`).join("") : '<p class="muted">아직 기록이 없습니다. 오늘 첫 감사기도를 남겨 보세요.</p>';
+}
+
+restoreProfile();
+$("#grade").addEventListener("change", saveProfile);
+$("#studentName").addEventListener("input", saveProfile);
 
 $$(".tab").forEach(btn => btn.addEventListener("click", () => {
   $$(".tab").forEach(x => x.classList.toggle("active", x === btn));
   $$(".panel").forEach(p => p.classList.add("hidden"));
   $("#" + btn.dataset.tab).classList.remove("hidden");
+  if (btn.dataset.tab === "gratitude") renderGratitudeChallenge();
 }));
 
 window.addEventListener("beforeinstallprompt", e => {
@@ -104,7 +181,6 @@ const verseInput = $("#verseInput");
     : "드래그해서 넣을 수 없습니다. 직접 입력해 주세요.";
 }));
 verseInput.addEventListener("beforeinput", e => {
-  // insertFromPaste / insertFromDrop / history replacement 등 비정상 대량 주입 차단
   if (["insertFromPaste","insertFromDrop"].includes(e.inputType)) {
     e.preventDefault();
     $("#wordStatus").textContent = "붙여넣기 입력은 사용할 수 없습니다.";
@@ -175,6 +251,40 @@ $("#prayerForm").addEventListener("submit", async e => {
   if (!error) e.target.reset();
 });
 
+$("#gratitudeForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const p = requireProfile($("#gratitudeStatus"));
+  if (!p) return;
+  const text = clean($("#gratitudeText").value);
+  if (!text) { $("#gratitudeStatus").textContent = "오늘 감사한 내용을 적어 주세요."; return; }
+  const today = localISODate();
+  let localRows = getLocalGratitude(p);
+  if (localRows.some(x=>x.date===today)) {
+    $("#gratitudeStatus").textContent = "오늘 감사기도는 이미 기록했습니다. 내일 다시 이어가세요!";
+    renderGratitudeChallenge();
+    return;
+  }
+  $("#gratitudeSubmitBtn").disabled = true;
+  $("#gratitudeStatus").textContent = "감사기도를 기록하고 있습니다...";
+  const { error } = await db.from("gratitude_prayers").insert({
+    grade:p.grade, student_name:p.name, prayer_date:today, gratitude_text:text
+  });
+  if (error && error.code !== "23505") {
+    $("#gratitudeSubmitBtn").disabled = false;
+    $("#gratitudeStatus").textContent = error.code === "PGRST205"
+      ? "감사기도 기능 준비가 필요합니다. Supabase에서 감사기도 SQL을 먼저 실행해 주세요."
+      : "감사기도 저장 중 오류가 발생했습니다.";
+    return;
+  }
+  const localText = error?.code === "23505" ? "오늘 감사기도 기록 완료(다른 기기에서 먼저 기록됨)" : text;
+  localRows = [{date:today,text:localText,createdAt:new Date().toISOString()}, ...localRows.filter(x=>x.date!==today)];
+  setLocalGratitude(p, localRows);
+  e.target.reset();
+  renderGratitudeChallenge();
+  const stats = streakStats(localRows);
+  $("#gratitudeStatus").textContent = `오늘의 감사기도 완료! 현재 ${stats.current}일 연속 기록 중입니다. 🔥`;
+});
+
 async function loadNotices() {
   const { data } = await db.from("notices").select("*").eq("published",true)
     .order("event_date",{ascending:true,nullsFirst:false}).order("created_at",{ascending:false});
@@ -186,24 +296,6 @@ async function loadNotices() {
   const banners = rows.filter(n=>n.banner).slice(0,3);
   $("#bannerArea").innerHTML = banners.map(n=>`
     <div class="banner"><b>${escapeHtml(n.title)}</b><small>${fmtDate(n.event_date)} · ${escapeHtml(n.body)}</small></div>`).join("");
-}
-
-async function loadSongs() {
-  const { data } = await db.from("worship_songs").select("*").eq("published",true)
-    .order("service_date",{ascending:true}).order("song_order",{ascending:true});
-  const rows = data || [];
-  if (!rows.length) {
-    $("#songList").innerHTML = '<p class="muted">등록된 다음 주 찬양곡이 없습니다.</p>'; return;
-  }
-  const firstDate = rows[0].service_date;
-  const selected = rows.filter(x=>x.service_date===firstDate);
-  $("#songList").innerHTML = `<div class="meta">예배일 ${fmtDate(firstDate)}</div>` + selected.map(s=>`
-    <article class="list-item">
-      <h3><span class="song-order">${s.song_order}</span>${escapeHtml(s.title)}</h3>
-      ${s.artist ? `<div class="meta">${escapeHtml(s.artist)}</div>` : ""}
-      ${s.notes ? `<p>${escapeHtml(s.notes)}</p>` : ""}
-      ${s.youtube_url ? `<a href="${escapeHtml(s.youtube_url)}" target="_blank" rel="noopener noreferrer">찬양 영상 보기 ↗</a>` : ""}
-    </article>`).join("");
 }
 
 $("#boardForm").addEventListener("submit", async e => {
@@ -242,6 +334,7 @@ async function verifyAdmin(user) {
     $("#adminLoginStatus").textContent = "관리자 권한이 없는 계정입니다.";
     return setAdminState(false);
   }
+  $("#adminLoginStatus").textContent = "";
   setAdminState(true);
   await loadAdminRecords();
 }
@@ -287,37 +380,29 @@ $("#noticeAdminForm").addEventListener("submit", async e => {
   if(!error){e.target.reset();$("#noticeBanner").checked=true;await loadNotices();}
 });
 
-$("#songAdminForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const { error } = await db.from("worship_songs").insert({
-    service_date:$("#songServiceDate").value, song_order:Number($("#songOrder").value),
-    title:clean($("#songTitle").value), artist:clean($("#songArtist").value),
-    youtube_url:clean($("#songYoutube").value), notes:clean($("#songNotes").value), published:true
-  });
-  $("#songAdminStatus").textContent=error?"찬양곡 등록에 실패했습니다.":"찬양곡이 등록되었습니다.";
-  if(!error){e.target.reset();$("#songOrder").value=1;$("#songServiceDate").value=nextSundayISO();await loadSongs();}
-});
-
 async function loadAdminRecords() {
-  if(!isAdmin||!weekly)return;
-  const [a,s,p,b] = await Promise.all([
-    db.from("attendance").select("*").eq("weekly_content_id",weekly.id).order("completed_at",{ascending:false}),
-    db.from("study_submissions").select("*").eq("weekly_content_id",weekly.id).order("submitted_at",{ascending:false}),
-    db.from("prayer_requests").select("*").eq("weekly_content_id",weekly.id).order("submitted_at",{ascending:false}),
+  if(!isAdmin)return;
+  const weekId = weekly?.id;
+  const [a,s,p,g,b] = await Promise.all([
+    weekId ? db.from("attendance").select("*").eq("weekly_content_id",weekId).order("completed_at",{ascending:false}) : Promise.resolve({data:[]}),
+    weekId ? db.from("study_submissions").select("*").eq("weekly_content_id",weekId).order("submitted_at",{ascending:false}) : Promise.resolve({data:[]}),
+    weekId ? db.from("prayer_requests").select("*").eq("weekly_content_id",weekId).order("submitted_at",{ascending:false}) : Promise.resolve({data:[]}),
+    db.from("gratitude_prayers").select("*").gte("prayer_date", $("#weekStart").value || localISODate()).order("prayer_date",{ascending:false}).order("created_at",{ascending:false}),
     db.from("anonymous_posts").select("*").order("created_at",{ascending:false}).limit(100)
   ]);
   $("#statAttendance").textContent=a.data?.length||0;
   $("#statStudy").textContent=s.data?.length||0;
   $("#statPrayer").textContent=p.data?.length||0;
+  $("#statGratitude").textContent=g.data?.length||0;
   $("#statBoard").textContent=b.data?.length||0;
   const rows=[];
   (a.data||[]).forEach(x=>rows.push(`<article class="list-item"><b>말씀쓰기 · 출석</b><div>${escapeHtml(x.grade)} ${escapeHtml(x.student_name)}</div><div class="meta">${new Date(x.completed_at).toLocaleString("ko-KR")}</div></article>`));
   (s.data||[]).forEach(x=>rows.push(`<article class="list-item"><b>성경공부</b><div>${escapeHtml(x.grade)} ${escapeHtml(x.student_name)}</div><ol>${(x.answers||[]).map(v=>`<li>${escapeHtml(v)}</li>`).join("")}</ol></article>`));
   (p.data||[]).forEach(x=>rows.push(`<article class="list-item"><b>기도제목${x.is_private?" · 비공개":""}</b><div>${escapeHtml(x.grade)} ${escapeHtml(x.student_name)}</div><p>${escapeHtml(x.prayer_text)}</p></article>`));
+  (g.data||[]).forEach(x=>rows.push(`<article class="list-item gratitude-admin-record"><b>감사기도 · ${fmtDate(x.prayer_date)}</b><div>${escapeHtml(x.grade)} ${escapeHtml(x.student_name)}</div><p>${escapeHtml(x.gratitude_text)}</p></article>`));
   $("#adminRecords").innerHTML=rows.length?rows.join(""):'<p class="muted">이번 주 제출 기록이 없습니다.</p>';
 }
 
-$("#songServiceDate").value = nextSundayISO();
 const today = new Date();
 const monday = new Date(today);
 monday.setDate(today.getDate() - ((today.getDay()+6)%7));
@@ -326,4 +411,5 @@ $("#weekStart").value=[monday.getFullYear(),String(monday.getMonth()+1).padStart
 const { data:{session} } = await db.auth.getSession();
 if(session?.user) await verifyAdmin(session.user);
 
-await Promise.all([loadWeekly(),loadNotices(),loadSongs(),loadBoard()]);
+renderGratitudeChallenge();
+await Promise.all([loadWeekly(),loadNotices(),loadBoard()]);

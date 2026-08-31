@@ -1,53 +1,26 @@
-# 양정중앙교회 청소년부 주의울림
+# 주의울림 감사기도 챌린지 업데이트
 
-Supabase 연결이 완료된 PWA 웹앱입니다.
+## 변경 내용
+- `찬양단` 탭을 `감사기도` 탭으로 변경
+- `내 정보` 입력란을 메뉴 탭 바로 아래로 이동
+- 내 정보(학년/이름)를 브라우저에 저장하여 다음 접속 때 자동 복원
+- 감사기도를 하루 1회 기록하는 챌린지 기능 추가
+- 현재 연속일수 / 최고 연속일수 / 오늘 기록 여부 표시
+- 최근 감사기도 기록 14개 표시
+- 감사기도 내용은 학생끼리 조회할 수 없도록 Supabase RLS 적용
+- 관리자 제출 현황에 감사기도 건수 및 기록 추가
+- PWA 캐시 버전을 올려 업데이트가 즉시 반영되도록 변경
 
-## 포함 기능
-- 관리자 등록 말씀구절 조회
-- 말씀 직접 따라쓰기
-- 말씀쓰기 복사/붙여넣기 및 드래그앤드롭 차단
-- 말씀 정확히 완성 후 학년+이름 기준 출석 저장
-- 관리자 등록 성경공부 질문 2~3개 및 학생 답변 제출
-- 기도제목 제출
-- 공지사항 및 상단 배너
-- 찬양단 게시판 / 다음 주 찬양곡 순서 등록
-- 익명 건의·문의 게시판
-- 관리자 이메일/비밀번호 로그인
-- 관리자 제출 현황 조회
-- PWA 설치
-
-## Supabase
-Project URL:
-https://gcsfrsemshrddlcptsxo.supabase.co
-
-프론트엔드에는 Publishable Key만 들어 있습니다.
-Service Role / Secret Key는 포함하지 않았습니다.
-
-## 최초 관리자 계정 만들기
-1. Supabase Dashboard → Authentication → Users에서 관리자 이메일 계정을 생성합니다.
-2. 생성한 사용자의 UUID를 복사합니다.
-3. SQL Editor에서 아래 SQL을 1회 실행합니다.
-
-```sql
-insert into public.admin_users (user_id)
-values ('여기에_관리자_USER_UUID');
-```
-
-그 뒤 앱 하단의 `관리자 화면`에서 이메일/비밀번호로 로그인합니다.
-
-## GitHub Pages 배포
-이 폴더 안의 파일들을 GitHub 저장소 루트에 업로드한 뒤:
-Settings → Pages → Deploy from a branch → main / root 선택
-
-## 파일
-- index.html
-- styles.css
-- app.js
-- manifest.json
-- sw.js
-- icon.svg / icon-192.png / icon-512.png
+## 적용 순서
+1. Supabase `youth-worship` 프로젝트의 SQL Editor에서 `gratitude_prayers_setup.sql` 내용을 전체 실행합니다.
+2. GitHub 저장소의 다음 파일을 새 파일로 교체합니다.
+   - index.html
+   - app.js
+   - styles.css
+   - manifest.json
+   - sw.js
+3. GitHub Pages 배포가 완료되면 앱을 새로고침합니다.
+4. 설치형 PWA가 이전 화면을 계속 보이면 브라우저에서 사이트 데이터를 지우거나 Service Worker를 해제 후 다시 접속합니다.
 
 ## 참고
-말씀쓰기의 브라우저 붙여넣기/드롭은 차단되어 있습니다.
-다만 웹 브라우저라는 환경 특성상 개발자 도구나 접근성 자동화까지 100% 차단하는 것은 불가능합니다.
-출석 신뢰성이 매우 중요하면 서버 측 검증(타이핑 이벤트 검증/세션 토큰 등)을 추가하는 것이 좋습니다.
+감사기도 원문은 Supabase에 저장되어 관리자가 확인할 수 있습니다. 학생 화면의 연속기록과 최근 기록은 개인정보 노출을 막기 위해 해당 기기의 localStorage를 기준으로 표시합니다. 다른 기기로 바꾸거나 브라우저 데이터를 삭제하면 학생 화면의 연속일수 표시가 초기화될 수 있지만, Supabase에 저장된 원문은 유지됩니다.
