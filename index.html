@@ -121,6 +121,43 @@
           <div class="challenge-stat"><span>오늘</span><strong id="gratitudeToday">미기록</strong></div>
         </div>
 
+        <section class="gratitude-calendar-card" aria-labelledby="gratitudeCalendarTitle">
+          <div class="calendar-toolbar">
+            <div>
+              <span class="eyebrow">나의 감사 달력</span>
+              <h3 id="gratitudeCalendarTitle">감사 기록 달력</h3>
+            </div>
+            <div class="calendar-nav" aria-label="감사 달력 월 이동">
+              <button id="gratitudePrevMonth" class="calendar-nav-btn" type="button" aria-label="이전 달">‹</button>
+              <strong id="gratitudeCalendarMonth">이번 달</strong>
+              <button id="gratitudeNextMonth" class="calendar-nav-btn" type="button" aria-label="다음 달">›</button>
+            </div>
+          </div>
+          <div class="calendar-legend" aria-label="달력 표시 안내">
+            <span><b>🔥</b> 현재 연속 기록</span>
+            <span><b>✅</b> 완료 기록</span>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true">
+            <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+          </div>
+          <div id="gratitudeCalendar" class="gratitude-calendar" role="grid" aria-label="감사기도 기록 달력"></div>
+          <div class="calendar-summary">
+            <strong id="gratitudeMonthCount">이번 달 0일 기록</strong>
+            <span id="gratitudeCalendarHint">감사기도를 기록한 날에 표시가 생깁니다.</span>
+          </div>
+        </section>
+
+        <section class="badge-section" aria-labelledby="gratitudeBadgeTitle">
+          <div class="section-head compact">
+            <div>
+              <span class="eyebrow">연속 달성 배지</span>
+              <h3 id="gratitudeBadgeTitle">나의 챌린지 배지</h3>
+            </div>
+            <span class="pill" id="gratitudeBadgeCount">0/2</span>
+          </div>
+          <div id="gratitudeBadges" class="badge-grid"></div>
+        </section>
+
         <form id="gratitudeForm" class="gratitude-form">
           <label class="field-label">오늘의 감사기도
             <textarea id="gratitudeText" rows="5" maxlength="2000" placeholder="오늘 하나님께 감사한 일, 사람, 순간을 적어 보세요."></textarea>

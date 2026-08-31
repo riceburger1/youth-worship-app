@@ -14,6 +14,7 @@ let weekly = null;
 let questions = [];
 let deferredPrompt = null;
 let isAdmin = false;
+let gratitudeCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 const PROFILE_STORAGE_KEY = "주의울림-profile-v2";
 const GRATITUDE_PREFIX = "주의울림-gratitude-v2:";
@@ -89,9 +90,69 @@ function streakStats(rows) {
   }
   return {current,best};
 }
+function activeStreakDates(rows, stats) {
+  if (!stats.current) return new Set();
+  const dates = new Set(rows.map(x=>x.date).filter(Boolean));
+  const today = localISODate();
+  const yesterday = addDaysISO(today,-1);
+  let last = dates.has(today) ? today : (dates.has(yesterday) ? yesterday : null);
+  if (!last) return new Set();
+  const active = new Set();
+  for (let i=0;i<stats.current;i++) active.add(addDaysISO(last,-i));
+  return active;
+}
+function renderGratitudeCalendar(rows, stats, ready) {
+  const year = gratitudeCalendarCursor.getFullYear();
+  const month = gratitudeCalendarCursor.getMonth();
+  const monthKey = `${year}-${String(month+1).padStart(2,"0")}`;
+  const today = localISODate();
+  const todayObj = new Date();
+  const currentMonthKey = `${todayObj.getFullYear()}-${String(todayObj.getMonth()+1).padStart(2,"0")}`;
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month+1, 0).getDate();
+  const recorded = new Set(rows.map(x=>x.date));
+  const active = activeStreakDates(rows, stats);
+  const cells = [];
+  for (let i=0;i<firstDay;i++) cells.push('<span class="calendar-day empty" aria-hidden="true"></span>');
+  for (let day=1;day<=lastDate;day++) {
+    const iso = `${monthKey}-${String(day).padStart(2,"0")}`;
+    const isRecorded = recorded.has(iso);
+    const isToday = iso === today;
+    const isFuture = iso > today;
+    const icon = isRecorded ? (active.has(iso) ? "🔥" : "✅") : "";
+    const classes = ["calendar-day", isRecorded?"recorded":"", active.has(iso)?"active-streak":"", isToday?"today":"", isFuture?"future":""].filter(Boolean).join(" ");
+    const label = `${year}년 ${month+1}월 ${day}일${isRecorded ? " 감사기도 기록 완료" : ""}${isToday ? " 오늘" : ""}`;
+    cells.push(`<span class="${classes}" role="gridcell" aria-label="${label}"><span class="day-number">${day}</span><span class="day-mark" aria-hidden="true">${icon}</span></span>`);
+  }
+  $("#gratitudeCalendar").innerHTML = cells.join("");
+  $("#gratitudeCalendarMonth").textContent = `${year}년 ${month+1}월`;
+  const monthCount = rows.filter(x=>String(x.date).startsWith(monthKey)).length;
+  $("#gratitudeMonthCount").textContent = `${month+1}월 ${monthCount}일 기록`;
+  $("#gratitudeCalendarHint").textContent = ready ? (monthCount ? "🔥는 현재 이어지는 연속 기록, ✅는 완료한 기록입니다." : "아직 이 달의 기록이 없습니다.") : "내 정보를 입력하면 나의 감사 기록을 표시합니다.";
+  $("#gratitudeNextMonth").disabled = monthKey >= currentMonthKey;
+}
+function renderGratitudeBadges(stats, ready) {
+  const badges = [
+    {days:7, icon:"🏅", title:"7일 감사습관", desc:"7일 연속 감사기도 달성"},
+    {days:30, icon:"🏆", title:"30일 감사습관", desc:"30일 연속 감사기도 달성"}
+  ];
+  const unlockedCount = badges.filter(b=>stats.best>=b.days).length;
+  $("#gratitudeBadgeCount").textContent = `${unlockedCount}/2`;
+  $("#gratitudeBadges").innerHTML = badges.map(b=>{
+    const unlocked = stats.best >= b.days;
+    const progress = unlocked ? b.days : Math.min(stats.current,b.days);
+    const pct = Math.round(progress / b.days * 100);
+    return `<article class="challenge-badge ${unlocked?"unlocked":"locked"}">
+      <div class="badge-icon" aria-hidden="true">${unlocked?b.icon:"🔒"}</div>
+      <div class="badge-copy"><div class="badge-title-row"><strong>${b.title}</strong><span>${unlocked?"달성!":`${progress}/${b.days}일`}</span></div>
+      <p>${unlocked?`${b.desc} 배지를 획득했습니다!`:ready?`${b.days}일을 연속으로 기록하면 배지가 열립니다.`:"내 정보를 입력하고 챌린지를 시작해 보세요."}</p>
+      <div class="badge-progress" aria-label="${b.title} 진행률 ${pct}%"><span style="width:${pct}%"></span></div></div>
+    </article>`;
+  }).join("");
+}
 function renderGratitudeChallenge() {
   const p = profile();
-  const ready = p.grade && p.name;
+  const ready = Boolean(p.grade && p.name);
   const rows = ready ? getLocalGratitude(p).sort((a,b)=>String(b.date).localeCompare(String(a.date))) : [];
   const stats = streakStats(rows);
   const today = localISODate();
@@ -101,6 +162,8 @@ function renderGratitudeChallenge() {
   $("#gratitudeToday").textContent = doneToday ? "완료 ✓" : "미기록";
   $("#gratitudeCount").textContent = `${rows.length}회`;
   $("#gratitudeSubmitBtn").disabled = doneToday;
+  renderGratitudeCalendar(rows, stats, ready);
+  renderGratitudeBadges(stats, ready);
   if (!ready) {
     $("#gratitudeHistory").innerHTML = '<p class="muted">내 정보에서 학년과 이름을 입력하면 챌린지 기록이 표시됩니다.</p>';
     return;
@@ -122,6 +185,17 @@ $$(".tab").forEach(btn => btn.addEventListener("click", () => {
   $("#" + btn.dataset.tab).classList.remove("hidden");
   if (btn.dataset.tab === "gratitude") renderGratitudeChallenge();
 }));
+$("#gratitudePrevMonth").addEventListener("click", () => {
+  gratitudeCalendarCursor = new Date(gratitudeCalendarCursor.getFullYear(), gratitudeCalendarCursor.getMonth()-1, 1);
+  renderGratitudeChallenge();
+});
+$("#gratitudeNextMonth").addEventListener("click", () => {
+  const now = new Date();
+  const next = new Date(gratitudeCalendarCursor.getFullYear(), gratitudeCalendarCursor.getMonth()+1, 1);
+  const current = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (next <= current) gratitudeCalendarCursor = next;
+  renderGratitudeChallenge();
+});
 
 window.addEventListener("beforeinstallprompt", e => {
   e.preventDefault();
@@ -259,6 +333,7 @@ $("#gratitudeForm").addEventListener("submit", async e => {
   if (!text) { $("#gratitudeStatus").textContent = "오늘 감사한 내용을 적어 주세요."; return; }
   const today = localISODate();
   let localRows = getLocalGratitude(p);
+  const beforeStats = streakStats(localRows);
   if (localRows.some(x=>x.date===today)) {
     $("#gratitudeStatus").textContent = "오늘 감사기도는 이미 기록했습니다. 내일 다시 이어가세요!";
     renderGratitudeChallenge();
@@ -282,7 +357,10 @@ $("#gratitudeForm").addEventListener("submit", async e => {
   e.target.reset();
   renderGratitudeChallenge();
   const stats = streakStats(localRows);
-  $("#gratitudeStatus").textContent = `오늘의 감사기도 완료! 현재 ${stats.current}일 연속 기록 중입니다. 🔥`;
+  let badgeMessage = "";
+  if (beforeStats.best < 30 && stats.best >= 30) badgeMessage = " 🏆 30일 감사습관 배지를 획득했습니다!";
+  else if (beforeStats.best < 7 && stats.best >= 7) badgeMessage = " 🏅 7일 감사습관 배지를 획득했습니다!";
+  $("#gratitudeStatus").textContent = `오늘의 감사기도 완료! 현재 ${stats.current}일 연속 기록 중입니다. 🔥${badgeMessage}`;
 });
 
 async function loadNotices() {
