@@ -3,7 +3,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v8-admin-content-editor";
+const APP_VERSION = "v10-weekly-editor";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
 const $ = (q) => document.querySelector(q);
@@ -454,7 +454,7 @@ async function verifyAdmin(user) {
   }
   $("#adminLoginStatus").textContent = "";
   setAdminState(true);
-  $("#weeklyAdminStatus").textContent = "관리자 콘텐츠 편집 v9 준비 완료.";
+  $("#weeklyAdminStatus").textContent = "관리자 말씀·성경공부 편집 v10 준비 완료.";
   await Promise.all([loadAdminWeeklyOptions(), loadAdminNoticeOptions(), loadAdminRecords()]);
 }
 function setAdminState(value) {
@@ -477,7 +477,7 @@ function currentMondayISO() {
 
 function resetWeeklyEditor() {
   adminWeeklyId = null;
-  $("#weeklyPicker").value = "__new__";
+  if ($("#weeklyPicker")) $("#weeklyPicker").value = "__new__";
   $("#weekStart").value = currentMondayISO();
   $("#adminVerseRef").value = "";
   $("#adminVerseText").value = "";
@@ -486,16 +486,19 @@ function resetWeeklyEditor() {
   $("#adminQ2").value = "";
   $("#adminQ3").value = "";
   $("#weeklyPublished").checked = true;
-  $("#weeklyModeLabel").textContent = "새 주차 등록 모드입니다.";
-  $("#weeklySubmitBtn").textContent = "말씀·문제 등록";
-  $("#weeklyAdminStatus").textContent = "새 말씀과 성경공부 문제를 입력해 주세요.";
+  $("#weeklyModeLabel").textContent = "새 주차 등록 모드입니다. 말씀을 먼저 저장한 뒤 성경공부를 등록할 수 있습니다.";
+  $("#wordSaveBtn").textContent = "말씀 등록";
+  $("#studySaveBtn").textContent = "성경공부 등록";
+  $("#deleteStudyBtn").disabled = true;
+  $("#deleteWeeklyBtn").disabled = true;
+  $("#weeklyAdminStatus").textContent = "새 말씀을 입력해 저장해 주세요.";
 }
 
 async function loadAdminWeeklyOptions(preferredId = null) {
   if (!isAdmin) return;
   const { data, error } = await db.from("weekly_contents").select("*").order("week_start", {ascending:false});
   if (error) {
-    $("#weeklyAdminStatus").textContent = dbErrorMessage(error, "기존 말씀 목록을 불러오지 못했습니다.");
+    $("#weeklyAdminStatus").textContent = dbErrorMessage(error, "지난 말씀 목록을 불러오지 못했습니다.");
     return;
   }
   adminWeeklyRows = data || [];
@@ -520,8 +523,11 @@ async function loadAdminWeeklyEditor(id) {
   $("#adminStudyTitle").value = row.study_title || "";
   $("#weeklyPublished").checked = Boolean(row.published);
   $("#weeklyModeLabel").textContent = `${row.week_start || "날짜 없음"} 기록을 수정 중입니다.`;
-  $("#weeklySubmitBtn").textContent = "말씀·문제 수정 저장";
-  $("#weeklyAdminStatus").textContent = "기존 말씀과 성경공부 문제를 불러왔습니다.";
+  $("#wordSaveBtn").textContent = "말씀 수정 저장";
+  $("#studySaveBtn").textContent = "성경공부 수정 저장";
+  $("#deleteStudyBtn").disabled = false;
+  $("#deleteWeeklyBtn").disabled = false;
+  $("#weeklyAdminStatus").textContent = "기존 말씀과 성경공부를 불러왔습니다. 필요한 부분만 수정할 수 있습니다.";
   const { data, error } = await db.from("study_questions").select("*").eq("weekly_content_id", row.id).order("question_order");
   if (error) {
     $("#weeklyAdminStatus").textContent = dbErrorMessage(error, "성경공부 문제를 불러오지 못했습니다.");
@@ -539,83 +545,119 @@ $("#weeklyPicker").addEventListener("change", async e => {
 });
 $("#newWeeklyBtn").addEventListener("click", resetWeeklyEditor);
 
-async function directSaveWeekly(payload, qs) {
-  let wid = adminWeeklyId;
-  if (wid) {
-    const upd = await db.from("weekly_contents").update(payload).eq("id", wid).select("id").maybeSingle();
-    if (upd.error) return {error:upd.error};
-    if (!upd.data?.id) return {error:{code:"PGRST116",message:"수정 대상 말씀을 다시 읽지 못했습니다."}};
-    wid = String(upd.data.id);
-  } else {
-    const existing = await db.from("weekly_contents").select("id").eq("week_start", payload.week_start).limit(1).maybeSingle();
-    if (existing.error) return {error:existing.error};
-    if (existing.data?.id) {
-      const upd = await db.from("weekly_contents").update(payload).eq("id", existing.data.id).select("id").maybeSingle();
-      if (upd.error) return {error:upd.error};
-      wid = String(existing.data.id);
-    } else {
-      const ins = await db.from("weekly_contents").insert(payload).select("id").single();
-      if (ins.error) return {error:ins.error};
-      wid = String(ins.data.id);
-    }
-  }
-  const del = await db.from("study_questions").delete().eq("weekly_content_id", wid);
-  if (del.error) return {error:del.error, partial:true};
-  const insQ = await db.from("study_questions").insert(qs.map((text,i)=>({
-    weekly_content_id: wid, question_order:i+1, question_text:text
-  })));
-  if (insQ.error) return {error:insQ.error, partial:true};
-  return {id:wid};
-}
-
-async function saveWeeklyContent(payload, qs) {
-  const rpc = await db.rpc("youth_admin_save_weekly", {
+async function rpcSaveWord(payload) {
+  return db.rpc("youth_admin_save_word_v2", {
     p_content_id: adminWeeklyId || null,
     p_week_start: payload.week_start,
     p_verse_reference: payload.verse_reference,
     p_verse_text: payload.verse_text,
-    p_study_title: payload.study_title,
-    p_published: payload.published,
-    p_questions: qs
+    p_published: payload.published
   });
-  if (!rpc.error) return {id:String(rpc.data)};
-  // SQL 함수를 아직 적용하지 않은 경우에만 기존 Data API 방식으로 자동 대체합니다.
-  if (["PGRST202","42883"].includes(rpc.error.code) || String(rpc.error.message || "").includes("youth_admin_save_weekly")) {
-    return directSaveWeekly(payload, qs);
-  }
-  return {error:rpc.error};
 }
 
-$("#weeklyForm").addEventListener("submit", async e => {
-  e.preventDefault();
+async function rpcSaveStudy(contentId, title, qs) {
+  return db.rpc("youth_admin_save_study_v2", {
+    p_content_id: String(contentId),
+    p_study_title: title,
+    p_questions: qs
+  });
+}
+
+$("#wordSaveBtn").addEventListener("click", async () => {
   const status = $("#weeklyAdminStatus");
   if (!isAdmin) { status.textContent = "관리자 로그인 후 저장해 주세요."; return; }
   const payload = {
     week_start: $("#weekStart").value,
     verse_reference: clean($("#adminVerseRef").value),
     verse_text: clean($("#adminVerseText").value),
-    study_title: clean($("#adminStudyTitle").value),
     published: $("#weeklyPublished").checked
   };
-  const qs = [clean($("#adminQ1").value), clean($("#adminQ2").value), clean($("#adminQ3").value)].filter(Boolean);
-  if (!payload.week_start || !payload.verse_reference || !payload.verse_text || !payload.study_title || qs.length < 2) {
-    status.textContent = "주 시작일, 말씀, 성경공부 제목과 질문 2개 이상을 입력해 주세요.";
+  if (!payload.week_start || !payload.verse_reference || !payload.verse_text) {
+    status.textContent = "주 시작일, 말씀구절, 말씀본문을 입력해 주세요.";
     return;
   }
   const wasEditing = Boolean(adminWeeklyId);
-  status.textContent = wasEditing ? "기존 말씀과 문제를 수정하고 있습니다…" : "새 말씀과 문제를 등록하고 있습니다…";
-  $("#weeklySubmitBtn").disabled = true;
-  const result = await saveWeeklyContent(payload, qs);
-  $("#weeklySubmitBtn").disabled = false;
-  if (result.error) {
-    status.textContent = dbErrorMessage(result.error, wasEditing ? "말씀·성경공부 수정에 실패했습니다." : "말씀·성경공부 등록에 실패했습니다.");
+  status.textContent = wasEditing ? "말씀을 수정하고 있습니다…" : "말씀을 등록하고 있습니다…";
+  $("#wordSaveBtn").disabled = true;
+  const { data, error } = await rpcSaveWord(payload);
+  $("#wordSaveBtn").disabled = false;
+  if (error) {
+    status.textContent = dbErrorMessage(error, wasEditing ? "말씀 수정에 실패했습니다." : "말씀 등록에 실패했습니다.");
     return;
   }
-  adminWeeklyId = result.id;
+  adminWeeklyId = String(data);
   await loadAdminWeeklyOptions(adminWeeklyId);
   await loadWeekly();
   await loadAdminRecords();
-  status.textContent = wasEditing ? "말씀과 성경공부 문제가 수정되었습니다." : "말씀과 성경공부 문제가 등록되었습니다.";
+  status.textContent = wasEditing ? "말씀이 수정되었습니다." : "말씀이 등록되었습니다. 이제 성경공부도 등록할 수 있습니다.";
+});
+
+$("#studySaveBtn").addEventListener("click", async () => {
+  const status = $("#weeklyAdminStatus");
+  if (!isAdmin) { status.textContent = "관리자 로그인 후 저장해 주세요."; return; }
+  if (!adminWeeklyId) {
+    status.textContent = "성경공부를 연결할 말씀이 아직 없습니다. 말씀을 먼저 저장해 주세요.";
+    return;
+  }
+  const title = clean($("#adminStudyTitle").value);
+  const qs = [clean($("#adminQ1").value), clean($("#adminQ2").value), clean($("#adminQ3").value)].filter(Boolean);
+  if (!title || qs.length < 2 || qs.length > 3) {
+    status.textContent = "성경공부 제목과 질문 2개 이상(최대 3개)을 입력해 주세요.";
+    return;
+  }
+  status.textContent = "성경공부를 저장하고 있습니다…";
+  $("#studySaveBtn").disabled = true;
+  const { error } = await rpcSaveStudy(adminWeeklyId, title, qs);
+  $("#studySaveBtn").disabled = false;
+  if (error) {
+    status.textContent = dbErrorMessage(error, "성경공부 저장에 실패했습니다.");
+    return;
+  }
+  await loadAdminWeeklyOptions(adminWeeklyId);
+  await loadWeekly();
+  status.textContent = "성경공부 제목과 문제가 저장되었습니다.";
+});
+
+$("#deleteStudyBtn").addEventListener("click", async () => {
+  const status = $("#weeklyAdminStatus");
+  if (!adminWeeklyId) return;
+  if (!confirm("선택한 주차의 성경공부 제목과 질문을 삭제할까요? 말씀은 그대로 유지됩니다.")) return;
+  status.textContent = "성경공부를 삭제하고 있습니다…";
+  $("#deleteStudyBtn").disabled = true;
+  const { error } = await db.rpc("youth_admin_delete_study_v2", { p_content_id:String(adminWeeklyId) });
+  if (error) {
+    $("#deleteStudyBtn").disabled = false;
+    status.textContent = dbErrorMessage(error, "성경공부 삭제에 실패했습니다.");
+    return;
+  }
+  await loadAdminWeeklyOptions(adminWeeklyId);
+  await loadWeekly();
+  status.textContent = "선택한 주차의 성경공부 내용이 삭제되었습니다.";
+});
+
+$("#deleteWeeklyBtn").addEventListener("click", async () => {
+  const status = $("#weeklyAdminStatus");
+  if (!adminWeeklyId) return;
+  const row = adminWeeklyRows.find(r=>String(r.id)===String(adminWeeklyId));
+  const label = row ? `${row.week_start || "해당 주차"} · ${row.verse_reference || "말씀"}` : "선택한 주차";
+  if (!confirm(`${label}의 말씀과 성경공부를 전체 삭제할까요?\n\n학생 제출 기록이 있는 주차는 안전을 위해 삭제되지 않습니다.`)) return;
+  status.textContent = "주차 기록을 삭제하고 있습니다…";
+  $("#deleteWeeklyBtn").disabled = true;
+  const { error } = await db.rpc("youth_admin_delete_weekly_v2", { p_content_id:String(adminWeeklyId) });
+  if (error) {
+    $("#deleteWeeklyBtn").disabled = false;
+    if (error.code === "23503") {
+      status.textContent = `학생 제출 기록이 연결되어 있어 전체 삭제할 수 없습니다. ‘학생에게 공개’를 해제해 보관해 주세요. [23503]`;
+    } else {
+      status.textContent = dbErrorMessage(error, "주차 전체 삭제에 실패했습니다.");
+    }
+    return;
+  }
+  adminWeeklyId = null;
+  await loadAdminWeeklyOptions();
+  await loadWeekly();
+  await loadAdminRecords();
+  status.textContent = "선택한 주차의 말씀과 성경공부가 삭제되었습니다.";
 });
 
 function resetNoticeEditor() {

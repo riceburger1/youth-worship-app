@@ -212,30 +212,57 @@
 
         <div id="adminWorkspace" class="hidden">
           <div class="admin-grid">
-            <form id="weeklyForm" class="subcard admin-editor-card">
+            <section id="weeklyForm" class="subcard admin-editor-card">
               <div class="admin-editor-head">
                 <div>
-                  <h3>이번 주 말씀 · 성경공부</h3>
-                  <p id="weeklyModeLabel" class="muted admin-mode-label">기존 기록을 선택해 수정하거나 새 주차를 등록할 수 있습니다.</p>
+                  <h3>말씀 · 성경공부 관리</h3>
+                  <p id="weeklyModeLabel" class="muted admin-mode-label">지난 기록을 선택해 수정하거나 새 주차를 등록할 수 있습니다.</p>
                 </div>
                 <button id="newWeeklyBtn" class="ghost compact-btn" type="button">새 주차 작성</button>
               </div>
-              <label>기존 기록 선택
+
+              <label>지난 말씀 / 성경공부 선택
                 <select id="weeklyPicker">
                   <option value="">기록을 불러오는 중...</option>
                 </select>
               </label>
-              <label>주 시작일<input id="weekStart" type="date" required /></label>
-              <label>말씀구절<input id="adminVerseRef" type="text" maxlength="120" required /></label>
-              <label>말씀본문<textarea id="adminVerseText" rows="5" maxlength="5000" required></textarea></label>
-              <label>성경공부 제목<input id="adminStudyTitle" type="text" maxlength="200" required /></label>
-              <label>질문 1<textarea id="adminQ1" rows="2" maxlength="2000" required></textarea></label>
-              <label>질문 2<textarea id="adminQ2" rows="2" maxlength="2000" required></textarea></label>
-              <label>질문 3 (선택)<textarea id="adminQ3" rows="2" maxlength="2000"></textarea></label>
-              <label class="check-row"><input id="weeklyPublished" type="checkbox" checked /> 학생에게 공개</label>
-              <button id="weeklySubmitBtn" class="primary" type="submit">말씀·문제 등록</button>
+
+              <div class="admin-subsection">
+                <div class="admin-subsection-head">
+                  <div>
+                    <span class="eyebrow">말씀 관리</span>
+                    <h4>말씀 등록 · 수정</h4>
+                  </div>
+                </div>
+                <label>주 시작일<input id="weekStart" type="date" /></label>
+                <label>말씀구절<input id="adminVerseRef" type="text" maxlength="120" /></label>
+                <label>말씀본문<textarea id="adminVerseText" rows="5" maxlength="5000"></textarea></label>
+                <label class="check-row"><input id="weeklyPublished" type="checkbox" checked /> 학생에게 공개</label>
+                <button id="wordSaveBtn" class="primary" type="button">말씀 등록</button>
+              </div>
+
+              <div class="admin-subsection">
+                <div class="admin-subsection-head">
+                  <div>
+                    <span class="eyebrow">성경공부 관리</span>
+                    <h4>성경공부 등록 · 수정</h4>
+                  </div>
+                </div>
+                <label>성경공부 제목<input id="adminStudyTitle" type="text" maxlength="200" /></label>
+                <label>질문 1<textarea id="adminQ1" rows="2" maxlength="2000"></textarea></label>
+                <label>질문 2<textarea id="adminQ2" rows="2" maxlength="2000"></textarea></label>
+                <label>질문 3 (선택)<textarea id="adminQ3" rows="2" maxlength="2000"></textarea></label>
+                <button id="studySaveBtn" class="primary" type="button">성경공부 등록</button>
+                <button id="deleteStudyBtn" class="ghost danger-outline" type="button" disabled>선택한 주차 성경공부 삭제</button>
+              </div>
+
+              <div class="admin-danger-zone">
+                <strong>지난 기록 삭제</strong>
+                <p>학생 제출 기록이 없는 주차만 전체 삭제할 수 있습니다. 제출 기록이 있는 경우에는 ‘학생에게 공개’를 해제해 보관하세요.</p>
+                <button id="deleteWeeklyBtn" class="danger-btn" type="button" disabled>선택한 주차 말씀·성경공부 전체 삭제</button>
+              </div>
               <p id="weeklyAdminStatus" class="status"></p>
-            </form>
+            </section>
 
             <form id="noticeAdminForm" class="subcard admin-editor-card">
               <div class="admin-editor-head">

@@ -52,3 +52,17 @@ a{color:var(--accent);font-weight:700}
 .notice-state-badge{display:inline-flex;align-items:center;min-height:25px;padding:3px 8px;border-radius:999px;background:#eef4f1;color:#31574a;font-size:.75rem;font-weight:800}
 .notice-past{background:#fbfcfb}
 .notice-past .notice-state-badge{background:#f2f2f2;color:#6b746f}
+
+
+/* 관리자 말씀·성경공부 분리 편집 v10 */
+.admin-subsection{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.admin-subsection-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.admin-subsection-head h4{margin:0;font-size:1rem}
+.admin-subsection .primary{width:100%}
+.admin-danger-zone{display:grid;gap:8px;padding:14px;border:1px solid #e8caca;border-radius:14px;background:#fff8f8}
+.admin-danger-zone strong{color:var(--danger)}
+.admin-danger-zone p{margin:0;color:var(--muted);font-size:.78rem;line-height:1.55}
+.danger-btn,.danger-outline{min-height:44px;border-radius:12px;padding:10px 12px;font-weight:800}
+.danger-btn{border:1px solid var(--danger);background:var(--danger);color:#fff}
+.danger-outline{border:1px solid #d9a8a8;background:#fff;color:var(--danger)}
+.danger-btn:disabled,.danger-outline:disabled{opacity:.4;cursor:not-allowed}
