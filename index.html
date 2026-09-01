@@ -21,6 +21,11 @@
       <button id="installBtn" class="ghost hidden" type="button">앱 설치</button>
     </header>
 
+    <div id="supabaseConnection" class="connection-bar checking" role="status" aria-live="polite">
+      <span id="supabaseConnectionText">Supabase 연결 확인 중…</span>
+      <button id="retryConnectionBtn" class="connection-retry" type="button" disabled>다시 연결</button>
+    </div>
+
     <section id="bannerArea" class="banner-wrap"></section>
 
     <main>
@@ -212,56 +217,55 @@
 
         <div id="adminWorkspace" class="hidden">
           <div class="admin-grid">
-            <section id="weeklyForm" class="subcard admin-editor-card">
+            <section id="wordAdminCard" class="subcard admin-editor-card">
               <div class="admin-editor-head">
                 <div>
-                  <h3>말씀 · 성경공부 관리</h3>
-                  <p id="weeklyModeLabel" class="muted admin-mode-label">지난 기록을 선택해 수정하거나 새 주차를 등록할 수 있습니다.</p>
+                  <h3>말씀 관리</h3>
+                  <p id="wordModeLabel" class="muted admin-mode-label">지난 말씀을 선택해 수정·삭제하거나 새 말씀을 등록할 수 있습니다.</p>
                 </div>
-                <button id="newWeeklyBtn" class="ghost compact-btn" type="button">새 주차 작성</button>
+                <button id="newWordBtn" class="ghost compact-btn" type="button">새 말씀 작성</button>
               </div>
 
-              <label>지난 말씀 / 성경공부 선택
-                <select id="weeklyPicker">
-                  <option value="">기록을 불러오는 중...</option>
+              <label>지난 말씀 선택
+                <select id="wordPicker">
+                  <option value="">말씀을 불러오는 중...</option>
                 </select>
               </label>
-
-              <div class="admin-subsection">
-                <div class="admin-subsection-head">
-                  <div>
-                    <span class="eyebrow">말씀 관리</span>
-                    <h4>말씀 등록 · 수정</h4>
-                  </div>
-                </div>
-                <label>주 시작일<input id="weekStart" type="date" /></label>
-                <label>말씀구절<input id="adminVerseRef" type="text" maxlength="120" /></label>
-                <label>말씀본문<textarea id="adminVerseText" rows="5" maxlength="5000"></textarea></label>
-                <label class="check-row"><input id="weeklyPublished" type="checkbox" checked /> 학생에게 공개</label>
+              <label>주 시작일<input id="wordWeekStart" type="date" /></label>
+              <label>말씀구절<input id="adminVerseRef" type="text" maxlength="120" /></label>
+              <label>말씀본문<textarea id="adminVerseText" rows="5" maxlength="5000"></textarea></label>
+              <label class="check-row"><input id="wordPublished" type="checkbox" checked /> 학생에게 공개</label>
+              <div class="admin-action-row">
                 <button id="wordSaveBtn" class="primary" type="button">말씀 등록</button>
+                <button id="deleteWordBtn" class="ghost danger-outline" type="button" disabled>선택한 말씀 삭제</button>
               </div>
+              <p class="muted small-note">말씀을 삭제하면 같은 주차의 성경공부와 연결된 말씀쓰기 출석·성경공부 제출 기록도 함께 삭제됩니다. 기도제목 내용은 보존됩니다.</p>
+              <p id="wordAdminStatus" class="status"></p>
+            </section>
 
-              <div class="admin-subsection">
-                <div class="admin-subsection-head">
-                  <div>
-                    <span class="eyebrow">성경공부 관리</span>
-                    <h4>성경공부 등록 · 수정</h4>
-                  </div>
+            <section id="studyAdminCard" class="subcard admin-editor-card">
+              <div class="admin-editor-head">
+                <div>
+                  <h3>성경공부 관리</h3>
+                  <p id="studyModeLabel" class="muted admin-mode-label">말씀 주차를 선택한 뒤 성경공부를 등록·수정·삭제할 수 있습니다.</p>
                 </div>
-                <label>성경공부 제목<input id="adminStudyTitle" type="text" maxlength="200" /></label>
-                <label>질문 1<textarea id="adminQ1" rows="2" maxlength="2000"></textarea></label>
-                <label>질문 2<textarea id="adminQ2" rows="2" maxlength="2000"></textarea></label>
-                <label>질문 3 (선택)<textarea id="adminQ3" rows="2" maxlength="2000"></textarea></label>
-                <button id="studySaveBtn" class="primary" type="button">성경공부 등록</button>
-                <button id="deleteStudyBtn" class="ghost danger-outline" type="button" disabled>선택한 주차 성경공부 삭제</button>
               </div>
 
-              <div class="admin-danger-zone">
-                <strong>지난 기록 삭제</strong>
-                <p>선택한 지난 말씀·성경공부를 삭제할 수 있습니다. 전체 삭제 시 연결된 말씀쓰기 출석과 성경공부 제출 기록도 함께 삭제되며, 기도제목 내용은 보존됩니다.</p>
-                <button id="deleteWeeklyBtn" class="danger-btn" type="button" disabled>선택한 주차 말씀·성경공부 전체 삭제</button>
+              <label>연결할 말씀 / 지난 성경공부 선택
+                <select id="studyPicker">
+                  <option value="">말씀을 불러오는 중...</option>
+                </select>
+              </label>
+              <div id="studyWeekInfo" class="mini-info muted">말씀을 선택해 주세요.</div>
+              <label>성경공부 제목<input id="adminStudyTitle" type="text" maxlength="200" /></label>
+              <label>질문 1<textarea id="adminQ1" rows="2" maxlength="2000"></textarea></label>
+              <label>질문 2<textarea id="adminQ2" rows="2" maxlength="2000"></textarea></label>
+              <label>질문 3 (선택)<textarea id="adminQ3" rows="2" maxlength="2000"></textarea></label>
+              <div class="admin-action-row">
+                <button id="studySaveBtn" class="primary" type="button">성경공부 등록</button>
+                <button id="deleteStudyBtn" class="ghost danger-outline" type="button" disabled>선택한 성경공부 삭제</button>
               </div>
-              <p id="weeklyAdminStatus" class="status"></p>
+              <p id="studyAdminStatus" class="status"></p>
             </section>
 
             <form id="noticeAdminForm" class="subcard admin-editor-card">
@@ -296,7 +300,8 @@
             </div>
 
             <div class="subcard">
-              <h3>이번 주 제출 현황</h3>
+              <h3>현재 주일 제출 현황</h3>
+              <p id="recordWeekLabel" class="muted">이번 주일 기준</p>
               <div class="stats">
                 <div><span>말씀쓰기</span><strong id="statAttendance">0</strong></div>
                 <div><span>성경공부</span><strong id="statStudy">0</strong></div>
@@ -308,9 +313,15 @@
             </div>
           </div>
 
-          <div class="subcard">
-            <h3>학생 제출 기록</h3>
-            <div id="adminRecords" class="list"></div>
+          <div class="subcard records-manager-card">
+            <div class="admin-editor-head">
+              <div>
+                <h3>학생 제출 기록</h3>
+                <p class="muted">모든 제출 기록을 주일 날짜별로 모아 표시합니다. 각 기록의 삭제 버튼으로 개별 삭제할 수 있습니다.</p>
+              </div>
+            </div>
+            <p id="recordsAdminStatus" class="status"></p>
+            <div id="adminRecords" class="weekly-record-groups"></div>
           </div>
         </div>
       </section>

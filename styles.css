@@ -66,3 +66,57 @@ a{color:var(--accent);font-weight:700}
 .danger-btn{border:1px solid var(--danger);background:var(--danger);color:#fff}
 .danger-outline{border:1px solid #d9a8a8;background:#fff;color:var(--danger)}
 .danger-btn:disabled,.danger-outline:disabled{opacity:.4;cursor:not-allowed}
+
+/* ===== v12 관리자 분리/주일별 제출 기록 ===== */
+.small-note{font-size:.9rem;line-height:1.55;margin-top:.65rem}
+.mini-info{padding:.7rem .8rem;border:1px solid var(--line,#dfe5e1);border-radius:12px;margin:.35rem 0 .8rem;background:rgba(255,255,255,.55)}
+.records-manager-card{margin-top:1rem}
+.weekly-record-groups{display:grid;gap:.8rem}
+.record-week-group{border:1px solid var(--line,#dfe5e1);border-radius:16px;overflow:hidden;background:rgba(255,255,255,.55)}
+.record-week-group>summary{cursor:pointer;display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem;list-style:none;font-weight:700}
+.record-week-group>summary::-webkit-details-marker{display:none}
+.record-week-group>summary span:first-child{display:flex;flex-direction:column;gap:.2rem;min-width:0}
+.record-week-group>summary small{font-weight:500;color:var(--muted,#66746c)}
+.record-week-counts{font-size:.86rem;color:var(--muted,#66746c);font-weight:600;text-align:right}
+.record-week-body{display:grid;gap:.7rem;padding:0 1rem 1rem}
+.record-item{margin:0}
+.record-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.8rem}
+.record-item-head>div{min-width:0}
+.record-delete-btn{flex:0 0 auto}
+@media (max-width:640px){
+  .record-week-group>summary{align-items:flex-start;flex-direction:column;gap:.35rem}
+  .record-week-counts{text-align:left}
+  .record-item-head{gap:.5rem}
+}
+
+
+/* v13 Supabase 연결 상태 */
+.connection-bar{
+  max-width:1100px;
+  margin:8px auto 0;
+  padding:8px 14px;
+  border:1px solid var(--line, #d9e2dd);
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  font-size:.86rem;
+  background:rgba(255,255,255,.72);
+}
+.connection-bar.checking{opacity:.8}
+.connection-bar.connected{border-color:#a9d7bd;background:#eefaf2}
+.connection-bar.error{border-color:#e2aaa5;background:#fff2f1}
+.connection-retry{
+  border:1px solid currentColor;
+  border-radius:999px;
+  padding:5px 10px;
+  background:transparent;
+  font:inherit;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.connection-retry:disabled{opacity:.45;cursor:default}
+@media (max-width:600px){
+  .connection-bar{margin:8px 12px 0;font-size:.8rem}
+}
