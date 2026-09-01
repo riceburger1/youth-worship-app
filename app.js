@@ -3,7 +3,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v10-weekly-editor";
+const APP_VERSION = "v11-attendance-delete";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
 const $ = (q) => document.querySelector(q);
@@ -295,20 +295,48 @@ verseInput.addEventListener("input", () => {
   else $("#wordStatus").textContent = "다른 글자가 있습니다. 본문을 다시 확인해 주세요.";
 });
 
+async function submitAttendance(p) {
+  const rpc = await db.rpc("youth_submit_attendance_v1", {
+    p_weekly_content_id: String(weekly.id),
+    p_grade: p.grade,
+    p_student_name: p.name
+  });
+  if (!rpc.error) return { status: String(rpc.data || "saved") };
+
+  // SQL을 아직 적용하지 않은 환경에서는 기존 INSERT 방식으로 한 번 더 시도합니다.
+  if (["PGRST202","42883"].includes(rpc.error.code) || String(rpc.error.message || "").includes("youth_submit_attendance_v1")) {
+    const direct = await db.from("attendance").insert({
+      weekly_content_id: weekly.id, grade:p.grade, student_name:p.name
+    });
+    if (direct.error) return { error: direct.error };
+    return { status: "saved" };
+  }
+  return { error: rpc.error };
+}
+
 $("#completeWordBtn").addEventListener("click", async () => {
-  const p = requireProfile($("#wordStatus"));
+  const status = $("#wordStatus");
+  const p = requireProfile(status);
   if (!p || !weekly) return;
   if (normalize(verseInput.value) !== normalize(weekly.verse_text)) return;
-  const { error } = await db.from("attendance").insert({
-    weekly_content_id: weekly.id, grade:p.grade, student_name:p.name
-  });
-  if (error) {
-    $("#wordStatus").textContent = error.code === "23505"
+
+  $("#completeWordBtn").disabled = true;
+  status.textContent = "말씀쓰기 완료와 출석을 저장하고 있습니다…";
+  const result = await submitAttendance(p);
+
+  if (result.error) {
+    $("#completeWordBtn").disabled = false;
+    status.textContent = result.error.code === "23505"
       ? "이미 이번 주 말씀쓰기 출석이 완료되어 있습니다."
-      : "저장 중 오류가 발생했습니다.";
+      : dbErrorMessage(result.error, "말씀쓰기 출석 저장에 실패했습니다.");
     return;
   }
-  $("#wordStatus").textContent = "완료! 말씀쓰기와 출석이 기록되었습니다.";
+
+  if (result.status === "duplicate") {
+    status.textContent = "이미 이번 주 말씀쓰기 출석이 완료되어 있습니다.";
+  } else {
+    status.textContent = "완료! 말씀쓰기와 출석이 기록되었습니다.";
+  }
   $("#completeWordBtn").disabled = true;
 });
 
@@ -454,7 +482,7 @@ async function verifyAdmin(user) {
   }
   $("#adminLoginStatus").textContent = "";
   setAdminState(true);
-  $("#weeklyAdminStatus").textContent = "관리자 말씀·성경공부 편집 v10 준비 완료.";
+  $("#weeklyAdminStatus").textContent = "관리자 말씀·성경공부·공지 삭제 v11 준비 완료.";
   await Promise.all([loadAdminWeeklyOptions(), loadAdminNoticeOptions(), loadAdminRecords()]);
 }
 function setAdminState(value) {
@@ -640,24 +668,20 @@ $("#deleteWeeklyBtn").addEventListener("click", async () => {
   if (!adminWeeklyId) return;
   const row = adminWeeklyRows.find(r=>String(r.id)===String(adminWeeklyId));
   const label = row ? `${row.week_start || "해당 주차"} · ${row.verse_reference || "말씀"}` : "선택한 주차";
-  if (!confirm(`${label}의 말씀과 성경공부를 전체 삭제할까요?\n\n학생 제출 기록이 있는 주차는 안전을 위해 삭제되지 않습니다.`)) return;
-  status.textContent = "주차 기록을 삭제하고 있습니다…";
+  if (!confirm(`${label}의 말씀과 성경공부를 완전히 삭제할까요?\n\n이 주차에 연결된 말씀쓰기 출석과 성경공부 제출 기록도 함께 삭제됩니다. 기도제목은 주차 연결만 해제하고 내용은 보존합니다.\n\n삭제 후에는 되돌릴 수 없습니다.`)) return;
+  status.textContent = "주차 기록과 연결된 제출 기록을 삭제하고 있습니다…";
   $("#deleteWeeklyBtn").disabled = true;
-  const { error } = await db.rpc("youth_admin_delete_weekly_v2", { p_content_id:String(adminWeeklyId) });
-  if (error) {
-    $("#deleteWeeklyBtn").disabled = false;
-    if (error.code === "23503") {
-      status.textContent = `학생 제출 기록이 연결되어 있어 전체 삭제할 수 없습니다. ‘학생에게 공개’를 해제해 보관해 주세요. [23503]`;
-    } else {
-      status.textContent = dbErrorMessage(error, "주차 전체 삭제에 실패했습니다.");
-    }
+  const result = await db.rpc("youth_admin_delete_weekly_v3", { p_content_id:String(adminWeeklyId) });
+  $("#deleteWeeklyBtn").disabled = false;
+  if (result.error) {
+    status.textContent = dbErrorMessage(result.error, "주차 전체 삭제에 실패했습니다.");
     return;
   }
   adminWeeklyId = null;
   await loadAdminWeeklyOptions();
   await loadWeekly();
   await loadAdminRecords();
-  status.textContent = "선택한 주차의 말씀과 성경공부가 삭제되었습니다.";
+  status.textContent = "선택한 주차의 말씀·성경공부와 연결된 출석/성경공부 제출 기록이 삭제되었습니다.";
 });
 
 function resetNoticeEditor() {
@@ -670,6 +694,7 @@ function resetNoticeEditor() {
   $("#noticePublished").checked = true;
   $("#noticeModeLabel").textContent = "새 공지 등록 모드입니다.";
   $("#noticeSubmitBtn").textContent = "공지 등록";
+  $("#deleteNoticeBtn").disabled = true;
   $("#noticeAdminStatus").textContent = "새 공지 내용을 입력해 주세요.";
 }
 
@@ -703,7 +728,8 @@ function loadAdminNoticeEditor(id) {
   $("#noticePublished").checked = Boolean(row.published);
   $("#noticeModeLabel").textContent = `“${row.title || "제목 없음"}” 공지를 수정 중입니다.`;
   $("#noticeSubmitBtn").textContent = "공지 수정 저장";
-  $("#noticeAdminStatus").textContent = "기존 공지 내용을 불러왔습니다.";
+  $("#deleteNoticeBtn").disabled = false;
+  $("#noticeAdminStatus").textContent = "기존 공지 내용을 불러왔습니다. 수정하거나 삭제할 수 있습니다.";
 }
 
 $("#noticePicker").addEventListener("change", e => {
@@ -769,6 +795,29 @@ $("#noticeAdminForm").addEventListener("submit", async e => {
   await loadNotices();
   await loadAdminNoticeOptions(adminNoticeId);
   status.textContent = wasEditing ? "공지사항이 수정되었습니다." : "공지사항이 등록되었습니다.";
+});
+
+$("#deleteNoticeBtn").addEventListener("click", async () => {
+  const status = $("#noticeAdminStatus");
+  if (!isAdmin) { status.textContent = "관리자 로그인 후 삭제해 주세요."; return; }
+  if (!adminNoticeId) { status.textContent = "삭제할 공지사항을 먼저 선택해 주세요."; return; }
+  const row = adminNoticeRows.find(n => String(n.id) === String(adminNoticeId));
+  const title = row?.title || "선택한 공지";
+  if (!confirm(`“${title}” 공지를 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.`)) return;
+
+  status.textContent = "공지사항을 삭제하고 있습니다…";
+  $("#deleteNoticeBtn").disabled = true;
+  const result = await db.rpc("youth_admin_delete_notice_v1", { p_notice_id:String(adminNoticeId) });
+  if (result.error) {
+    $("#deleteNoticeBtn").disabled = false;
+    status.textContent = dbErrorMessage(result.error, "공지사항 삭제에 실패했습니다.");
+    return;
+  }
+
+  adminNoticeId = null;
+  await loadNotices();
+  await loadAdminNoticeOptions();
+  status.textContent = "공지사항이 삭제되었습니다.";
 });
 
 async function loadAdminRecords() {
