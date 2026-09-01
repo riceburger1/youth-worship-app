@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1f4d3f" />
   <meta name="description" content="양정중앙교회 청소년부 주의울림 예배 앱" />
   <link rel="manifest" href="./manifest.json" />
-  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="./icon-192.png" type="image/png" />
   <link rel="stylesheet" href="./styles.css" />
   <title>주의울림 | 양정중앙교회 청소년부</title>
 </head>
@@ -196,16 +196,20 @@
       </section>
 
       <section class="card admin-entry">
-        <button id="openAdminBtn" class="ghost" type="button">관리자 화면</button>
+        <button id="openAdminBtn" class="ghost" type="button">관리자 화면 새 탭에서 열기 ↗</button>
       </section>
 
       <section id="adminPanel" class="card hidden">
-        <div class="section-head">
+        <div class="section-head admin-page-head">
           <div>
             <span class="eyebrow">관리자 전용</span>
-            <h2>콘텐츠 관리</h2>
+            <h2>주의울림 관리자</h2>
+            <p class="muted admin-page-desc">말씀 · 성경공부 · 공지사항 · 학생 제출 기록을 한 화면에서 관리합니다.</p>
           </div>
-          <button id="adminLogoutBtn" class="ghost hidden" type="button">로그아웃</button>
+          <div class="admin-head-actions">
+            <a class="ghost admin-student-link" href="./" target="_blank" rel="noopener">학생 화면 보기 ↗</a>
+            <button id="adminLogoutBtn" class="ghost hidden" type="button">로그아웃</button>
+          </div>
         </div>
 
         <form id="adminLoginForm" class="admin-login">

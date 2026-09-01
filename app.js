@@ -11,7 +11,8 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v13-supabase-connection-fix";
+const APP_VERSION = "v14-admin-mobile-delete-fix";
+const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
 const $ = (q) => document.querySelector(q);
@@ -32,6 +33,13 @@ function dbErrorMessage(error, fallback = "처리 중 오류가 발생했습니�
   if (error.code === "42703") return `데이터베이스 칼럼 구성이 앱과 다릅니다.${code}${extra ? ` · ${extra}` : ""}`;
   if (["PGRST202","PGRST205"].includes(error.code)) return `${fallback}${code}${extra ? ` · ${extra}` : ""}`;
   return `${fallback}${code}${extra ? ` · ${extra}` : ""}`;
+}
+
+
+function isMissingRpc(error, functionName = "") {
+  if (!error) return false;
+  const message = String(error.message || "");
+  return ["PGRST202", "42883"].includes(error.code) || (functionName && message.includes(functionName));
 }
 
 
@@ -531,7 +539,21 @@ async function loadBoard() {
     : '<p class="muted">아직 등록된 글이 없습니다.</p>';
 }
 
-$("#openAdminBtn").addEventListener("click", () => $("#adminPanel").classList.toggle("hidden"));
+$("#openAdminBtn").addEventListener("click", () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("admin", "1");
+  url.hash = "";
+  window.open(url.toString(), "_blank", "noopener");
+});
+
+function applyAdminWindowMode() {
+  if (!ADMIN_WINDOW) return;
+  document.body.classList.add("admin-window");
+  document.title = "주의울림 관리자 | 양정중앙교회 청소년부";
+  $(".brand .subtitle").textContent = "관리자 콘텐츠 · 제출 기록 관리";
+  $("#adminPanel").classList.remove("hidden");
+}
+applyAdminWindowMode();
 $("#adminLoginForm").addEventListener("submit", async e => {
   e.preventDefault();
   const { data, error } = await db.auth.signInWithPassword({
@@ -551,8 +573,8 @@ async function verifyAdmin(user) {
   }
   $("#adminLoginStatus").textContent = "";
   setAdminState(true);
-  $("#wordAdminStatus").textContent = "말씀 관리 준비 완료.";
-  $("#studyAdminStatus").textContent = "성경공부 관리 준비 완료.";
+  $("#wordAdminStatus").textContent = "말씀 관리 준비 완료 · 삭제 기능 v14";
+  $("#studyAdminStatus").textContent = "성경공부 관리 준비 완료 · 삭제 기능 v14";
   await Promise.all([loadAdminWordOptions(), loadAdminStudyOptions(), loadAdminNoticeOptions(), loadAdminRecords()]);
 }
 function setAdminState(value) {
@@ -719,6 +741,23 @@ $("#wordSaveBtn").addEventListener("click", async () => {
   status.textContent = wasEditing ? "말씀이 수정되었습니다." : "말씀이 등록되었습니다.";
 });
 
+async function directDeleteWord(contentId) {
+  const steps = [
+    () => db.from("attendance").delete().eq("weekly_content_id", contentId),
+    () => db.from("study_submissions").delete().eq("weekly_content_id", contentId),
+    () => db.from("prayer_requests").update({ weekly_content_id:null }).eq("weekly_content_id", contentId),
+    () => db.from("study_questions").delete().eq("weekly_content_id", contentId)
+  ];
+  for (const run of steps) {
+    const result = await run();
+    if (result.error) return { error:result.error };
+  }
+  const result = await db.from("weekly_contents").delete().eq("id", contentId).select("id");
+  if (result.error) return { error:result.error };
+  if (!result.data?.length) return { error:{code:"PGRST116",message:"삭제할 지난 말씀을 찾지 못했습니다."} };
+  return { data:{deleted:true} };
+}
+
 $("#deleteWordBtn").addEventListener("click", async () => {
   const status = $("#wordAdminStatus");
   if (!isAdmin) { status.textContent = "관리자 로그인 후 삭제해 주세요."; return; }
@@ -728,7 +767,11 @@ $("#deleteWordBtn").addEventListener("click", async () => {
   if (!confirm(`${label}을 삭제할까요?\n\n같은 주차의 성경공부, 말씀쓰기 출석, 성경공부 제출 기록도 함께 삭제됩니다. 기도제목 내용은 보존됩니다.\n\n삭제 후에는 되돌릴 수 없습니다.`)) return;
   status.textContent = "말씀과 연결 기록을 삭제하고 있습니다…";
   $("#deleteWordBtn").disabled = true;
-  const result = await db.rpc("youth_admin_delete_word_v12", { p_content_id:String(adminWordId) });
+  let result = await db.rpc("youth_admin_delete_word_v14", { p_content_id:String(adminWordId) });
+  if (result.error && isMissingRpc(result.error, "youth_admin_delete_word_v14")) {
+    console.warn("말씀 삭제 RPC를 찾지 못해 RLS 기반 직접 삭제를 시도합니다.", result.error);
+    result = await directDeleteWord(String(adminWordId));
+  }
   $("#deleteWordBtn").disabled = false;
   if (result.error) {
     status.textContent = dbErrorMessage(result.error, "지난 말씀 삭제에 실패했습니다.");
@@ -853,6 +896,15 @@ $("#studySaveBtn").addEventListener("click", async () => {
   status.textContent = "성경공부가 저장되었습니다.";
 });
 
+async function directDeleteStudy(contentId) {
+  const q = await db.from("study_questions").delete().eq("weekly_content_id", contentId);
+  if (q.error) return { error:q.error };
+  const w = await db.from("weekly_contents").update({study_title:"성경공부"}).eq("id", contentId).select("id");
+  if (w.error) return { error:w.error };
+  if (!w.data?.length) return { error:{code:"PGRST116",message:"삭제할 성경공부의 말씀 주차를 찾지 못했습니다."} };
+  return { data:{deleted:true} };
+}
+
 $("#deleteStudyBtn").addEventListener("click", async () => {
   const status = $("#studyAdminStatus");
   if (!isAdmin) { status.textContent = "관리자 로그인 후 삭제해 주세요."; return; }
@@ -860,7 +912,10 @@ $("#deleteStudyBtn").addEventListener("click", async () => {
   if (!confirm("선택한 주차의 성경공부 제목과 질문을 삭제할까요? 말씀과 학생 제출 기록은 그대로 유지됩니다.")) return;
   status.textContent = "성경공부를 삭제하고 있습니다…";
   $("#deleteStudyBtn").disabled = true;
-  const result = await db.rpc("youth_admin_delete_study_v12", {p_content_id:String(adminStudyId)});
+  let result = await db.rpc("youth_admin_delete_study_v14", {p_content_id:String(adminStudyId)});
+  if (result.error && isMissingRpc(result.error, "youth_admin_delete_study_v14")) {
+    result = await directDeleteStudy(String(adminStudyId));
+  }
   if (result.error) {
     $("#deleteStudyBtn").disabled = false;
     status.textContent = dbErrorMessage(result.error, "성경공부 삭제에 실패했습니다.");
@@ -983,6 +1038,13 @@ $("#noticeAdminForm").addEventListener("submit", async e => {
   status.textContent = wasEditing ? "공지사항이 수정되었습니다." : "공지사항이 등록되었습니다.";
 });
 
+async function directDeleteNotice(noticeId) {
+  const result = await db.from("notices").delete().eq("id", noticeId).select("id");
+  if (result.error) return { error:result.error };
+  if (!result.data?.length) return { error:{code:"PGRST116",message:"삭제할 공지사항을 찾지 못했습니다."} };
+  return { data:{deleted:true} };
+}
+
 $("#deleteNoticeBtn").addEventListener("click", async () => {
   const status = $("#noticeAdminStatus");
   if (!isAdmin) { status.textContent = "관리자 로그인 후 삭제해 주세요."; return; }
@@ -993,7 +1055,10 @@ $("#deleteNoticeBtn").addEventListener("click", async () => {
 
   status.textContent = "공지사항을 삭제하고 있습니다…";
   $("#deleteNoticeBtn").disabled = true;
-  const result = await db.rpc("youth_admin_delete_notice_v1", { p_notice_id:String(adminNoticeId) });
+  let result = await db.rpc("youth_admin_delete_notice_v14", { p_notice_id:String(adminNoticeId) });
+  if (result.error && isMissingRpc(result.error, "youth_admin_delete_notice_v14")) {
+    result = await directDeleteNotice(String(adminNoticeId));
+  }
   if (result.error) {
     $("#deleteNoticeBtn").disabled = false;
     status.textContent = dbErrorMessage(result.error, "공지사항 삭제에 실패했습니다.");
@@ -1102,12 +1167,30 @@ async function loadAdminRecords() {
     return `<details class="record-week-group" ${index===0?"open":""}>
       <summary>
         <span><b>${escapeHtml(label)}</b><small>총 ${group.length}건</small></span>
-        <span class="record-week-counts">말씀 ${c("attendance")} · 성경 ${c("study")} · 기도 ${c("prayer")} · 감사 ${c("gratitude")} · 익명 ${c("board")}</span>
+        <span class="record-week-counts">
+          <span>말씀 ${c("attendance")}</span><span>성경 ${c("study")}</span><span>기도 ${c("prayer")}</span><span>감사 ${c("gratitude")}</span><span>익명 ${c("board")}</span>
+        </span>
       </summary>
       <div class="record-week-body">${group.map(r=>r.html).join("")}</div>
     </details>`;
   }).join("");
   $("#recordsAdminStatus").textContent = "주일별 제출 기록을 불러왔습니다.";
+}
+
+async function directDeleteStudentRecord(type, id) {
+  const tableMap = {
+    attendance:"attendance",
+    study:"study_submissions",
+    prayer:"prayer_requests",
+    gratitude:"gratitude_prayers",
+    board:"anonymous_posts"
+  };
+  const table = tableMap[type];
+  if (!table) return { error:{code:"22023",message:"지원하지 않는 기록 유형입니다."} };
+  const result = await db.from(table).delete().eq("id", id).select("id");
+  if (result.error) return { error:result.error };
+  if (!result.data?.length) return { error:{code:"PGRST116",message:"삭제할 학생 제출 기록을 찾지 못했습니다."} };
+  return { data:{deleted:true} };
 }
 
 $("#adminRecords").addEventListener("click", async e => {
@@ -1121,7 +1204,11 @@ $("#adminRecords").addEventListener("click", async e => {
   if (!confirm(`${label}을 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.`)) return;
   btn.disabled = true;
   $("#recordsAdminStatus").textContent = `${label}을 삭제하고 있습니다…`;
-  const result = await db.rpc("youth_admin_delete_student_record_v12", {p_record_type:type,p_record_id:id});
+  let result = await db.rpc("youth_admin_delete_student_record_v14", {p_record_id:id,p_record_type:type});
+  if (result.error && isMissingRpc(result.error, "youth_admin_delete_student_record_v14")) {
+    console.warn("학생 제출 삭제 RPC를 찾지 못해 직접 삭제를 시도합니다.", result.error);
+    result = await directDeleteStudentRecord(type, id);
+  }
   if (result.error) {
     btn.disabled = false;
     $("#recordsAdminStatus").textContent = dbErrorMessage(result.error, `${label} 삭제에 실패했습니다.`);

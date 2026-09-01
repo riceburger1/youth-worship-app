@@ -120,3 +120,74 @@ a{color:var(--accent);font-weight:700}
 @media (max-width:600px){
   .connection-bar{margin:8px 12px 0;font-size:.8rem}
 }
+
+/* ===== v14 관리자 새 탭 · 모바일 제출기록 · 전반 UI 개선 ===== */
+body{background:linear-gradient(180deg,#f6f8f5 0,#f2f5f2 45%,#eef2ef 100%)}
+.card{box-shadow:0 8px 26px rgba(26,49,40,.045)}
+button,.ghost,.primary,.tab{transition:transform .15s ease,box-shadow .15s ease,background-color .15s ease,border-color .15s ease}
+button:not(:disabled):active,.ghost:not(:disabled):active,.primary:not(:disabled):active,.tab:not(:disabled):active{transform:translateY(1px)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid rgba(31,77,63,.18);outline-offset:2px}
+input:focus,select:focus,textarea:focus{border-color:#8fb2a3;box-shadow:0 0 0 3px rgba(31,77,63,.06)}
+.status{line-height:1.55;overflow-wrap:anywhere}
+.admin-page-desc{margin:7px 0 0;line-height:1.5}
+.admin-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.admin-student-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:46px}
+.admin-action-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.admin-action-row>button{width:100%;min-width:0}
+
+/* 관리자 버튼은 학생 화면에서 별도 탭으로만 진입 */
+body.admin-window #bannerArea,
+body.admin-window .tabs,
+body.admin-window #studentIdentity,
+body.admin-window main>.panel,
+body.admin-window .admin-entry,
+body.admin-window #installBtn{display:none!important}
+body.admin-window .hero,body.admin-window main,body.admin-window .connection-bar{max-width:1180px}
+body.admin-window .hero{padding-bottom:10px}
+body.admin-window #adminPanel{display:block!important;margin-top:14px;padding:24px}
+body.admin-window .brand strong{font-size:1.8rem}
+body.admin-window .admin-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+
+/* 제출 기록: 작은 화면에서 절대 가로로 깨지지 않도록 */
+.weekly-record-groups,.record-week-group,.record-week-body,.record-item,.record-item-head,.record-item-head>div{min-width:0;max-width:100%}
+.record-week-group>summary{width:100%;min-width:0}
+.record-week-counts{min-width:0;max-width:100%;white-space:normal;line-height:1.55;overflow-wrap:anywhere;word-break:keep-all}
+.record-item{overflow:hidden}
+.record-item p,.record-item li,.record-item .meta,.record-item-head>div{overflow-wrap:anywhere;word-break:break-word}
+.record-item ol{margin:.75rem 0 .2rem;padding-left:1.35rem}
+.record-delete-btn{min-width:74px}
+
+@media(max-width:760px){
+  body.admin-window .admin-grid{grid-template-columns:1fr}
+  body.admin-window #adminPanel{padding:17px}
+  .admin-page-head{display:grid;gap:12px}
+  .admin-head-actions{justify-content:stretch;display:grid;grid-template-columns:1fr 1fr}
+  .admin-head-actions>*{width:100%}
+  .admin-action-row{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .weekly-record-groups{gap:10px}
+  .record-week-group{border-radius:14px}
+  .record-week-group>summary{padding:14px;gap:6px}
+  .record-week-counts{font-size:.8rem;text-align:left}
+  .record-week-body{padding:0 10px 10px;gap:8px}
+  .record-item{padding:13px;border-radius:12px}
+  .record-item-head{flex-direction:column;align-items:stretch;gap:10px}
+  .record-delete-btn{width:100%;min-height:42px}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stats div{min-width:0}
+  .stats strong{font-size:1.45rem}
+}
+@media(max-width:420px){
+  body.admin-window .hero,body.admin-window main{padding-left:10px;padding-right:10px}
+  body.admin-window #adminPanel{padding:14px;border-radius:16px}
+  .admin-head-actions{grid-template-columns:1fr}
+  .record-week-group>summary{padding:12px}
+  .record-week-body{padding:0 8px 8px}
+  .record-item{padding:12px}
+  .stats{gap:7px}
+  .stats div{padding:10px}
+}
+.record-week-counts{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.record-week-counts>span{display:inline-flex;padding:4px 8px;border-radius:999px;background:#f0f4f1;color:#53645b;font-size:.76rem;line-height:1.2;white-space:nowrap}
+@media(max-width:640px){.record-week-counts{justify-content:flex-start}.record-week-counts>span{font-size:.72rem}}
