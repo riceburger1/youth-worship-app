@@ -100,8 +100,9 @@
       </section>
 
       <section id="notice" class="panel card hidden">
-        <span class="eyebrow">다가오는 일정</span>
+        <span class="eyebrow">전체 공지</span>
         <h2>공지사항</h2>
+        <p class="muted">최신 공지와 지난 공지를 모두 확인할 수 있습니다.</p>
         <div id="noticeList" class="list"></div>
       </section>
 
@@ -211,27 +212,50 @@
 
         <div id="adminWorkspace" class="hidden">
           <div class="admin-grid">
-            <form id="weeklyForm" class="subcard">
-              <h3>이번 주 말씀 · 성경공부</h3>
+            <form id="weeklyForm" class="subcard admin-editor-card">
+              <div class="admin-editor-head">
+                <div>
+                  <h3>이번 주 말씀 · 성경공부</h3>
+                  <p id="weeklyModeLabel" class="muted admin-mode-label">기존 기록을 선택해 수정하거나 새 주차를 등록할 수 있습니다.</p>
+                </div>
+                <button id="newWeeklyBtn" class="ghost compact-btn" type="button">새 주차 작성</button>
+              </div>
+              <label>기존 기록 선택
+                <select id="weeklyPicker">
+                  <option value="">기록을 불러오는 중...</option>
+                </select>
+              </label>
               <label>주 시작일<input id="weekStart" type="date" required /></label>
               <label>말씀구절<input id="adminVerseRef" type="text" maxlength="120" required /></label>
               <label>말씀본문<textarea id="adminVerseText" rows="5" maxlength="5000" required></textarea></label>
               <label>성경공부 제목<input id="adminStudyTitle" type="text" maxlength="200" required /></label>
-              <label>질문 1<textarea id="adminQ1" rows="2" required></textarea></label>
-              <label>질문 2<textarea id="adminQ2" rows="2" required></textarea></label>
-              <label>질문 3 (선택)<textarea id="adminQ3" rows="2"></textarea></label>
+              <label>질문 1<textarea id="adminQ1" rows="2" maxlength="2000" required></textarea></label>
+              <label>질문 2<textarea id="adminQ2" rows="2" maxlength="2000" required></textarea></label>
+              <label>질문 3 (선택)<textarea id="adminQ3" rows="2" maxlength="2000"></textarea></label>
               <label class="check-row"><input id="weeklyPublished" type="checkbox" checked /> 학생에게 공개</label>
-              <button class="primary" type="submit">말씀·문제 저장</button>
+              <button id="weeklySubmitBtn" class="primary" type="submit">말씀·문제 등록</button>
               <p id="weeklyAdminStatus" class="status"></p>
             </form>
 
-            <form id="noticeAdminForm" class="subcard">
-              <h3>공지사항 등록</h3>
+            <form id="noticeAdminForm" class="subcard admin-editor-card">
+              <div class="admin-editor-head">
+                <div>
+                  <h3>공지사항 관리</h3>
+                  <p id="noticeModeLabel" class="muted admin-mode-label">등록된 공지를 선택해 수정하거나 새 공지를 등록할 수 있습니다.</p>
+                </div>
+                <button id="newNoticeBtn" class="ghost compact-btn" type="button">새 공지 작성</button>
+              </div>
+              <label>등록된 공지 선택
+                <select id="noticePicker">
+                  <option value="">공지를 불러오는 중...</option>
+                </select>
+              </label>
               <label>제목<input id="noticeTitle" required maxlength="200" /></label>
               <label>일정<input id="noticeDate" type="date" /></label>
-              <label>내용<textarea id="noticeBody" rows="4" maxlength="5000"></textarea></label>
-              <label class="check-row"><input id="noticeBanner" type="checkbox" checked /> 상단 배너 표시</label>
-              <button class="primary" type="submit">공지 등록</button>
+              <label>내용<textarea id="noticeBody" rows="4" maxlength="5000" required></textarea></label>
+              <label class="check-row"><input id="noticeBanner" type="checkbox" checked disabled /> 최신 공개 공지 1개는 상단에 자동 표시됩니다.</label>
+              <label class="check-row"><input id="noticePublished" type="checkbox" checked /> 학생에게 공개</label>
+              <button id="noticeSubmitBtn" class="primary" type="submit">공지 등록</button>
               <p id="noticeAdminStatus" class="status"></p>
             </form>
 

@@ -40,3 +40,15 @@ a{color:var(--accent);font-weight:700}
 .badge-section{margin:18px 0 20px}.badge-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.challenge-badge{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:14px;background:#f8faf8}.challenge-badge.unlocked{background:#fffaf0;border-color:var(--warm-line)}.challenge-badge.locked{opacity:.82}.badge-icon{flex:0 0 48px;width:48px;height:48px;border-radius:15px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.65rem;border:1px solid var(--line)}.challenge-badge.unlocked .badge-icon{background:var(--warm);border-color:var(--warm-line)}.badge-copy{min-width:0;flex:1}.badge-title-row{display:flex;justify-content:space-between;gap:8px;align-items:center}.badge-title-row strong{font-size:.95rem}.badge-title-row span{font-size:.72rem;font-weight:900;color:var(--warm-ink);white-space:nowrap}.badge-copy p{margin:5px 0 9px;color:var(--muted);font-size:.76rem;line-height:1.5}.badge-progress{height:7px;border-radius:999px;background:#e8ece9;overflow:hidden}.badge-progress span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .25s ease}
 @media(max-width:600px){.calendar-toolbar{align-items:center}.calendar-day{min-height:50px;padding:5px}.badge-grid{grid-template-columns:1fr}.calendar-summary{display:grid;gap:3px}}
 @media(max-width:380px){.gratitude-calendar-card{padding:12px}.calendar-weekdays,.gratitude-calendar{gap:4px}.calendar-day{min-height:45px;border-radius:9px}.day-mark{font-size:1rem}.calendar-nav strong{min-width:78px;font-size:.82rem}}
+
+/* 관리자 콘텐츠 선택 · 수정 편집기 */
+.admin-editor-card{display:grid;gap:12px}.admin-editor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.admin-editor-head h3{margin:0}.admin-mode-label{margin:5px 0 0;font-size:.78rem;line-height:1.45}.compact-btn{min-height:40px;padding:8px 11px;white-space:nowrap}.admin-editor-card select{background:#fff}.admin-editor-card .primary{width:100%}.admin-editor-card option{color:var(--ink)}
+@media(max-width:520px){.admin-editor-head{display:grid}.compact-btn{width:100%}}
+
+/* 공지사항 v9: 최신 1개 상단 + 지난 공지 아카이브 */
+.latest-notice-banner{position:relative;padding-top:17px}
+.latest-notice-label{display:inline-block;margin-bottom:6px;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.18);font-size:.75rem;font-weight:800;letter-spacing:.02em}
+.notice-item-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.notice-state-badge{display:inline-flex;align-items:center;min-height:25px;padding:3px 8px;border-radius:999px;background:#eef4f1;color:#31574a;font-size:.75rem;font-weight:800}
+.notice-past{background:#fbfcfb}
+.notice-past .notice-state-badge{background:#f2f2f2;color:#6b746f}
