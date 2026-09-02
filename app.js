@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v27-gratitude-challenge-leaderboard-edit";
+const APP_VERSION = "v28-gratitude-leaderboard-in-tab";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -190,7 +190,10 @@ function activateStudentTab(tabName) {
   $$(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tabName));
   $$("main .panel").forEach(panel => panel.classList.add("hidden"));
   target.classList.remove("hidden");
-  if (tabName === "gratitude") renderGratitudeChallenge();
+  if (tabName === "gratitude") {
+    renderGratitudeChallenge();
+    void loadGratitudeLeaders();
+  }
 }
 function requireProfile(statusEl) {
   const p = profile();

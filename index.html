@@ -24,18 +24,6 @@
       </div>
     </header>
 
-    <section id="gratitudeLeaderTop" class="gratitude-leader-top" aria-labelledby="gratitudeLeaderTitle">
-      <div class="gratitude-leader-head">
-        <div>
-          <span class="eyebrow">감사기도 챌린지</span>
-          <h2 id="gratitudeLeaderTitle">🔥 지금 이어가는 학생</h2>
-        </div>
-        <button id="refreshGratitudeLeaderBtn" class="ghost compact-btn" type="button">새로고침</button>
-      </div>
-      <div id="gratitudeLeaderList" class="gratitude-leader-list"></div>
-      <p id="gratitudeLeaderStatus" class="status">챌린지 현황을 불러오는 중입니다.</p>
-    </section>
-
     <section id="profile" class="profile-drawer card hidden profile-card" aria-hidden="true">
         <div class="section-head">
           <div>
@@ -154,6 +142,18 @@
         </div>
 
         <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
+
+        <section id="gratitudeLeaderTop" class="gratitude-leader-top gratitude-leader-in-tab" aria-labelledby="gratitudeLeaderTitle">
+          <div class="gratitude-leader-head">
+            <div>
+              <span class="eyebrow">감사기도 챌린지 현황</span>
+              <h3 id="gratitudeLeaderTitle">🔥 지금 이어가고 있는 학생</h3>
+            </div>
+            <button id="refreshGratitudeLeaderBtn" class="ghost compact-btn" type="button">새로고침</button>
+          </div>
+          <div id="gratitudeLeaderList" class="gratitude-leader-list"></div>
+          <p id="gratitudeLeaderStatus" class="status">챌린지 현황을 불러오는 중입니다.</p>
+        </section>
 
         <div class="challenge-stats">
           <div class="challenge-stat main"><span>현재 연속</span><strong id="gratitudeStreak">0일</strong></div>

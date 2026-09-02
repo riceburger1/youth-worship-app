@@ -434,7 +434,7 @@ body.admin-window #adminWorkspace .admin-panel-active{animation:adminPanelIn .16
 @media(max-width:980px){.profile-drawer{margin-left:20px;margin-right:20px}}
 @media(max-width:420px){.profile-drawer{margin-left:14px;margin-right:14px;padding:16px}.profile-head-actions{width:100%;justify-content:flex-start}.profile-head-actions .ghost{min-height:38px}}
 
-/* ===== v27 감사기도 챌린지 상단 현황 · 10자 입력 · 수정 · 관리자 결과 ===== */
+/* ===== v28 감사기도 탭 내부 챌린지 현황 · 10자 입력 · 수정 · 관리자 결과 ===== */
 .gratitude-leader-top{
   max-width:940px;margin:0 auto 14px;padding:14px 16px;
   border:1px solid var(--warm-line);border-radius:18px;background:#fffaf0;
@@ -469,3 +469,10 @@ body.admin-window #gratitudeLeaderTop{display:none!important}
 @media(max-width:720px){.gratitude-admin-result-card{align-items:flex-start;flex-direction:column}.gratitude-admin-metrics{width:100%;grid-template-columns:repeat(3,1fr)}}
 @media(max-width:640px){.admin-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.gratitude-form-actions{display:grid;grid-template-columns:1fr}.gratitude-form-actions .ghost{width:100%}.gratitude-input-meta{align-items:flex-start;flex-direction:column;gap:3px}}
 @media(max-width:420px){.gratitude-leader-top{margin-left:14px;margin-right:14px;padding:12px}.gratitude-leader-head{align-items:flex-start}.gratitude-leader-head .compact-btn{min-height:36px;padding:6px 8px;font-size:.75rem}.gratitude-leader-chip{min-width:176px}.gratitude-admin-metrics{grid-template-columns:1fr 1fr 1fr}.gratitude-admin-metrics span{padding:7px 5px}}
+
+
+/* ===== v28 감사기도 현황을 감사기도 탭 내부에 배치 ===== */
+.gratitude-leader-in-tab{max-width:none;margin:16px 0 18px;padding:14px 16px;box-shadow:none}
+.gratitude-leader-in-tab .gratitude-leader-head h3{margin:0;font-size:1.05rem;color:var(--warm-ink)}
+@media(max-width:980px){.gratitude-leader-in-tab{margin-left:0;margin-right:0}}
+@media(max-width:420px){.gratitude-leader-in-tab{margin-left:0;margin-right:0;padding:12px}}
