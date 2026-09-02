@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v18-event-period";
+const APP_VERSION = "v21-study-submit-fix";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -421,18 +421,42 @@ $("#completeWordBtn").addEventListener("click", async () => {
 
 $("#studyForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const p = requireProfile($("#studyStatus"));
+  const status = $("#studyStatus");
+  const p = requireProfile(status);
   if (!p || !weekly) return;
-  const answers = $$("[data-answer]").map(x => clean(x.value));
-  if (answers.length < 2 || answers.some(x => !x)) {
-    $("#studyStatus").textContent = "모든 질문에 답을 작성해 주세요.";
+
+  const answers = $$('[data-answer]').map(x => clean(x.value));
+  if (answers.length < 2) {
+    status.textContent = "등록된 성경공부 질문이 2개 이상 있어야 제출할 수 있습니다.";
     return;
   }
+  if (answers.some(x => !x)) {
+    status.textContent = "모든 질문에 답을 작성해 주세요.";
+    return;
+  }
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+  status.textContent = "성경공부 답안을 저장하고 있습니다…";
+
   const { error } = await db.from("study_submissions").insert({
-    weekly_content_id: weekly.id, grade:p.grade, student_name:p.name, answers
+    weekly_content_id: weekly.id,
+    grade: p.grade,
+    student_name: p.name,
+    answers
   });
-  $("#studyStatus").textContent = error ? "제출 중 오류가 발생했습니다." : "성경공부 나눔이 제출되었습니다.";
-  if (!error) e.target.reset();
+
+  if (error) {
+    if (submitBtn) submitBtn.disabled = false;
+    status.textContent = error.code === "23505"
+      ? "이미 이번 주 성경공부 답안을 제출했습니다."
+      : dbErrorMessage(error, "성경공부 답안 저장에 실패했습니다.");
+    return;
+  }
+
+  status.textContent = "성경공부 답안이 저장되었습니다.";
+  e.target.reset();
+  if (submitBtn) submitBtn.disabled = false;
 });
 
 $("#prayerForm").addEventListener("submit", async e => {
