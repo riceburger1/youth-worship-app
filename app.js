@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v21-study-submit-fix";
+const APP_VERSION = "v22-admin-weekly-grouped";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -1005,16 +1005,18 @@ const ADMIN_TAB_META = {
   study:{title:"성경공부 관리",badge:"성경공부",description:"말씀 주차를 선택한 뒤 성경공부 제목과 질문을 등록·수정·삭제할 수 있습니다."},
   notice:{title:"공지사항 관리",badge:"공지",description:"새 공지를 등록하거나 기존 공지를 선택해 수정·삭제할 수 있습니다."},
   prayer:{title:"기도제목 관리",badge:"기도",description:"학생들이 제출한 기도제목을 주일별로 확인하고 필요한 기록을 삭제할 수 있습니다."},
-  records:{title:"학생 제출 기록",badge:"제출 기록",description:"말씀쓰기·성경공부·기도·감사·익명 제출을 주일별로 확인하고 개별 삭제할 수 있습니다."},
+  board:{title:"익명게시판 관리",badge:"익명글",description:"익명 게시글을 주일별로 모아 확인하고 개별 삭제할 수 있습니다."},
+  records:{title:"학생 제출 통계",badge:"통계",description:"제출 내용은 숨기고 말씀쓰기·성경공부·기도·감사·익명 제출 건수만 주일별로 집계합니다."},
   events:{title:"행사 · 이벤트 달력",badge:"행사 달력",description:"시작일과 종료일을 선택해 행사 기간을 등록하고 기존 일정을 수정·삭제할 수 있습니다."}
 };
 
 async function refreshActiveAdminTab(tab=activeAdminTab) {
   if (!isAdmin) return;
-  if (tab === "word") await loadAdminWordOptions(adminWordId);
-  else if (tab === "study") await loadAdminStudyOptions(adminStudyId);
+  if (tab === "word") await Promise.all([loadAdminWordOptions(adminWordId), loadAdminWordSubmissions()]);
+  else if (tab === "study") await Promise.all([loadAdminStudyOptions(adminStudyId), loadAdminStudySubmissions()]);
   else if (tab === "notice") await loadAdminNoticeOptions(adminNoticeId);
   else if (tab === "prayer") await loadAdminPrayers();
+  else if (tab === "board") await loadAdminBoardGroups();
   else if (tab === "records") await loadAdminRecords();
   else if (tab === "events") await loadAdminEventCalendar();
 }
@@ -1133,7 +1135,7 @@ async function loadAdminWordOptions(preferredId = null) {
     return;
   }
   $("#wordPicker").innerHTML = '<option value="__new__">＋ 새 말씀 등록</option>' + adminWeeklyRows.map(r =>
-    `<option value="${escapeHtml(String(r.id))}">${escapeHtml(r.week_start || "날짜 없음")} · ${escapeHtml(r.verse_reference || "말씀 미입력")} · ${r.published ? "공개" : "비공개"}</option>`
+    `<option value="${escapeHtml(String(r.id))}">${escapeHtml(sundayFromWeekStart(r.week_start) || r.week_start || "날짜 없음")} 주일 · ${escapeHtml(r.verse_reference || "말씀 미입력")} · ${r.published ? "공개" : "비공개"}</option>`
   ).join("");
   const target = preferredId && adminWeeklyRows.some(r=>String(r.id)===String(preferredId))
     ? String(preferredId)
@@ -1239,7 +1241,7 @@ $("#wordSaveBtn").addEventListener("click", async () => {
   }
   adminWordId = String(result.id);
   adminStudyId = String(result.id);
-  await Promise.all([loadAdminWordOptions(adminWordId), loadAdminStudyOptions(adminStudyId), loadWeekly(), loadAdminRecords()]);
+  await Promise.all([loadAdminWordOptions(adminWordId), loadAdminStudyOptions(adminStudyId), loadWeekly(), loadAdminWordSubmissions(), loadAdminRecords()]);
   status.textContent = wasEditing ? "말씀이 수정되었습니다." : "말씀이 등록되었습니다.";
 });
 
@@ -1281,7 +1283,7 @@ $("#deleteWordBtn").addEventListener("click", async () => {
   }
   adminWordId = null;
   if (adminStudyId === String(row?.id || "")) adminStudyId = null;
-  await Promise.all([loadAdminWordOptions(), loadAdminStudyOptions(), loadWeekly(), loadQuestions(), loadAdminRecords()]);
+  await Promise.all([loadAdminWordOptions(), loadAdminStudyOptions(), loadWeekly(), loadQuestions(), loadAdminWordSubmissions(), loadAdminStudySubmissions(), loadAdminRecords()]);
   status.textContent = "선택한 지난 말씀이 삭제되었습니다.";
 });
 
@@ -1307,7 +1309,7 @@ async function loadAdminStudyOptions(preferredId = null) {
     return;
   }
   $("#studyPicker").innerHTML = '<option value="">말씀을 선택해 주세요</option>' + adminWeeklyRows.map(r =>
-    `<option value="${escapeHtml(String(r.id))}">${escapeHtml(r.week_start || "날짜 없음")} · ${escapeHtml(r.verse_reference || "말씀 미입력")} · ${escapeHtml(r.study_title || "성경공부 미등록")}</option>`
+    `<option value="${escapeHtml(String(r.id))}">${escapeHtml(sundayFromWeekStart(r.week_start) || r.week_start || "날짜 없음")} 주일 · ${escapeHtml(r.verse_reference || "말씀 미입력")} · ${escapeHtml(r.study_title || "성경공부 미등록")}</option>`
   ).join("");
   const target = preferredId && adminWeeklyRows.some(r=>String(r.id)===String(preferredId))
     ? String(preferredId)
@@ -1324,7 +1326,7 @@ async function loadAdminStudyEditor(id) {
   const row = adminWeeklyRows.find(r => String(r.id) === String(id));
   if (!row) return resetStudyEditor(true);
   adminStudyId = String(row.id);
-  $("#studyWeekInfo").textContent = `${row.week_start || "날짜 없음"} · ${row.verse_reference || "말씀 미입력"}`;
+  $("#studyWeekInfo").textContent = `${sundayFromWeekStart(row.week_start) || row.week_start || "날짜 없음"} 주일 · ${row.verse_reference || "말씀 미입력"}`;
   $("#adminStudyTitle").value = row.study_title && row.study_title !== "성경공부" ? row.study_title : "";
   const { data, error } = await db.from("study_questions").select("*").eq("weekly_content_id", row.id).order("question_order");
   if (error) {
@@ -1394,7 +1396,7 @@ $("#studySaveBtn").addEventListener("click", async () => {
     status.textContent = dbErrorMessage(result.error, "성경공부 저장에 실패했습니다.");
     return;
   }
-  await Promise.all([loadAdminStudyOptions(adminStudyId), loadAdminWordOptions(adminWordId), loadWeekly(), loadQuestions(), loadAdminRecords()]);
+  await Promise.all([loadAdminStudyOptions(adminStudyId), loadAdminWordOptions(adminWordId), loadWeekly(), loadQuestions(), loadAdminStudySubmissions(), loadAdminRecords()]);
   status.textContent = "성경공부가 저장되었습니다.";
 });
 
@@ -1423,7 +1425,7 @@ $("#deleteStudyBtn").addEventListener("click", async () => {
     status.textContent = dbErrorMessage(result.error, "성경공부 삭제에 실패했습니다.");
     return;
   }
-  await Promise.all([loadAdminStudyOptions(adminStudyId), loadAdminWordOptions(adminWordId), loadWeekly(), loadQuestions(), loadAdminRecords()]);
+  await Promise.all([loadAdminStudyOptions(adminStudyId), loadAdminWordOptions(adminWordId), loadWeekly(), loadQuestions(), loadAdminStudySubmissions(), loadAdminRecords()]);
   status.textContent = "선택한 성경공부가 삭제되었습니다.";
 });
 
@@ -1592,6 +1594,186 @@ function recordTime(v) {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("ko-KR");
 }
 
+function weeklySundayMap(rows) {
+  return new Map((rows || []).map(row => [String(row.id), sundayFromWeekStart(row.week_start)]));
+}
+function groupBySunday(rows, getSunday) {
+  const groups = new Map();
+  (rows || []).forEach(row => {
+    const sunday = getSunday(row) || "unknown";
+    if (!groups.has(sunday)) groups.set(sunday, []);
+    groups.get(sunday).push(row);
+  });
+  return groups;
+}
+function sundayGroupLabel(key) {
+  return key === "unknown" ? "날짜를 확인할 수 없는 기록" : `${fmtDate(key)} 주일`;
+}
+
+async function directDeleteStudentRecord(type, id) {
+  const tableMap = {
+    attendance:"attendance",
+    study:"study_submissions",
+    prayer:"prayer_requests",
+    gratitude:"gratitude_prayers",
+    board:"anonymous_posts"
+  };
+  const table = tableMap[type];
+  if (!table) return { error:{code:"22023",message:"지원하지 않는 기록 유형입니다."} };
+  const result = await db.from(table).delete().eq("id", id).select("id");
+  if (result.error) return { error:result.error };
+  if (!result.data?.length) return { error:{code:"PGRST116",message:"삭제할 기록을 찾지 못했습니다."} };
+  return { data:{deleted:true} };
+}
+
+async function deleteAdminStudentRecord(type, id) {
+  if (type === "prayer") return deletePrayerRecordV15(id);
+  let result = await db.rpc("youth_admin_delete_student_record_v14", {p_record_id:String(id),p_record_type:type});
+  if (result.error && isMissingRpc(result.error, "youth_admin_delete_student_record_v14")) {
+    console.warn("학생 기록 삭제 RPC를 찾지 못해 직접 삭제를 시도합니다.", result.error);
+    result = await directDeleteStudentRecord(type, id);
+  }
+  return result;
+}
+
+async function loadAdminWordSubmissions() {
+  if (!isAdmin || !$("#adminWordSubmissionGroups")) return;
+  $("#wordSubmissionStatus").textContent = "말씀쓰기 기록을 불러오는 중입니다…";
+  const [w,a] = await Promise.all([
+    db.from("weekly_contents").select("id,week_start,verse_reference").order("week_start",{ascending:false}).limit(300),
+    db.from("attendance").select("id,weekly_content_id,grade,student_name,completed_at").order("completed_at",{ascending:false}).limit(1000)
+  ]);
+  if (w.error || a.error) {
+    $("#wordSubmissionStatus").textContent = dbErrorMessage(w.error || a.error, "말씀쓰기 기록을 불러오지 못했습니다.");
+    return;
+  }
+  const weekMap = weeklySundayMap(w.data);
+  const groups = groupBySunday(a.data, row => weekMap.get(String(row.weekly_content_id || "")) || sundayForISO(row.completed_at));
+  const keys = [...groups.keys()].sort((x,y)=>String(y).localeCompare(String(x)));
+  if (!keys.length) {
+    $("#adminWordSubmissionGroups").innerHTML = '<p class="muted">아직 말씀쓰기 완료 기록이 없습니다.</p>';
+    $("#wordSubmissionStatus").textContent = "";
+    return;
+  }
+  $("#adminWordSubmissionGroups").innerHTML = keys.map((key,index)=>{
+    const rows = groups.get(key) || [];
+    return `<details class="record-week-group" ${index===0?"open":""}>
+      <summary><span><b>${escapeHtml(sundayGroupLabel(key))}</b><small>말씀쓰기 ${rows.length}건</small></span><span class="record-week-counts"><span>말씀 ${rows.length}</span></span></summary>
+      <div class="record-week-body">${rows.map(row=>`
+        <article class="list-item record-item">
+          <div class="record-item-head"><div><b>말씀쓰기 · 출석</b><div>${escapeHtml(row.grade)} ${escapeHtml(row.student_name)}</div></div>
+          <button class="ghost danger-outline compact-btn word-submission-delete-btn" type="button" data-record-id="${escapeHtml(String(row.id))}">삭제</button></div>
+          <div class="meta">${escapeHtml(recordTime(row.completed_at))}</div>
+        </article>`).join("")}</div>
+    </details>`;
+  }).join("");
+  $("#wordSubmissionStatus").textContent = `말씀쓰기 기록 ${(a.data||[]).length}건을 주일별로 불러왔습니다.`;
+}
+
+$("#refreshWordSubmissionsBtn")?.addEventListener("click", loadAdminWordSubmissions);
+$("#adminWordSubmissionGroups")?.addEventListener("click", async e => {
+  const btn = e.target.closest(".word-submission-delete-btn");
+  if (!btn) return;
+  if (!confirm("이 말씀쓰기 완료 기록을 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.")) return;
+  btn.disabled = true;
+  $("#wordSubmissionStatus").textContent = "말씀쓰기 기록을 삭제하고 있습니다…";
+  const result = await deleteAdminStudentRecord("attendance", btn.dataset.recordId);
+  if (result.error) { btn.disabled=false; $("#wordSubmissionStatus").textContent=dbErrorMessage(result.error,"말씀쓰기 기록 삭제에 실패했습니다."); return; }
+  await Promise.all([loadAdminWordSubmissions(), loadAdminRecords()]);
+  $("#wordSubmissionStatus").textContent = "말씀쓰기 기록이 삭제되었습니다.";
+});
+
+async function loadAdminStudySubmissions() {
+  if (!isAdmin || !$("#adminStudySubmissionGroups")) return;
+  $("#studySubmissionStatus").textContent = "성경공부 답안을 불러오는 중입니다…";
+  const [w,sr] = await Promise.all([
+    db.from("weekly_contents").select("id,week_start,verse_reference,study_title").order("week_start",{ascending:false}).limit(300),
+    db.from("study_submissions").select("id,weekly_content_id,grade,student_name,answers,submitted_at").order("submitted_at",{ascending:false}).limit(1000)
+  ]);
+  if (w.error || sr.error) {
+    $("#studySubmissionStatus").textContent = dbErrorMessage(w.error || sr.error, "성경공부 답안을 불러오지 못했습니다.");
+    return;
+  }
+  const weekMap = weeklySundayMap(w.data);
+  const groups = groupBySunday(sr.data, row => weekMap.get(String(row.weekly_content_id || "")) || sundayForISO(row.submitted_at));
+  const keys = [...groups.keys()].sort((x,y)=>String(y).localeCompare(String(x)));
+  if (!keys.length) {
+    $("#adminStudySubmissionGroups").innerHTML = '<p class="muted">아직 제출된 성경공부 답안이 없습니다.</p>';
+    $("#studySubmissionStatus").textContent = "";
+    return;
+  }
+  $("#adminStudySubmissionGroups").innerHTML = keys.map((key,index)=>{
+    const rows = groups.get(key) || [];
+    return `<details class="record-week-group" ${index===0?"open":""}>
+      <summary><span><b>${escapeHtml(sundayGroupLabel(key))}</b><small>성경공부 ${rows.length}건</small></span><span class="record-week-counts"><span>성경 ${rows.length}</span></span></summary>
+      <div class="record-week-body">${rows.map(row=>`
+        <article class="list-item record-item">
+          <div class="record-item-head"><div><b>성경공부 제출</b><div>${escapeHtml(row.grade)} ${escapeHtml(row.student_name)}</div></div>
+          <button class="ghost danger-outline compact-btn study-submission-delete-btn" type="button" data-record-id="${escapeHtml(String(row.id))}">삭제</button></div>
+          <ol>${(Array.isArray(row.answers)?row.answers:[]).map(v=>`<li>${escapeHtml(v)}</li>`).join("")}</ol>
+          <div class="meta">${escapeHtml(recordTime(row.submitted_at))}</div>
+        </article>`).join("")}</div>
+    </details>`;
+  }).join("");
+  $("#studySubmissionStatus").textContent = `성경공부 답안 ${(sr.data||[]).length}건을 주일별로 불러왔습니다.`;
+}
+
+$("#refreshStudySubmissionsBtn")?.addEventListener("click", loadAdminStudySubmissions);
+$("#adminStudySubmissionGroups")?.addEventListener("click", async e => {
+  const btn = e.target.closest(".study-submission-delete-btn");
+  if (!btn) return;
+  if (!confirm("이 성경공부 제출 답안을 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.")) return;
+  btn.disabled = true;
+  $("#studySubmissionStatus").textContent = "성경공부 답안을 삭제하고 있습니다…";
+  const result = await deleteAdminStudentRecord("study", btn.dataset.recordId);
+  if (result.error) { btn.disabled=false; $("#studySubmissionStatus").textContent=dbErrorMessage(result.error,"성경공부 답안 삭제에 실패했습니다."); return; }
+  await Promise.all([loadAdminStudySubmissions(), loadAdminRecords()]);
+  $("#studySubmissionStatus").textContent = "성경공부 답안이 삭제되었습니다.";
+});
+
+async function loadAdminBoardGroups() {
+  if (!isAdmin || !$("#adminBoardGroups")) return;
+  $("#boardAdminStatus").textContent = "익명 게시글을 불러오는 중입니다…";
+  const { data, error } = await db.from("anonymous_posts")
+    .select("id,body,reply_text,created_at,is_hidden")
+    .order("created_at",{ascending:false}).limit(1000);
+  if (error) { $("#boardAdminStatus").textContent=dbErrorMessage(error,"익명 게시글을 불러오지 못했습니다."); return; }
+  const groups = groupBySunday(data, row => sundayForISO(row.created_at));
+  const keys = [...groups.keys()].sort((x,y)=>String(y).localeCompare(String(x)));
+  if (!keys.length) {
+    $("#adminBoardGroups").innerHTML = '<p class="muted">아직 익명 게시글이 없습니다.</p>';
+    $("#boardAdminStatus").textContent = "";
+    return;
+  }
+  $("#adminBoardGroups").innerHTML = keys.map((key,index)=>{
+    const rows = groups.get(key) || [];
+    return `<details class="record-week-group" ${index===0?"open":""}>
+      <summary><span><b>${escapeHtml(sundayGroupLabel(key))}</b><small>익명글 ${rows.length}건</small></span><span class="record-week-counts"><span>익명 ${rows.length}</span></span></summary>
+      <div class="record-week-body">${rows.map(row=>`
+        <article class="list-item record-item">
+          <div class="record-item-head"><div><b>익명게시판${row.is_hidden?" · 숨김":""}</b><div class="meta">${escapeHtml(recordTime(row.created_at))}</div></div>
+          <button class="ghost danger-outline compact-btn board-admin-delete-btn" type="button" data-record-id="${escapeHtml(String(row.id))}">삭제</button></div>
+          <p>${escapeHtml(row.body)}</p>
+          ${row.reply_text ? `<div class="banner"><b>관리자 답변</b><span>${escapeHtml(row.reply_text)}</span></div>` : ""}
+        </article>`).join("")}</div>
+    </details>`;
+  }).join("");
+  $("#boardAdminStatus").textContent = `익명 게시글 ${(data||[]).length}건을 주일별로 불러왔습니다.`;
+}
+
+$("#refreshBoardAdminBtn")?.addEventListener("click", loadAdminBoardGroups);
+$("#adminBoardGroups")?.addEventListener("click", async e => {
+  const btn = e.target.closest(".board-admin-delete-btn");
+  if (!btn) return;
+  if (!confirm("이 익명 게시글을 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.")) return;
+  btn.disabled = true;
+  $("#boardAdminStatus").textContent = "익명 게시글을 삭제하고 있습니다…";
+  const result = await deleteAdminStudentRecord("board", btn.dataset.recordId);
+  if (result.error) { btn.disabled=false; $("#boardAdminStatus").textContent=dbErrorMessage(result.error,"익명 게시글 삭제에 실패했습니다."); return; }
+  await Promise.all([loadAdminBoardGroups(), loadBoard(), loadAdminRecords()]);
+  $("#boardAdminStatus").textContent = "익명 게시글이 삭제되었습니다.";
+});
+
 
 async function loadAdminPrayers() {
   if(!isAdmin) return;
@@ -1654,139 +1836,69 @@ $("#adminPrayerGroups")?.addEventListener("click",async e=>{
 
 async function loadAdminRecords() {
   if (!isAdmin) return;
-  $("#recordsAdminStatus").textContent = "학생 제출 기록을 불러오는 중입니다…";
-  const [w,a,s,p,g,b] = await Promise.all([
-    db.from("weekly_contents").select("id,week_start,verse_reference").order("week_start",{ascending:false}).limit(300),
-    db.from("attendance").select("*").order("completed_at",{ascending:false}).limit(1000),
-    db.from("study_submissions").select("*").order("submitted_at",{ascending:false}).limit(1000),
-    db.from("prayer_requests").select("*").order("submitted_at",{ascending:false}).limit(1000),
-    db.from("gratitude_prayers").select("*").order("prayer_date",{ascending:false}).order("created_at",{ascending:false}).limit(1000),
-    db.from("anonymous_posts").select("id,body,created_at").order("created_at",{ascending:false}).limit(1000)
+  $("#recordsAdminStatus").textContent = "주일별 제출 통계를 집계하는 중입니다…";
+  const [w,a,sr,p,g,b] = await Promise.all([
+    db.from("weekly_contents").select("id,week_start").order("week_start",{ascending:false}).limit(300),
+    db.from("attendance").select("id,weekly_content_id,completed_at").order("completed_at",{ascending:false}).limit(2000),
+    db.from("study_submissions").select("id,weekly_content_id,submitted_at").order("submitted_at",{ascending:false}).limit(2000),
+    db.from("prayer_requests").select("id,weekly_content_id,submitted_at").order("submitted_at",{ascending:false}).limit(2000),
+    db.from("gratitude_prayers").select("id,prayer_date,created_at").order("prayer_date",{ascending:false}).limit(2000),
+    db.from("anonymous_posts").select("id,created_at").order("created_at",{ascending:false}).limit(2000)
   ]);
-  const errors = [w,a,s,p,g,b].map(x=>x.error).filter(Boolean);
+  const errors = [w,a,sr,p,g,b].map(x=>x.error).filter(Boolean);
   if (errors.length) {
-    $("#recordsAdminStatus").textContent = dbErrorMessage(errors[0], "학생 제출 기록을 불러오지 못했습니다.");
+    $("#recordsAdminStatus").textContent = dbErrorMessage(errors[0], "학생 제출 통계를 불러오지 못했습니다.");
     return;
   }
 
-  const weekMap = new Map((w.data||[]).map(row => [String(row.id), {
-    week_start:row.week_start,
-    sunday:sundayFromWeekStart(row.week_start),
-    verse_reference:row.verse_reference || ""
-  }]));
+  const weekMap = weeklySundayMap(w.data);
   const records = [];
-  const resolveSunday = (weeklyId, fallbackDate) => weekMap.get(String(weeklyId||""))?.sunday || sundayForISO(fallbackDate);
+  const resolveSunday = (weeklyId, fallbackDate) => weekMap.get(String(weeklyId||"")) || sundayForISO(fallbackDate);
+  (a.data||[]).forEach(x => records.push({type:"attendance", sunday:resolveSunday(x.weekly_content_id,x.completed_at)}));
+  (sr.data||[]).forEach(x => records.push({type:"study", sunday:resolveSunday(x.weekly_content_id,x.submitted_at)}));
+  (p.data||[]).forEach(x => records.push({type:"prayer", sunday:resolveSunday(x.weekly_content_id,x.submitted_at)}));
+  (g.data||[]).forEach(x => records.push({type:"gratitude", sunday:sundayForISO(x.prayer_date || x.created_at)}));
+  (b.data||[]).forEach(x => records.push({type:"board", sunday:sundayForISO(x.created_at)}));
 
-  (a.data||[]).forEach(x => records.push({
-    type:"attendance", id:String(x.id), sunday:resolveSunday(x.weekly_content_id,x.completed_at), sort:x.completed_at || "",
-    html:`<article class="list-item record-item"><div class="record-item-head"><div><b>말씀쓰기 · 출석</b><div>${escapeHtml(x.grade)} ${escapeHtml(x.student_name)}</div></div><button class="ghost danger-outline compact-btn record-delete-btn" type="button" data-record-type="attendance" data-record-id="${escapeHtml(String(x.id))}" data-record-label="말씀쓰기 출석">삭제</button></div><div class="meta">${escapeHtml(recordTime(x.completed_at))}</div></article>`
-  }));
-  (s.data||[]).forEach(x => records.push({
-    type:"study", id:String(x.id), sunday:resolveSunday(x.weekly_content_id,x.submitted_at), sort:x.submitted_at || "",
-    html:`<article class="list-item record-item"><div class="record-item-head"><div><b>성경공부 제출</b><div>${escapeHtml(x.grade)} ${escapeHtml(x.student_name)}</div></div><button class="ghost danger-outline compact-btn record-delete-btn" type="button" data-record-type="study" data-record-id="${escapeHtml(String(x.id))}" data-record-label="성경공부 제출">삭제</button></div><ol>${(Array.isArray(x.answers)?x.answers:[]).map(v=>`<li>${escapeHtml(v)}</li>`).join("")}</ol><div class="meta">${escapeHtml(recordTime(x.submitted_at))}</div></article>`
-  }));
-  (p.data||[]).forEach(x => records.push({
-    type:"prayer", id:String(x.id), sunday:resolveSunday(x.weekly_content_id,x.submitted_at), sort:x.submitted_at || "",
-    html:`<article class="list-item record-item"><div class="record-item-head"><div><b>기도제목${x.is_private?" · 비공개":""}</b><div>${escapeHtml(x.grade)} ${escapeHtml(x.student_name)}</div></div><button class="ghost danger-outline compact-btn record-delete-btn" type="button" data-record-type="prayer" data-record-id="${escapeHtml(String(x.id))}" data-record-label="기도제목">삭제</button></div><p>${escapeHtml(x.prayer_text)}</p><div class="meta">${escapeHtml(recordTime(x.submitted_at))}</div></article>`
-  }));
-  (g.data||[]).forEach(x => records.push({
-    type:"gratitude", id:String(x.id), sunday:sundayForISO(x.prayer_date || x.created_at), sort:x.created_at || x.prayer_date || "",
-    html:`<article class="list-item record-item gratitude-admin-record"><div class="record-item-head"><div><b>감사기도 · ${escapeHtml(fmtDate(x.prayer_date))}</b><div>${escapeHtml(x.grade)} ${escapeHtml(x.student_name)}</div></div><button class="ghost danger-outline compact-btn record-delete-btn" type="button" data-record-type="gratitude" data-record-id="${escapeHtml(String(x.id))}" data-record-label="감사기도">삭제</button></div><p>${escapeHtml(x.gratitude_text)}</p><div class="meta">${escapeHtml(recordTime(x.created_at))}</div></article>`
-  }));
-  (b.data||[]).forEach(x => records.push({
-    type:"board", id:String(x.id), sunday:sundayForISO(x.created_at), sort:x.created_at || "",
-    html:`<article class="list-item record-item"><div class="record-item-head"><div><b>익명게시판</b><div class="meta">익명 제출</div></div><button class="ghost danger-outline compact-btn record-delete-btn" type="button" data-record-type="board" data-record-id="${escapeHtml(String(x.id))}" data-record-label="익명게시판 글">삭제</button></div><p>${escapeHtml(x.body)}</p><div class="meta">${escapeHtml(recordTime(x.created_at))}</div></article>`
-  }));
-
-  records.sort((x,y)=>String(y.sort).localeCompare(String(x.sort)));
   const groups = new Map();
   records.forEach(r => {
     const key = r.sunday || "unknown";
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(r);
   });
-  const keys = [...groups.keys()].sort((x,y)=> y.localeCompare(x));
+  const keys = [...groups.keys()].sort((x,y)=>String(y).localeCompare(String(x)));
   const currentSunday = sundayForISO(localISODate());
   const current = groups.get(currentSunday) || [];
-  const countType = t => current.filter(r=>r.type===t).length;
+  const countCurrent = t => current.filter(r=>r.type===t).length;
   $("#recordWeekLabel").textContent = `${fmtDate(currentSunday)} 주일 기준`;
-  $("#statAttendance").textContent = countType("attendance");
-  $("#statStudy").textContent = countType("study");
-  $("#statPrayer").textContent = countType("prayer");
-  $("#statGratitude").textContent = countType("gratitude");
-  $("#statBoard").textContent = countType("board");
+  $("#statAttendance").textContent = countCurrent("attendance");
+  $("#statStudy").textContent = countCurrent("study");
+  $("#statPrayer").textContent = countCurrent("prayer");
+  $("#statGratitude").textContent = countCurrent("gratitude");
+  $("#statBoard").textContent = countCurrent("board");
 
   if (!keys.length) {
-    $("#adminRecords").innerHTML = '<p class="muted">아직 학생 제출 기록이 없습니다.</p>';
+    $("#adminRecords").innerHTML = '<p class="muted">아직 집계할 학생 제출 기록이 없습니다.</p>';
     $("#recordsAdminStatus").textContent = "";
     return;
   }
 
-  $("#adminRecords").innerHTML = keys.map((key,index) => {
+  $("#adminRecords").innerHTML = keys.map(key => {
     const group = groups.get(key) || [];
     const c = t => group.filter(r=>r.type===t).length;
-    const label = key === "unknown" ? "날짜를 확인할 수 없는 기록" : `${fmtDate(key)} 주일`;
-    return `<details class="record-week-group" ${index===0?"open":""}>
-      <summary>
-        <span><b>${escapeHtml(label)}</b><small>총 ${group.length}건</small></span>
-        <span class="record-week-counts">
-          <span>말씀 ${c("attendance")}</span><span>성경 ${c("study")}</span><span>기도 ${c("prayer")}</span><span>감사 ${c("gratitude")}</span><span>익명 ${c("board")}</span>
-        </span>
-      </summary>
-      <div class="record-week-body">${group.map(r=>r.html).join("")}</div>
-    </details>`;
+    return `<article class="weekly-stat-card">
+      <div class="weekly-stat-head"><div><b>${escapeHtml(sundayGroupLabel(key))}</b><small>총 ${group.length}건</small></div><span class="weekly-stat-total">${group.length}</span></div>
+      <div class="weekly-stat-grid">
+        <div><span>말씀쓰기</span><strong>${c("attendance")}</strong></div>
+        <div><span>성경공부</span><strong>${c("study")}</strong></div>
+        <div><span>기도제목</span><strong>${c("prayer")}</strong></div>
+        <div><span>감사기도</span><strong>${c("gratitude")}</strong></div>
+        <div><span>익명글</span><strong>${c("board")}</strong></div>
+      </div>
+    </article>`;
   }).join("");
-  $("#recordsAdminStatus").textContent = "주일별 제출 기록을 불러왔습니다.";
+  $("#recordsAdminStatus").textContent = `총 ${records.length}건을 ${keys.length}개 주일로 집계했습니다. 개인정보와 제출 내용은 표시하지 않습니다.`;
 }
-
-async function directDeleteStudentRecord(type, id) {
-  const tableMap = {
-    attendance:"attendance",
-    study:"study_submissions",
-    prayer:"prayer_requests",
-    gratitude:"gratitude_prayers",
-    board:"anonymous_posts"
-  };
-  const table = tableMap[type];
-  if (!table) return { error:{code:"22023",message:"지원하지 않는 기록 유형입니다."} };
-  const result = await db.from(table).delete().eq("id", id).select("id");
-  if (result.error) return { error:result.error };
-  if (!result.data?.length) return { error:{code:"PGRST116",message:"삭제할 학생 제출 기록을 찾지 못했습니다."} };
-  return { data:{deleted:true} };
-}
-
-$("#adminRecords").addEventListener("click", async e => {
-  const btn = e.target.closest(".record-delete-btn");
-  if (!btn) return;
-  if (!isAdmin) { $("#recordsAdminStatus").textContent = "관리자 로그인 후 삭제해 주세요."; return; }
-  const type = btn.dataset.recordType;
-  const id = btn.dataset.recordId;
-  const label = btn.dataset.recordLabel || "학생 제출 기록";
-  if (!type || !id) return;
-  if (!confirm(`${label}을 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.`)) return;
-  btn.disabled = true;
-  $("#recordsAdminStatus").textContent = `${label}을 삭제하고 있습니다…`;
-  let result;
-  if (type === "prayer") {
-    result = await deletePrayerRecordV15(id);
-  } else {
-    result = await db.rpc("youth_admin_delete_student_record_v14", {p_record_id:id,p_record_type:type});
-    if (result.error && isMissingRpc(result.error, "youth_admin_delete_student_record_v14")) {
-      console.warn("학생 제출 삭제 RPC를 찾지 못해 직접 삭제를 시도합니다.", result.error);
-      result = await directDeleteStudentRecord(type, id);
-    }
-  }
-  if (result.error) {
-    btn.disabled = false;
-    $("#recordsAdminStatus").textContent = dbErrorMessage(result.error, `${label} 삭제에 실패했습니다.`);
-    return;
-  }
-  if (type === "board") await loadBoard();
-  if (type === "prayer") await loadAdminPrayers();
-  await loadAdminRecords();
-  $("#recordsAdminStatus").textContent = `${label}이 삭제되었습니다.`;
-});
-
 
 $("#retryConnectionBtn")?.addEventListener("click", async () => {
   await checkSupabaseConnection({reloadData:true});

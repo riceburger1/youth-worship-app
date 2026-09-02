@@ -244,6 +244,7 @@
             <button class="admin-tab" type="button" data-admin-tab="study">📝 성경공부</button>
             <button class="admin-tab" type="button" data-admin-tab="notice">📢 공지사항</button>
             <button class="admin-tab" type="button" data-admin-tab="prayer">🙏 기도제목</button>
+            <button class="admin-tab" type="button" data-admin-tab="board">💬 익명게시판</button>
             <button class="admin-tab" type="button" data-admin-tab="records">📊 학생 제출</button>
             <button class="admin-tab" type="button" data-admin-tab="events">📅 행사 달력</button>
           </nav>
@@ -282,6 +283,17 @@
               </div>
               <p class="muted small-note">말씀을 삭제하면 같은 주차의 성경공부와 연결된 말씀쓰기 출석·성경공부 제출 기록도 함께 삭제됩니다. 기도제목 내용은 보존됩니다.</p>
               <p id="wordAdminStatus" class="status"></p>
+              <div class="admin-weekly-submissions">
+                <div class="admin-editor-head compact-section-head">
+                  <div>
+                    <h4>말씀쓰기 · 출석 기록</h4>
+                    <p class="muted">학생의 말씀쓰기 완료 기록을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
+                  </div>
+                  <button id="refreshWordSubmissionsBtn" class="ghost compact-btn" type="button">기록 새로고침</button>
+                </div>
+                <p id="wordSubmissionStatus" class="status"></p>
+                <div id="adminWordSubmissionGroups" class="weekly-record-groups"></div>
+              </div>
             </section>
 
             <section id="studyAdminCard" class="subcard admin-editor-card" data-admin-panel="study">
@@ -307,6 +319,17 @@
                 <button id="deleteStudyBtn" class="ghost danger-outline" type="button" disabled>선택한 성경공부 삭제</button>
               </div>
               <p id="studyAdminStatus" class="status"></p>
+              <div class="admin-weekly-submissions">
+                <div class="admin-editor-head compact-section-head">
+                  <div>
+                    <h4>성경공부 제출 답안</h4>
+                    <p class="muted">학생 답안을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
+                  </div>
+                  <button id="refreshStudySubmissionsBtn" class="ghost compact-btn" type="button">답안 새로고침</button>
+                </div>
+                <p id="studySubmissionStatus" class="status"></p>
+                <div id="adminStudySubmissionGroups" class="weekly-record-groups"></div>
+              </div>
             </section>
 
             <form id="noticeAdminForm" class="subcard admin-editor-card" data-admin-panel="notice">
@@ -347,11 +370,17 @@
               <div id="adminPrayerGroups" class="weekly-record-groups prayer-groups"></div>
             </section>
 
-            <div class="subcard gratitude-admin-note" data-admin-panel="records">
-              <h3>감사기도 챌린지</h3>
-              <p>학생은 하루에 한 번 감사기도를 기록할 수 있습니다.</p>
-              <p class="muted">감사기도 내용은 학생끼리 공개되지 않으며 관리자 제출 기록에서만 확인할 수 있습니다.</p>
-            </div>
+            <section class="subcard admin-editor-card admin-span-2" data-admin-panel="board">
+              <div class="admin-editor-head">
+                <div>
+                  <h3>익명게시판 관리</h3>
+                  <p class="muted admin-mode-label">익명 게시글을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
+                </div>
+                <button id="refreshBoardAdminBtn" class="ghost compact-btn" type="button">익명글 새로고침</button>
+              </div>
+              <p id="boardAdminStatus" class="status"></p>
+              <div id="adminBoardGroups" class="weekly-record-groups"></div>
+            </section>
 
             <div class="subcard" data-admin-panel="records">
               <h3>현재 주일 제출 현황</h3>
@@ -370,12 +399,12 @@
           <div class="subcard records-manager-card" data-admin-panel="records">
             <div class="admin-editor-head">
               <div>
-                <h3>학생 제출 기록</h3>
-                <p class="muted">모든 제출 기록을 주일 날짜별로 모아 표시합니다. 각 기록의 삭제 버튼으로 개별 삭제할 수 있습니다.</p>
+                <h3>주일별 학생 제출 통계</h3>
+                <p class="muted">이 탭에서는 개인정보와 제출 내용 없이 주일별 건수만 집계합니다. 실제 내용과 삭제는 각 항목 탭에서 확인할 수 있습니다.</p>
               </div>
             </div>
             <p id="recordsAdminStatus" class="status"></p>
-            <div id="adminRecords" class="weekly-record-groups"></div>
+            <div id="adminRecords" class="weekly-stat-groups"></div>
           </div>
 
 

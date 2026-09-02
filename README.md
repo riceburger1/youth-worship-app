@@ -1,20 +1,18 @@
-# 주의울림 V19 — 행사 기간 저장 PGRST204 수정
+# 주의울림 V22 — 관리자 주일별 기록 분리
 
-## 원인
-앱은 `church_events.end_date`를 저장하지만 Supabase 테이블 또는 PostgREST 스키마 캐시에 `end_date`가 없어 `PGRST204`가 발생했습니다.
+## 이번 변경
+- 관리자 탭: 말씀 / 성경공부 / 공지사항 / 기도제목 / 익명게시판 / 학생 제출 통계 / 행사 달력
+- 말씀 관리 탭: 말씀 등록·수정·삭제 + 학생 말씀쓰기/출석 기록을 주일별 확인·개별 삭제
+- 성경공부 탭: 성경공부 등록·수정·삭제 + 학생 제출 답안을 주일별 확인·개별 삭제
+- 기도제목 탭: 기도제목을 주일별 확인·개별 삭제
+- 익명게시판 탭: 익명글을 주일별 확인·개별 삭제
+- 학생 제출 탭: 개인정보/내용 없이 주일별 건수 통계만 표시
+- 감사기도는 학생 제출 통계에 건수만 포함
+- 지난 말씀/성경공부 선택 항목도 주일 날짜 기준으로 표시
 
-## 적용 순서
-1. Supabase `youth-worship` 프로젝트 → SQL Editor → New query
-2. `event_period_v19.sql` 전체 실행
-3. 마지막 진단 결과가 모두 `true`인지 확인
-4. GitHub에서 `index.html`, `app.js`, `styles.css`, `sw.js` 교체
-5. GitHub Pages 배포 후 Ctrl+F5
+## 적용
+Supabase SQL 추가 실행은 필요하지 않습니다. 기존 관리자 조회/삭제 권한을 그대로 사용합니다.
+GitHub에서 index.html, app.js, styles.css, sw.js, manifest.json을 교체하고 icon 파일이 없다면 icon-192.png/icon-512.png도 함께 업로드하세요.
 
-## 정상 진단값
-- end_date_exists = true
-- no_null_end_date = true
-- valid_event_periods = true
-- calendar_public_select = true
-- calendar_admin_insert = true
-- calendar_admin_update = true
-- calendar_admin_delete = true
+배포 후 Ctrl+F5로 강력 새로고침하세요.
+캐시 버전: 주의울림-v22-admin-weekly-grouped
