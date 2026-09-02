@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v25-profile-header-button";
+const APP_VERSION = "v26-profile-header-drawer-fix";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -161,17 +161,32 @@ function restoreProfile() {
   }
   return restored;
 }
+function setProfilePanel(open, {scroll=false, focus=false} = {}) {
+  const panel = $("#profile");
+  const btn = $("#profileHeaderBtn");
+  if (!panel) return;
+  panel.classList.toggle("hidden", !open);
+  panel.setAttribute("aria-hidden", open ? "false" : "true");
+  if (btn) {
+    btn.classList.toggle("active", open);
+    btn.setAttribute("aria-pressed", open ? "true" : "false");
+  }
+  if (open && scroll) requestAnimationFrame(() => panel.scrollIntoView({behavior:"smooth", block:"start"}));
+  if (open && focus) requestAnimationFrame(() => {
+    const target = profileReady() ? $("#studentName") : ($("#grade") || $("#studentName"));
+    target?.focus({preventScroll:true});
+  });
+}
 function activateStudentTab(tabName) {
+  if (tabName === "profile") {
+    setProfilePanel(true, {scroll:true, focus:true});
+    return;
+  }
   const target = $("#" + tabName);
   if (!target) return;
+  setProfilePanel(false);
   $$(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tabName));
-  const profileHeaderBtn = $("#profileHeaderBtn");
-  if (profileHeaderBtn) {
-    const profileActive = tabName === "profile";
-    profileHeaderBtn.classList.toggle("active", profileActive);
-    profileHeaderBtn.setAttribute("aria-pressed", profileActive ? "true" : "false");
-  }
-  $$(".panel").forEach(panel => panel.classList.add("hidden"));
+  $$("main .panel").forEach(panel => panel.classList.add("hidden"));
   target.classList.remove("hidden");
   if (tabName === "gratitude") renderGratitudeChallenge();
 }
@@ -179,8 +194,7 @@ function requireProfile(statusEl) {
   const p = profile();
   if (!profileReady(p)) {
     if (statusEl) statusEl.textContent = "오른쪽 위 내 정보에서 학년과 이름을 먼저 입력해 주세요.";
-    activateStudentTab("profile");
-    requestAnimationFrame(() => $("#profile")?.scrollIntoView({behavior:"smooth", block:"start"}));
+    setProfilePanel(true, {scroll:true, focus:true});
     return null;
   }
   // 제출할 때마다 현재 공통 프로필을 다시 저장해 네 가지 기록이 동일한 학년·이름을 사용하도록 합니다.
@@ -335,8 +349,12 @@ $("#studentName").addEventListener("change", () => {
 $("#saveProfileBtn").addEventListener("click", () => persistProfile({feedback:true}));
 
 $$(".tab").forEach(btn => btn.addEventListener("click", () => activateStudentTab(btn.dataset.tab)));
-$("#profileHeaderBtn")?.addEventListener("click", () => activateStudentTab("profile"));
-if (!ADMIN_WINDOW && !profileReady(restoredProfile)) activateStudentTab("profile");
+$("#profileHeaderBtn")?.addEventListener("click", () => {
+  const isOpen = !$("#profile")?.classList.contains("hidden");
+  setProfilePanel(!isOpen, {scroll:!isOpen, focus:!isOpen});
+});
+$("#closeProfileBtn")?.addEventListener("click", () => setProfilePanel(false));
+if (!ADMIN_WINDOW && !profileReady(restoredProfile)) setProfilePanel(true, {scroll:false, focus:false});
 $("#gratitudePrevMonth").addEventListener("click", () => {
   gratitudeCalendarCursor = new Date(gratitudeCalendarCursor.getFullYear(), gratitudeCalendarCursor.getMonth()-1, 1);
   renderGratitudeChallenge();

@@ -24,26 +24,17 @@
       </div>
     </header>
 
-    <section id="bannerArea" class="banner-wrap"></section>
-
-    <main>
-      <nav class="tabs" aria-label="메뉴">
-        <button class="tab active" data-tab="word">말씀쓰기</button>
-        <button class="tab" data-tab="study">성경공부</button>
-        <button class="tab" data-tab="prayer">기도제목</button>
-        <button class="tab" data-tab="notice">공지사항</button>
-        <button class="tab" data-tab="gratitude">감사기도</button>
-        <button class="tab" data-tab="board">익명게시판</button>
-      </nav>
-
-      <section id="profile" class="panel card hidden profile-card">
+    <section id="profile" class="profile-drawer card hidden profile-card" aria-hidden="true">
         <div class="section-head">
           <div>
             <span class="eyebrow">나의 기록 정보</span>
             <h2>내 정보</h2>
             <p class="muted">학년과 이름을 한 번 입력하면 이 기기에 저장되고, 나의 신앙활동 기록에 자동으로 연결됩니다.</p>
           </div>
-          <span class="pill">공통 프로필</span>
+          <div class="profile-head-actions">
+            <span class="pill">공통 프로필</span>
+            <button id="closeProfileBtn" class="ghost compact-btn" type="button">닫기</button>
+          </div>
         </div>
         <div class="identity-grid">
           <label>학년
@@ -71,6 +62,19 @@
           <p>위 활동을 제출하면 저장된 학년·이름이 함께 기록되어 관리자 기록에 반영됩니다. 익명게시판은 익명성을 위해 내 정보와 연결하지 않습니다.</p>
         </div>
       </section>
+
+
+    <section id="bannerArea" class="banner-wrap"></section>
+
+    <main>
+      <nav class="tabs" aria-label="메뉴">
+        <button class="tab active" data-tab="word">말씀쓰기</button>
+        <button class="tab" data-tab="study">성경공부</button>
+        <button class="tab" data-tab="prayer">기도제목</button>
+        <button class="tab" data-tab="notice">공지사항</button>
+        <button class="tab" data-tab="gratitude">감사기도</button>
+        <button class="tab" data-tab="board">익명게시판</button>
+      </nav>
 
       <section id="word" class="panel card">
         <div class="section-head">
