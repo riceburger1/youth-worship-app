@@ -191,3 +191,71 @@ body.admin-window .admin-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:
 .record-week-counts{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
 .record-week-counts>span{display:inline-flex;padding:4px 8px;border-radius:999px;background:#f0f4f1;color:#53645b;font-size:.76rem;line-height:1.2;white-space:nowrap}
 @media(max-width:640px){.record-week-counts{justify-content:flex-start}.record-week-counts>span{font-size:.72rem}}
+
+/* ===== v15 기도제목 · 행사 달력 ===== */
+body.admin-window #churchCalendarSection{display:none!important}
+.admin-span-2{grid-column:1/-1}
+
+.church-calendar-section{margin-top:18px}
+.calendar-section-head{align-items:flex-start;gap:14px}
+.event-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;margin-top:8px}
+.event-day{appearance:none;-webkit-appearance:none;min-width:0;min-height:86px;padding:8px;border:1px solid #e1e8e3;border-radius:13px;background:#fff;color:#25372f;text-align:left;display:flex;flex-direction:column;gap:5px;cursor:pointer;overflow:hidden}
+.event-day:hover{border-color:#a9c1b5;box-shadow:0 5px 14px rgba(31,77,63,.07)}
+.event-day.empty{border:0;background:transparent;cursor:default;box-shadow:none}
+.event-day.today{border-color:#6f9d88;box-shadow:inset 0 0 0 1px #6f9d88}
+.event-day.selected{background:#edf5f0;border-color:#1f4d3f;box-shadow:inset 0 0 0 1px #1f4d3f}
+.event-day.has-event .event-day-number{background:#1f4d3f;color:#fff}
+.event-day-number{width:27px;height:27px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:800;flex:0 0 auto}
+.event-day-content{min-width:0;display:flex;flex-direction:column;gap:3px;width:100%}
+.event-mini-title{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 5px;border-radius:6px;background:#f1f5f2;color:#42554c;font-size:.7rem;line-height:1.25}
+.event-more{font-size:.68rem;color:#66766e;font-weight:700;padding-left:3px}
+.event-day-details{margin-top:14px;padding:14px;border-radius:14px;background:#f7f9f7;border:1px solid #e3e9e5;min-height:62px}
+.event-day-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.event-day-heading span{font-size:.8rem;color:#6a786f}
+.event-detail-card{padding:12px;background:#fff;border:1px solid #e2e8e4;border-radius:12px;margin-top:8px}
+.event-detail-card:first-of-type{margin-top:0}
+.event-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.event-detail-head strong{overflow-wrap:anywhere}
+.event-detail-head span{font-size:.82rem;white-space:nowrap;color:#466457;background:#edf4f0;padding:4px 7px;border-radius:999px}
+.event-location{font-size:.85rem;color:#5d6c64;margin-top:7px}
+.event-detail-card p{margin:8px 0 0;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+
+.calendar-manager-card{margin-top:14px}
+.admin-event-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:16px;align-items:start}
+.admin-event-calendar-wrap{min-width:0;border:1px solid #e2e8e4;border-radius:14px;padding:14px;background:#fafcfb}
+.admin-event-calendar .event-day{min-height:80px}
+.event-admin-form{display:grid;gap:11px;min-width:0}
+.event-admin-form label{display:grid;gap:6px;font-weight:700;font-size:.9rem}
+.event-time-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.selected-date-box{padding:11px 12px;border-radius:11px;background:#edf5f0;color:#395348;font-size:.88rem;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.selected-date-box strong{color:#1f4d3f}
+.prayer-admin-card{min-width:0}
+.prayer-admin-record p{white-space:pre-wrap;line-height:1.55}
+.prayer-groups{margin-top:8px}
+
+@media(max-width:900px){
+  .admin-event-layout{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .church-calendar-section{padding:15px}
+  .calendar-section-head{display:grid;grid-template-columns:1fr}
+  .calendar-section-head .calendar-nav{justify-content:space-between;width:100%}
+  .event-calendar{gap:4px}
+  .event-day{min-height:64px;padding:5px;border-radius:9px}
+  .event-day-number{width:24px;height:24px;font-size:.76rem}
+  .event-mini-title{font-size:.62rem;padding:2px 3px}
+  .event-more{font-size:.61rem}
+  .event-day-details{padding:11px}
+  .event-detail-head{display:grid;gap:6px}
+  .event-detail-head span{justify-self:start}
+  .admin-event-calendar-wrap{padding:9px}
+  .admin-event-calendar .event-day{min-height:60px}
+  .event-time-grid{grid-template-columns:1fr}
+}
+@media(max-width:420px){
+  .event-calendar{gap:3px}
+  .event-day{min-height:54px;padding:4px}
+  .event-day-number{width:22px;height:22px;font-size:.7rem}
+  .event-mini-title{font-size:.58rem;line-height:1.15}
+  .event-day-content .event-mini-title:nth-child(n+2){display:none}
+}

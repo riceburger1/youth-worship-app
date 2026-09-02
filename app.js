@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v14-admin-mobile-delete-fix";
+const APP_VERSION = "v15-prayer-calendar-admin";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -81,13 +81,15 @@ async function checkSupabaseConnection({reloadData=false} = {}) {
     retry.disabled = false;
 
     if (reloadData) {
-      await Promise.all([loadWeekly(), loadNotices(), loadBoard()]);
+      await Promise.all([loadWeekly(), loadNotices(), loadBoard(), loadPublicEventCalendar()]);
       if (isAdmin) {
         await Promise.all([
           loadAdminWordOptions(),
           loadAdminStudyOptions(),
           loadAdminNoticeOptions(),
-          loadAdminRecords()
+          loadAdminPrayers(),
+          loadAdminRecords(),
+          loadAdminEventCalendar()
         ]);
       }
     }
@@ -112,6 +114,12 @@ let adminStudyId = null;
 let adminWeeklyRows = [];
 let adminNoticeId = null;
 let adminNoticeRows = [];
+let eventCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let adminEventCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let publicEventRows = [];
+let adminEventRows = [];
+let selectedAdminEventDate = null;
+let selectedAdminEventId = null;
 
 const PROFILE_STORAGE_KEY = "주의울림-profile-v2";
 const GRATITUDE_PREFIX = "주의울림-gratitude-v2:";
@@ -435,16 +443,34 @@ $("#studyForm").addEventListener("submit", async e => {
 
 $("#prayerForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const p = requireProfile($("#prayerStatus"));
+  const status = $("#prayerStatus");
+  const p = requireProfile(status);
   const text = clean($("#prayerText").value);
   if (!p) return;
-  if (!text) { $("#prayerStatus").textContent = "기도제목을 입력해 주세요."; return; }
+  if (!text) { status.textContent = "기도제목을 입력해 주세요."; return; }
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+  status.textContent = "기도제목을 저장하고 있습니다…";
+
   const { error } = await db.from("prayer_requests").insert({
-    weekly_content_id: weekly?.id ?? null, grade:p.grade, student_name:p.name,
-    prayer_text:text, is_private:$("#prayerPrivate").checked
+    weekly_content_id: weekly?.id ?? null,
+    grade:p.grade,
+    student_name:p.name,
+    prayer_text:text,
+    is_private:$("#prayerPrivate").checked
   });
-  $("#prayerStatus").textContent = error ? "제출 중 오류가 발생했습니다." : "기도제목이 제출되었습니다.";
-  if (!error) e.target.reset();
+
+  if (submitBtn) submitBtn.disabled = false;
+  if (error) {
+    status.textContent = dbErrorMessage(error, "기도제목 제출에 실패했습니다.");
+    return;
+  }
+
+  status.textContent = "기도제목이 제출되었습니다. 함께 기도할게요.";
+  e.target.reset();
+  $("#prayerPrivate").checked = true;
+  if (isAdmin) await Promise.all([loadAdminPrayers(), loadAdminRecords()]);
 });
 
 $("#gratitudeForm").addEventListener("submit", async e => {
@@ -539,6 +565,250 @@ async function loadBoard() {
     : '<p class="muted">아직 등록된 글이 없습니다.</p>';
 }
 
+
+// ============================================================
+// 청소년부 행사 · 이벤트 달력
+// ============================================================
+function calendarMonthRange(cursor) {
+  const y = cursor.getFullYear();
+  const m = cursor.getMonth();
+  return {
+    year:y,
+    month:m,
+    key:`${y}-${String(m+1).padStart(2,"0")}`,
+    start:`${y}-${String(m+1).padStart(2,"0")}-01`,
+    end:localISODate(new Date(y,m+1,0))
+  };
+}
+function shortTime(v) {
+  if (!v) return "";
+  return String(v).slice(0,5);
+}
+function eventTimeText(row) {
+  const start = shortTime(row.start_time);
+  const end = shortTime(row.end_time);
+  if (start && end) return `${start}–${end}`;
+  return start || end || "";
+}
+function eventsByDate(rows) {
+  const map = new Map();
+  (rows||[]).forEach(row => {
+    const key = String(row.event_date || "");
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(row);
+  });
+  for (const list of map.values()) list.sort((a,b)=>String(a.start_time||"").localeCompare(String(b.start_time||"")) || String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  return map;
+}
+function renderEventCalendar(container, monthLabel, cursor, rows, {selectedDate=null, admin=false}={}) {
+  if (!container || !monthLabel) return;
+  const {year,month,key} = calendarMonthRange(cursor);
+  const firstDay = new Date(year,month,1).getDay();
+  const lastDate = new Date(year,month+1,0).getDate();
+  const today = localISODate();
+  const byDate = eventsByDate(rows);
+  const cells = [];
+  for (let i=0;i<firstDay;i++) cells.push('<span class="event-day empty" aria-hidden="true"></span>');
+  for (let day=1;day<=lastDate;day++) {
+    const iso = `${key}-${String(day).padStart(2,"0")}`;
+    const list = byDate.get(iso) || [];
+    const classes = ["event-day", iso===today?"today":"", iso===selectedDate?"selected":"", list.length?"has-event":""].filter(Boolean).join(" ");
+    const eventLabels = list.slice(0,2).map(ev=>`<span class="event-mini-title">${escapeHtml(ev.title)}</span>`).join("");
+    const more = list.length>2 ? `<span class="event-more">+${list.length-2}</span>` : "";
+    cells.push(`<button class="${classes}" type="button" data-${admin?"admin-":""}event-date="${iso}" aria-label="${year}년 ${month+1}월 ${day}일, 일정 ${list.length}개"><span class="event-day-number">${day}</span><span class="event-day-content">${eventLabels}${more}</span></button>`);
+  }
+  container.innerHTML = cells.join("");
+  monthLabel.textContent = `${year}년 ${month+1}월`;
+}
+function renderPublicEventDay(date) {
+  const box = $("#eventDayDetails");
+  if (!box) return;
+  const list = publicEventRows.filter(row=>String(row.event_date)===date);
+  if (!list.length) {
+    box.innerHTML = `<div class="event-day-heading"><strong>${escapeHtml(fmtDate(date))}</strong></div><p class="muted">등록된 행사가 없습니다.</p>`;
+    return;
+  }
+  box.innerHTML = `<div class="event-day-heading"><strong>${escapeHtml(fmtDate(date))}</strong><span>${list.length}개 일정</span></div>` + list.map(row=>`
+    <article class="event-detail-card">
+      <div class="event-detail-head"><strong>${escapeHtml(row.title)}</strong>${eventTimeText(row)?`<span>${escapeHtml(eventTimeText(row))}</span>`:""}</div>
+      ${row.location?`<div class="event-location">📍 ${escapeHtml(row.location)}</div>`:""}
+      ${row.description?`<p>${escapeHtml(row.description)}</p>`:""}
+    </article>`).join("");
+}
+async function loadPublicEventCalendar({selectDate=null}={}) {
+  const status = $("#eventCalendarStatus");
+  const range = calendarMonthRange(eventCalendarCursor);
+  const {data,error} = await db.from("church_events")
+    .select("id,event_date,title,description,location,start_time,end_time,created_at")
+    .eq("published",true)
+    .gte("event_date",range.start).lte("event_date",range.end)
+    .order("event_date",{ascending:true}).order("start_time",{ascending:true});
+  if (error) {
+    publicEventRows=[];
+    renderEventCalendar($("#eventCalendar"), $("#eventCalendarMonth"), eventCalendarCursor, []);
+    if (status) status.textContent = error.code === "PGRST205" ? "행사 달력 DB 설정이 아직 적용되지 않았습니다. 관리자에게 문의해 주세요." : dbErrorMessage(error,"행사 달력을 불러오지 못했습니다.");
+    return;
+  }
+  publicEventRows=data||[];
+  renderEventCalendar($("#eventCalendar"), $("#eventCalendarMonth"), eventCalendarCursor, publicEventRows, {selectedDate:selectDate});
+  if (status) status.textContent = publicEventRows.length ? `이번 달 등록된 일정 ${publicEventRows.length}개` : "이번 달 등록된 행사가 없습니다.";
+  if (selectDate) renderPublicEventDay(selectDate);
+}
+$("#eventPrevMonth")?.addEventListener("click", async()=>{
+  eventCalendarCursor=new Date(eventCalendarCursor.getFullYear(),eventCalendarCursor.getMonth()-1,1);
+  await loadPublicEventCalendar();
+  $("#eventDayDetails").innerHTML='<p class="muted">날짜를 선택하면 그날의 일정이 표시됩니다.</p>';
+});
+$("#eventNextMonth")?.addEventListener("click", async()=>{
+  eventCalendarCursor=new Date(eventCalendarCursor.getFullYear(),eventCalendarCursor.getMonth()+1,1);
+  await loadPublicEventCalendar();
+  $("#eventDayDetails").innerHTML='<p class="muted">날짜를 선택하면 그날의 일정이 표시됩니다.</p>';
+});
+$("#eventCalendar")?.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-event-date]");
+  if(!btn) return;
+  renderEventCalendar($("#eventCalendar"), $("#eventCalendarMonth"), eventCalendarCursor, publicEventRows, {selectedDate:btn.dataset.eventDate});
+  renderPublicEventDay(btn.dataset.eventDate);
+});
+
+function resetAdminEventForm({keepDate=true}={}) {
+  selectedAdminEventId=null;
+  if (!keepDate) selectedAdminEventDate=null;
+  $("#eventPicker").value="__new__";
+  $("#eventTitle").value="";
+  $("#eventStartTime").value="";
+  $("#eventEndTime").value="";
+  $("#eventLocation").value="";
+  $("#eventDescription").value="";
+  $("#eventPublished").checked=true;
+  $("#eventSaveBtn").textContent="행사 등록";
+  $("#eventDeleteBtn").disabled=true;
+  $("#adminSelectedEventDate").textContent=selectedAdminEventDate ? fmtDate(selectedAdminEventDate) : "날짜를 선택해 주세요.";
+}
+function refreshAdminEventPicker() {
+  const picker=$("#eventPicker");
+  if(!picker) return;
+  const list=adminEventRows.filter(row=>String(row.event_date)===selectedAdminEventDate);
+  picker.innerHTML='<option value="__new__">＋ 새 행사 등록</option>'+list.map(row=>`<option value="${escapeHtml(String(row.id))}">${escapeHtml(`${eventTimeText(row)?eventTimeText(row)+" · ":""}${row.title}`)}</option>`).join("");
+  picker.value=selectedAdminEventId && list.some(x=>String(x.id)===String(selectedAdminEventId)) ? String(selectedAdminEventId) : "__new__";
+}
+function fillAdminEvent(row) {
+  selectedAdminEventId=String(row.id);
+  selectedAdminEventDate=String(row.event_date);
+  $("#adminSelectedEventDate").textContent=fmtDate(selectedAdminEventDate);
+  $("#eventTitle").value=row.title||"";
+  $("#eventStartTime").value=shortTime(row.start_time);
+  $("#eventEndTime").value=shortTime(row.end_time);
+  $("#eventLocation").value=row.location||"";
+  $("#eventDescription").value=row.description||"";
+  $("#eventPublished").checked=Boolean(row.published);
+  $("#eventSaveBtn").textContent="행사 수정 저장";
+  $("#eventDeleteBtn").disabled=false;
+  refreshAdminEventPicker();
+}
+async function loadAdminEventCalendar({selectDate=selectedAdminEventDate,selectId=selectedAdminEventId}={}) {
+  if(!isAdmin) return;
+  const range=calendarMonthRange(adminEventCalendarCursor);
+  const {data,error}=await db.from("church_events").select("*")
+    .gte("event_date",range.start).lte("event_date",range.end)
+    .order("event_date",{ascending:true}).order("start_time",{ascending:true});
+  if(error){
+    $("#eventAdminStatus").textContent=dbErrorMessage(error,"관리자 행사 달력을 불러오지 못했습니다.");
+    return;
+  }
+  adminEventRows=data||[];
+  selectedAdminEventDate=selectDate;
+  selectedAdminEventId=selectId;
+  renderEventCalendar($("#adminEventCalendar"), $("#adminEventCalendarMonth"), adminEventCalendarCursor, adminEventRows, {selectedDate:selectedAdminEventDate,admin:true});
+  refreshAdminEventPicker();
+  if(selectedAdminEventId){
+    const row=adminEventRows.find(x=>String(x.id)===String(selectedAdminEventId));
+    if(row) fillAdminEvent(row); else resetAdminEventForm({keepDate:true});
+  } else {
+    resetAdminEventForm({keepDate:true});
+    refreshAdminEventPicker();
+  }
+}
+$("#adminEventCalendar")?.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-admin-event-date]");
+  if(!btn) return;
+  selectedAdminEventDate=btn.dataset.adminEventDate;
+  selectedAdminEventId=null;
+  renderEventCalendar($("#adminEventCalendar"), $("#adminEventCalendarMonth"), adminEventCalendarCursor, adminEventRows, {selectedDate:selectedAdminEventDate,admin:true});
+  resetAdminEventForm({keepDate:true});
+  refreshAdminEventPicker();
+  $("#eventAdminStatus").textContent=`${fmtDate(selectedAdminEventDate)} 일정을 등록하거나 수정할 수 있습니다.`;
+});
+$("#adminEventPrevMonth")?.addEventListener("click",async()=>{
+  adminEventCalendarCursor=new Date(adminEventCalendarCursor.getFullYear(),adminEventCalendarCursor.getMonth()-1,1);
+  selectedAdminEventDate=null; selectedAdminEventId=null;
+  await loadAdminEventCalendar({selectDate:null,selectId:null});
+});
+$("#adminEventNextMonth")?.addEventListener("click",async()=>{
+  adminEventCalendarCursor=new Date(adminEventCalendarCursor.getFullYear(),adminEventCalendarCursor.getMonth()+1,1);
+  selectedAdminEventDate=null; selectedAdminEventId=null;
+  await loadAdminEventCalendar({selectDate:null,selectId:null});
+});
+$("#newEventBtn")?.addEventListener("click",()=>{
+  if(!selectedAdminEventDate){
+    const today=localISODate();
+    const range=calendarMonthRange(adminEventCalendarCursor);
+    selectedAdminEventDate=today.startsWith(range.key)?today:range.start;
+  }
+  selectedAdminEventId=null;
+  resetAdminEventForm({keepDate:true});
+  refreshAdminEventPicker();
+  renderEventCalendar($("#adminEventCalendar"), $("#adminEventCalendarMonth"), adminEventCalendarCursor, adminEventRows, {selectedDate:selectedAdminEventDate,admin:true});
+  $("#eventTitle").focus();
+});
+$("#eventPicker")?.addEventListener("change",e=>{
+  const id=e.target.value;
+  if(id==="__new__") { selectedAdminEventId=null; resetAdminEventForm({keepDate:true}); refreshAdminEventPicker(); return; }
+  const row=adminEventRows.find(x=>String(x.id)===String(id));
+  if(row) fillAdminEvent(row);
+});
+$("#eventAdminForm")?.addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(!isAdmin){ $("#eventAdminStatus").textContent="관리자 로그인 후 저장해 주세요."; return; }
+  if(!selectedAdminEventDate){ $("#eventAdminStatus").textContent="달력에서 행사 날짜를 먼저 선택해 주세요."; return; }
+  const payload={
+    event_date:selectedAdminEventDate,
+    title:clean($("#eventTitle").value),
+    start_time:$("#eventStartTime").value||null,
+    end_time:$("#eventEndTime").value||null,
+    location:clean($("#eventLocation").value)||null,
+    description:clean($("#eventDescription").value)||null,
+    published:$("#eventPublished").checked,
+    updated_at:new Date().toISOString()
+  };
+  if(!payload.title){ $("#eventAdminStatus").textContent="행사명을 입력해 주세요."; return; }
+  if(payload.start_time && payload.end_time && payload.end_time < payload.start_time){
+    $("#eventAdminStatus").textContent="종료시간은 시작시간보다 빠를 수 없습니다.";
+    return;
+  }
+  $("#eventSaveBtn").disabled=true;
+  let result;
+  if(selectedAdminEventId) result=await db.from("church_events").update(payload).eq("id",selectedAdminEventId).select("id").single();
+  else result=await db.from("church_events").insert(payload).select("id").single();
+  $("#eventSaveBtn").disabled=false;
+  if(result.error){ $("#eventAdminStatus").textContent=dbErrorMessage(result.error,"행사 저장에 실패했습니다."); return; }
+  selectedAdminEventId=String(result.data.id);
+  $("#eventAdminStatus").textContent="행사가 저장되었습니다.";
+  await Promise.all([loadAdminEventCalendar({selectDate:selectedAdminEventDate,selectId:selectedAdminEventId}),loadPublicEventCalendar()]);
+});
+$("#eventDeleteBtn")?.addEventListener("click",async()=>{
+  if(!isAdmin||!selectedAdminEventId) return;
+  const row=adminEventRows.find(x=>String(x.id)===String(selectedAdminEventId));
+  if(!confirm(`“${row?.title||"선택한 행사"}”를 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.`)) return;
+  $("#eventDeleteBtn").disabled=true;
+  const deleted=await db.from("church_events").delete().eq("id",selectedAdminEventId).select("id");
+  if(deleted.error){ $("#eventAdminStatus").textContent=dbErrorMessage(deleted.error,"행사 삭제에 실패했습니다."); $("#eventDeleteBtn").disabled=false; return; }
+  if(!deleted.data?.length){ $("#eventAdminStatus").textContent="삭제할 행사를 찾지 못했습니다."; $("#eventDeleteBtn").disabled=false; return; }
+  selectedAdminEventId=null;
+  $("#eventAdminStatus").textContent="행사가 삭제되었습니다.";
+  await Promise.all([loadAdminEventCalendar({selectDate:selectedAdminEventDate,selectId:null}),loadPublicEventCalendar()]);
+});
+
 $("#openAdminBtn").addEventListener("click", () => {
   const url = new URL(window.location.href);
   url.searchParams.set("admin", "1");
@@ -573,9 +843,9 @@ async function verifyAdmin(user) {
   }
   $("#adminLoginStatus").textContent = "";
   setAdminState(true);
-  $("#wordAdminStatus").textContent = "말씀 관리 준비 완료 · 삭제 기능 v14";
-  $("#studyAdminStatus").textContent = "성경공부 관리 준비 완료 · 삭제 기능 v14";
-  await Promise.all([loadAdminWordOptions(), loadAdminStudyOptions(), loadAdminNoticeOptions(), loadAdminRecords()]);
+  $("#wordAdminStatus").textContent = "말씀 관리 준비 완료 · v15";
+  $("#studyAdminStatus").textContent = "성경공부 관리 준비 완료 · v15";
+  await Promise.all([loadAdminWordOptions(), loadAdminStudyOptions(), loadAdminNoticeOptions(), loadAdminPrayers(), loadAdminRecords(), loadAdminEventCalendar()]);
 }
 function setAdminState(value) {
   isAdmin = value;
@@ -589,7 +859,9 @@ $("#refreshAdminBtn").addEventListener("click", async () => {
     loadAdminWordOptions(adminWordId),
     loadAdminStudyOptions(adminStudyId),
     loadAdminNoticeOptions(adminNoticeId),
-    loadAdminRecords()
+    loadAdminPrayers(),
+    loadAdminRecords(),
+    loadAdminEventCalendar()
   ]);
 });
 
@@ -1090,6 +1362,66 @@ function recordTime(v) {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("ko-KR");
 }
 
+
+async function loadAdminPrayers() {
+  if(!isAdmin) return;
+  const [w,p] = await Promise.all([
+    db.from("weekly_contents").select("id,week_start,verse_reference").order("week_start",{ascending:false}),
+    db.from("prayer_requests").select("*").order("submitted_at",{ascending:false}).limit(1000)
+  ]);
+  if(w.error||p.error){
+    $("#prayerAdminStatus").textContent=dbErrorMessage(w.error||p.error,"기도제목을 불러오지 못했습니다.");
+    return;
+  }
+  const weekMap=new Map((w.data||[]).map(row=>[String(row.id),sundayFromWeekStart(row.week_start)]));
+  const groups=new Map();
+  (p.data||[]).forEach(row=>{
+    const sunday=weekMap.get(String(row.weekly_content_id||"")) || sundayForISO(row.submitted_at);
+    if(!groups.has(sunday)) groups.set(sunday,[]);
+    groups.get(sunday).push(row);
+  });
+  const keys=[...groups.keys()].sort((a,b)=>String(b).localeCompare(String(a)));
+  if(!keys.length){
+    $("#adminPrayerGroups").innerHTML='<p class="muted">아직 등록된 기도제목이 없습니다.</p>';
+    $("#prayerAdminStatus").textContent="";
+    return;
+  }
+  $("#adminPrayerGroups").innerHTML=keys.map((key,index)=>{
+    const rows=groups.get(key)||[];
+    return `<details class="record-week-group prayer-week-group" ${index===0?"open":""}>
+      <summary><span><b>${escapeHtml(fmtDate(key))} 주일</b><small>기도제목 ${rows.length}건</small></span><span class="record-week-counts"><span>기도 ${rows.length}</span></span></summary>
+      <div class="record-week-body">${rows.map(row=>`
+        <article class="list-item record-item prayer-admin-record">
+          <div class="record-item-head"><div><b>${row.is_private?"🔒 비공개 기도제목":"기도제목"}</b><div>${escapeHtml(row.grade)} ${escapeHtml(row.student_name)}</div></div>
+          <button class="ghost danger-outline compact-btn prayer-admin-delete-btn" type="button" data-prayer-id="${escapeHtml(String(row.id))}">삭제</button></div>
+          <p>${escapeHtml(row.prayer_text)}</p><div class="meta">${escapeHtml(recordTime(row.submitted_at))}</div>
+        </article>`).join("")}</div>
+    </details>`;
+  }).join("");
+  $("#prayerAdminStatus").textContent=`기도제목 ${p.data?.length||0}건을 주일별로 불러왔습니다.`;
+}
+async function deletePrayerRecordV15(id) {
+  let result=await db.rpc("youth_admin_delete_prayer_v15",{p_prayer_id:String(id)});
+  if(result.error && isMissingRpc(result.error,"youth_admin_delete_prayer_v15")) {
+    result=await db.from("prayer_requests").delete().eq("id",id).select("id");
+    if(!result.error && !result.data?.length) return {error:{code:"PGRST116",message:"삭제할 기도제목을 찾지 못했습니다."}};
+  }
+  return result;
+}
+$("#refreshPrayerAdminBtn")?.addEventListener("click",loadAdminPrayers);
+$("#adminPrayerGroups")?.addEventListener("click",async e=>{
+  const btn=e.target.closest(".prayer-admin-delete-btn");
+  if(!btn) return;
+  if(!isAdmin){ $("#prayerAdminStatus").textContent="관리자 로그인 후 삭제해 주세요."; return; }
+  if(!confirm("이 기도제목을 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.")) return;
+  btn.disabled=true;
+  $("#prayerAdminStatus").textContent="기도제목을 삭제하고 있습니다…";
+  const result=await deletePrayerRecordV15(btn.dataset.prayerId);
+  if(result.error){ btn.disabled=false; $("#prayerAdminStatus").textContent=dbErrorMessage(result.error,"기도제목 삭제에 실패했습니다."); return; }
+  await Promise.all([loadAdminPrayers(),loadAdminRecords()]);
+  $("#prayerAdminStatus").textContent="기도제목이 삭제되었습니다.";
+});
+
 async function loadAdminRecords() {
   if (!isAdmin) return;
   $("#recordsAdminStatus").textContent = "학생 제출 기록을 불러오는 중입니다…";
@@ -1204,10 +1536,15 @@ $("#adminRecords").addEventListener("click", async e => {
   if (!confirm(`${label}을 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.`)) return;
   btn.disabled = true;
   $("#recordsAdminStatus").textContent = `${label}을 삭제하고 있습니다…`;
-  let result = await db.rpc("youth_admin_delete_student_record_v14", {p_record_id:id,p_record_type:type});
-  if (result.error && isMissingRpc(result.error, "youth_admin_delete_student_record_v14")) {
-    console.warn("학생 제출 삭제 RPC를 찾지 못해 직접 삭제를 시도합니다.", result.error);
-    result = await directDeleteStudentRecord(type, id);
+  let result;
+  if (type === "prayer") {
+    result = await deletePrayerRecordV15(id);
+  } else {
+    result = await db.rpc("youth_admin_delete_student_record_v14", {p_record_id:id,p_record_type:type});
+    if (result.error && isMissingRpc(result.error, "youth_admin_delete_student_record_v14")) {
+      console.warn("학생 제출 삭제 RPC를 찾지 못해 직접 삭제를 시도합니다.", result.error);
+      result = await directDeleteStudentRecord(type, id);
+    }
   }
   if (result.error) {
     btn.disabled = false;
@@ -1215,6 +1552,7 @@ $("#adminRecords").addEventListener("click", async e => {
     return;
   }
   if (type === "board") await loadBoard();
+  if (type === "prayer") await loadAdminPrayers();
   await loadAdminRecords();
   $("#recordsAdminStatus").textContent = `${label}이 삭제되었습니다.`;
 });
@@ -1230,4 +1568,4 @@ const { data:{session} } = await db.auth.getSession();
 if(session?.user) await verifyAdmin(session.user);
 
 renderGratitudeChallenge();
-await Promise.all([loadWeekly(),loadNotices(),loadBoard()]);
+await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar()]);

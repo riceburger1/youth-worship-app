@@ -195,6 +195,30 @@
         <div id="boardList" class="list board-list"></div>
       </section>
 
+
+      <section id="churchCalendarSection" class="card church-calendar-section" aria-labelledby="churchCalendarTitle">
+        <div class="section-head calendar-section-head">
+          <div>
+            <span class="eyebrow">청소년부 일정</span>
+            <h2 id="churchCalendarTitle">행사 · 이벤트 달력</h2>
+            <p class="muted">날짜를 누르면 등록된 행사와 일정을 확인할 수 있습니다.</p>
+          </div>
+          <div class="calendar-nav" aria-label="행사 달력 월 이동">
+            <button id="eventPrevMonth" class="calendar-nav-btn" type="button" aria-label="이전 달">‹</button>
+            <strong id="eventCalendarMonth">이번 달</strong>
+            <button id="eventNextMonth" class="calendar-nav-btn" type="button" aria-label="다음 달">›</button>
+          </div>
+        </div>
+        <div class="calendar-weekdays event-weekdays" aria-hidden="true">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div id="eventCalendar" class="event-calendar" role="grid" aria-label="청소년부 행사 달력"></div>
+        <div id="eventDayDetails" class="event-day-details">
+          <p class="muted">날짜를 선택하면 그날의 일정이 표시됩니다.</p>
+        </div>
+        <p id="eventCalendarStatus" class="status"></p>
+      </section>
+
       <section class="card admin-entry">
         <button id="openAdminBtn" class="ghost" type="button">관리자 화면 새 탭에서 열기 ↗</button>
       </section>
@@ -204,7 +228,7 @@
           <div>
             <span class="eyebrow">관리자 전용</span>
             <h2>주의울림 관리자</h2>
-            <p class="muted admin-page-desc">말씀 · 성경공부 · 공지사항 · 학생 제출 기록을 한 화면에서 관리합니다.</p>
+            <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
           </div>
           <div class="admin-head-actions">
             <a class="ghost admin-student-link" href="./" target="_blank" rel="noopener">학생 화면 보기 ↗</a>
@@ -297,6 +321,19 @@
               <p id="noticeAdminStatus" class="status"></p>
             </form>
 
+
+            <section class="subcard admin-editor-card prayer-admin-card admin-span-2">
+              <div class="admin-editor-head">
+                <div>
+                  <h3>기도제목 관리</h3>
+                  <p class="muted admin-mode-label">기도제목을 주일별로 모아 확인하고 필요한 기록을 삭제할 수 있습니다.</p>
+                </div>
+                <button id="refreshPrayerAdminBtn" class="ghost compact-btn" type="button">기도제목 새로고침</button>
+              </div>
+              <p id="prayerAdminStatus" class="status"></p>
+              <div id="adminPrayerGroups" class="weekly-record-groups prayer-groups"></div>
+            </section>
+
             <div class="subcard gratitude-admin-note">
               <h3>감사기도 챌린지</h3>
               <p>학생은 하루에 한 번 감사기도를 기록할 수 있습니다.</p>
@@ -327,6 +364,53 @@
             <p id="recordsAdminStatus" class="status"></p>
             <div id="adminRecords" class="weekly-record-groups"></div>
           </div>
+
+
+          <section class="subcard calendar-manager-card">
+            <div class="admin-editor-head">
+              <div>
+                <h3>행사 · 이벤트 달력 관리</h3>
+                <p class="muted">달력에서 날짜를 선택한 뒤 행사를 등록하세요. 등록된 일정은 학생 화면 하단 달력에 표시됩니다.</p>
+              </div>
+              <button id="newEventBtn" class="ghost compact-btn" type="button">새 행사 작성</button>
+            </div>
+
+            <div class="admin-event-layout">
+              <div class="admin-event-calendar-wrap">
+                <div class="calendar-toolbar">
+                  <div class="calendar-nav" aria-label="관리자 행사 달력 월 이동">
+                    <button id="adminEventPrevMonth" class="calendar-nav-btn" type="button" aria-label="이전 달">‹</button>
+                    <strong id="adminEventCalendarMonth">이번 달</strong>
+                    <button id="adminEventNextMonth" class="calendar-nav-btn" type="button" aria-label="다음 달">›</button>
+                  </div>
+                </div>
+                <div class="calendar-weekdays event-weekdays" aria-hidden="true">
+                  <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+                </div>
+                <div id="adminEventCalendar" class="event-calendar admin-event-calendar" role="grid" aria-label="관리자 행사 달력"></div>
+              </div>
+
+              <form id="eventAdminForm" class="event-admin-form">
+                <div class="selected-date-box">선택 날짜 <strong id="adminSelectedEventDate">날짜를 선택해 주세요.</strong></div>
+                <label>선택한 날짜의 행사
+                  <select id="eventPicker"><option value="__new__">＋ 새 행사 등록</option></select>
+                </label>
+                <label>행사명<input id="eventTitle" maxlength="200" required placeholder="예: 청소년부 예배, 겨울캠프" /></label>
+                <div class="event-time-grid">
+                  <label>시작시간<input id="eventStartTime" type="time" /></label>
+                  <label>종료시간<input id="eventEndTime" type="time" /></label>
+                </div>
+                <label>장소<input id="eventLocation" maxlength="200" placeholder="예: 청소년부실" /></label>
+                <label>내용<textarea id="eventDescription" rows="4" maxlength="3000" placeholder="준비물이나 상세 일정을 적어 주세요."></textarea></label>
+                <label class="check-row"><input id="eventPublished" type="checkbox" checked /> 학생 달력에 공개</label>
+                <div class="admin-action-row">
+                  <button id="eventSaveBtn" class="primary" type="submit">행사 등록</button>
+                  <button id="eventDeleteBtn" class="ghost danger-outline" type="button" disabled>선택한 행사 삭제</button>
+                </div>
+                <p id="eventAdminStatus" class="status"></p>
+              </form>
+            </div>
+          </section>
         </div>
       </section>
     </main>
