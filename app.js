@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v22-admin-weekly-grouped";
+const APP_VERSION = "v23-anonymous-board-submit-delete";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -567,14 +567,35 @@ async function loadNotices() {
 $("#boardForm").addEventListener("submit", async e => {
   e.preventDefault();
   const body = clean($("#boardText").value);
-  if (!body) { $("#boardStatus").textContent = "내용을 입력해 주세요."; return; }
-  const { error } = await db.from("anonymous_posts").insert({body});
-  $("#boardStatus").textContent = error ? "등록 중 오류가 발생했습니다." : "익명으로 등록되었습니다.";
-  if (!error) { e.target.reset(); await loadBoard(); }
+  const status = $("#boardStatus");
+  const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
+  if (!body) { status.textContent = "내용을 입력해 주세요."; return; }
+  if (body.length > 2000) { status.textContent = "익명글은 2,000자 이내로 작성해 주세요."; return; }
+
+  if (submitBtn) submitBtn.disabled = true;
+  status.textContent = "익명글을 등록하고 있습니다…";
+  const { error } = await db.from("anonymous_posts").insert({ body });
+  if (error) {
+    console.error("anonymous_posts insert error:", error);
+    status.textContent = dbErrorMessage(error, "익명글 등록에 실패했습니다.");
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  e.target.reset();
+  status.textContent = "익명으로 등록되었습니다.";
+  await loadBoard();
+  if (isAdmin && activeAdminTab === "board") await loadAdminBoardGroups();
+  if (submitBtn) submitBtn.disabled = false;
 });
 async function loadBoard() {
-  const { data } = await db.from("anonymous_posts").select("id,body,reply_text,created_at")
+  const { data, error } = await db.from("anonymous_posts").select("id,body,reply_text,created_at")
     .eq("is_hidden",false).order("created_at",{ascending:false}).limit(50);
+  if (error) {
+    console.error("anonymous_posts select error:", error);
+    $("#boardList").innerHTML = `<p class="muted">${escapeHtml(dbErrorMessage(error,"익명게시판을 불러오지 못했습니다."))}</p>`;
+    return;
+  }
   const rows = data || [];
   $("#boardList").innerHTML = rows.length ? rows.map(p=>`
     <article class="list-item"><div class="meta">${new Date(p.created_at).toLocaleString("ko-KR")}</div>
@@ -1628,6 +1649,8 @@ async function directDeleteStudentRecord(type, id) {
 
 async function deleteAdminStudentRecord(type, id) {
   if (type === "prayer") return deletePrayerRecordV15(id);
+  // 익명게시판은 테이블 RLS로 관리자 삭제를 직접 처리해 오래된 RPC 캐시 문제를 피합니다.
+  if (type === "board") return directDeleteStudentRecord(type, id);
   let result = await db.rpc("youth_admin_delete_student_record_v14", {p_record_id:String(id),p_record_type:type});
   if (result.error && isMissingRpc(result.error, "youth_admin_delete_student_record_v14")) {
     console.warn("학생 기록 삭제 RPC를 찾지 못해 직접 삭제를 시도합니다.", result.error);
