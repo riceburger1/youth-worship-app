@@ -388,7 +388,7 @@
             <div class="admin-editor-head">
               <div>
                 <h3>행사 · 이벤트 달력 관리</h3>
-                <p class="muted">날짜를 클릭하면 그날의 행사 목록이 나타납니다. 각 행사에서 바로 수정·삭제하거나 새 행사를 등록할 수 있습니다.</p>
+                <p class="muted">날짜를 클릭하면 해당 날짜가 포함된 행사 목록이 나타납니다. 행사는 시작일~종료일 기간으로 등록하고 수정·삭제할 수 있습니다.</p>
               </div>
               <button id="newEventBtn" class="ghost compact-btn" type="button">새 행사 작성</button>
             </div>
@@ -413,13 +413,13 @@
 
               <form id="eventAdminForm" class="event-admin-form">
                 <div class="selected-date-box">선택 날짜 <strong id="adminSelectedEventDate">날짜를 선택해 주세요.</strong></div>
-                <label>선택한 날짜의 행사
+                <label>선택한 날짜 관련 행사
                   <select id="eventPicker"><option value="__new__">＋ 새 행사 등록</option></select>
                 </label>
                 <label>행사명<input id="eventTitle" maxlength="200" required placeholder="예: 청소년부 예배, 겨울캠프" /></label>
-                <div class="event-time-grid">
-                  <label>시작시간<input id="eventStartTime" type="time" /></label>
-                  <label>종료시간<input id="eventEndTime" type="time" /></label>
+                <div class="event-period-grid">
+                  <label>시작일<input id="eventStartDate" type="date" required /></label>
+                  <label>종료일<input id="eventEndDate" type="date" required /></label>
                 </div>
                 <label>장소<input id="eventLocation" maxlength="200" placeholder="예: 청소년부실" /></label>
                 <label>내용<textarea id="eventDescription" rows="4" maxlength="3000" placeholder="준비물이나 상세 일정을 적어 주세요."></textarea></label>

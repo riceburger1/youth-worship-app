@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v17-admin-tabs";
+const APP_VERSION = "v18-event-period";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -561,7 +561,8 @@ async function loadBoard() {
 
 
 // ============================================================
-// 청소년부 행사 · 이벤트 달력
+// 청소년부 행사 · 이벤트 달력 — 기간형 일정
+// event_date = 시작일, end_date = 종료일
 // ============================================================
 function calendarMonthRange(cursor) {
   const y = cursor.getFullYear();
@@ -574,24 +575,52 @@ function calendarMonthRange(cursor) {
     end:localISODate(new Date(y,m+1,0))
   };
 }
-function shortTime(v) {
-  if (!v) return "";
-  return String(v).slice(0,5);
+function parseISODate(iso) {
+  const [y,m,d]=String(iso||"").split("-").map(Number);
+  return y && m && d ? new Date(y,m-1,d) : null;
 }
-function eventTimeText(row) {
-  const start = shortTime(row.start_time);
-  const end = shortTime(row.end_time);
-  if (start && end) return `${start}–${end}`;
-  return start || end || "";
+function eventStartDate(row) {
+  return String(row?.event_date || "");
 }
-function eventsByDate(rows) {
+function eventEndDate(row) {
+  return String(row?.end_date || row?.event_date || "");
+}
+function dateInEvent(row,date) {
+  const start=eventStartDate(row);
+  const end=eventEndDate(row);
+  return Boolean(start && end && date >= start && date <= end);
+}
+function eventPeriodText(row) {
+  const start=eventStartDate(row);
+  const end=eventEndDate(row);
+  if (!start) return "";
+  if (!end || start===end) return fmtDate(start);
+  return `${fmtDate(start)} ~ ${fmtDate(end)}`;
+}
+function eventsByDate(rows, cursor) {
   const map = new Map();
+  const range=calendarMonthRange(cursor);
   (rows||[]).forEach(row => {
-    const key = String(row.event_date || "");
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(row);
+    let start=eventStartDate(row);
+    let end=eventEndDate(row);
+    if(!start) return;
+    if(!end) end=start;
+    if(end < range.start || start > range.end) return;
+    start = start < range.start ? range.start : start;
+    end = end > range.end ? range.end : end;
+    let day=parseISODate(start);
+    const last=parseISODate(end);
+    if(!day || !last) return;
+    while(day<=last){
+      const key=localISODate(day);
+      if(!map.has(key)) map.set(key,[]);
+      map.get(key).push(row);
+      day=new Date(day.getFullYear(),day.getMonth(),day.getDate()+1);
+    }
   });
-  for (const list of map.values()) list.sort((a,b)=>String(a.start_time||"").localeCompare(String(b.start_time||"")) || String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  for (const list of map.values()) {
+    list.sort((a,b)=>eventStartDate(a).localeCompare(eventStartDate(b)) || String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  }
   return map;
 }
 function renderEventCalendar(container, monthLabel, cursor, rows, {selectedDate=null, admin=false}={}) {
@@ -600,7 +629,7 @@ function renderEventCalendar(container, monthLabel, cursor, rows, {selectedDate=
   const firstDay = new Date(year,month,1).getDay();
   const lastDate = new Date(year,month+1,0).getDate();
   const today = localISODate();
-  const byDate = eventsByDate(rows);
+  const byDate = eventsByDate(rows,cursor);
   const cells = [];
   for (let i=0;i<firstDay;i++) cells.push('<span class="event-day empty" aria-hidden="true"></span>');
   for (let day=1;day<=lastDate;day++) {
@@ -617,14 +646,14 @@ function renderEventCalendar(container, monthLabel, cursor, rows, {selectedDate=
 function renderPublicEventDay(date) {
   const box = $("#eventDayDetails");
   if (!box) return;
-  const list = publicEventRows.filter(row=>String(row.event_date)===date);
+  const list = publicEventRows.filter(row=>dateInEvent(row,date));
   if (!list.length) {
     box.innerHTML = `<div class="event-day-heading"><strong>${escapeHtml(fmtDate(date))}</strong></div><p class="muted">등록된 행사가 없습니다.</p>`;
     return;
   }
   box.innerHTML = `<div class="event-day-heading"><strong>${escapeHtml(fmtDate(date))}</strong><span>${list.length}개 일정</span></div>` + list.map(row=>`
     <article class="event-detail-card">
-      <div class="event-detail-head"><strong>${escapeHtml(row.title)}</strong>${eventTimeText(row)?`<span>${escapeHtml(eventTimeText(row))}</span>`:""}</div>
+      <div class="event-detail-head"><strong>${escapeHtml(row.title)}</strong><span>📅 ${escapeHtml(eventPeriodText(row))}</span></div>
       ${row.location?`<div class="event-location">📍 ${escapeHtml(row.location)}</div>`:""}
       ${row.description?`<p>${escapeHtml(row.description)}</p>`:""}
     </article>`).join("");
@@ -632,11 +661,21 @@ function renderPublicEventDay(date) {
 async function loadPublicEventCalendar({selectDate=null}={}) {
   const status = $("#eventCalendarStatus");
   const range = calendarMonthRange(eventCalendarCursor);
-  const {data,error} = await db.from("church_events")
-    .select("id,event_date,title,description,location,start_time,end_time,created_at")
+  let {data,error} = await db.from("church_events")
+    .select("id,event_date,end_date,title,description,location,created_at")
     .eq("published",true)
-    .gte("event_date",range.start).lte("event_date",range.end)
-    .order("event_date",{ascending:true}).order("start_time",{ascending:true});
+    .lte("event_date",range.end).gte("end_date",range.start)
+    .order("event_date",{ascending:true});
+  if (error && (error.code==="PGRST204" || /end_date/i.test(error.message||""))) {
+    const fallback=await db.from("church_events")
+      .select("id,event_date,title,description,location,created_at")
+      .eq("published",true)
+      .gte("event_date",range.start).lte("event_date",range.end)
+      .order("event_date",{ascending:true});
+    data=(fallback.data||[]).map(row=>({...row,end_date:row.event_date}));
+    error=fallback.error;
+    if(!error && status) status.textContent="기간형 달력을 사용하려면 관리자에게 V18 DB 업데이트를 요청해 주세요.";
+  }
   if (error) {
     publicEventRows=[];
     renderEventCalendar($("#eventCalendar"), $("#eventCalendarMonth"), eventCalendarCursor, []);
@@ -645,18 +684,18 @@ async function loadPublicEventCalendar({selectDate=null}={}) {
   }
   publicEventRows=data||[];
   renderEventCalendar($("#eventCalendar"), $("#eventCalendarMonth"), eventCalendarCursor, publicEventRows, {selectedDate:selectDate});
-  if (status) status.textContent = publicEventRows.length ? `이번 달 등록된 일정 ${publicEventRows.length}개` : "이번 달 등록된 행사가 없습니다.";
+  if (status && !status.textContent.includes("V18")) status.textContent = publicEventRows.length ? `이번 달 등록된 행사 ${publicEventRows.length}개` : "이번 달 등록된 행사가 없습니다.";
   if (selectDate) renderPublicEventDay(selectDate);
 }
 $("#eventPrevMonth")?.addEventListener("click", async()=>{
   eventCalendarCursor=new Date(eventCalendarCursor.getFullYear(),eventCalendarCursor.getMonth()-1,1);
   await loadPublicEventCalendar();
-  $("#eventDayDetails").innerHTML='<p class="muted">날짜를 선택하면 그날의 일정이 표시됩니다.</p>';
+  $("#eventDayDetails").innerHTML='<p class="muted">날짜를 선택하면 그날이 포함된 일정이 표시됩니다.</p>';
 });
 $("#eventNextMonth")?.addEventListener("click", async()=>{
   eventCalendarCursor=new Date(eventCalendarCursor.getFullYear(),eventCalendarCursor.getMonth()+1,1);
   await loadPublicEventCalendar();
-  $("#eventDayDetails").innerHTML='<p class="muted">날짜를 선택하면 그날의 일정이 표시됩니다.</p>';
+  $("#eventDayDetails").innerHTML='<p class="muted">날짜를 선택하면 그날이 포함된 일정이 표시됩니다.</p>';
 });
 $("#eventCalendar")?.addEventListener("click",e=>{
   const btn=e.target.closest("[data-event-date]");
@@ -669,19 +708,19 @@ function renderAdminEventDayList(date=selectedAdminEventDate) {
   const box = $("#adminEventDayList");
   if (!box) return;
   if (!date) {
-    box.innerHTML = '<p class="muted">달력에서 날짜를 클릭하면 그날의 행사를 바로 수정하거나 삭제할 수 있습니다.</p>';
+    box.innerHTML = '<p class="muted">달력에서 날짜를 클릭하면 해당 날짜가 포함된 행사를 수정하거나 삭제할 수 있습니다.</p>';
     return;
   }
   const list = adminEventRows
-    .filter(row=>String(row.event_date)===String(date))
-    .sort((a,b)=>String(a.start_time||"").localeCompare(String(b.start_time||"")) || String(a.created_at||"").localeCompare(String(b.created_at||"")));
+    .filter(row=>dateInEvent(row,String(date)))
+    .sort((a,b)=>eventStartDate(a).localeCompare(eventStartDate(b)) || String(a.created_at||"").localeCompare(String(b.created_at||"")));
   if (!list.length) {
     box.innerHTML = `
       <div class="admin-event-day-list-head">
         <div><strong>${escapeHtml(fmtDate(date))}</strong><span>등록된 행사 없음</span></div>
-        <button class="ghost compact-btn" type="button" data-event-new-date="${escapeHtml(date)}">＋ 이 날짜에 행사 등록</button>
+        <button class="ghost compact-btn" type="button" data-event-new-date="${escapeHtml(date)}">＋ 이 날짜부터 행사 등록</button>
       </div>
-      <p class="muted admin-event-empty">이 날짜에는 등록된 행사가 없습니다. 오른쪽 입력창에서 새 행사를 등록할 수 있습니다.</p>`;
+      <p class="muted admin-event-empty">이 날짜에는 등록된 행사가 없습니다. 시작일과 종료일을 선택해 새 행사를 등록할 수 있습니다.</p>`;
     return;
   }
   box.innerHTML = `
@@ -698,7 +737,7 @@ function renderAdminEventDayList(date=selectedAdminEventDate) {
               <span class="event-publish-badge ${row.published?"public":"private"}">${row.published?"공개":"비공개"}</span>
             </div>
             <div class="admin-event-list-meta">
-              ${eventTimeText(row)?`<span>🕒 ${escapeHtml(eventTimeText(row))}</span>`:""}
+              <span>📅 ${escapeHtml(eventPeriodText(row))}</span>
               ${row.location?`<span>📍 ${escapeHtml(row.location)}</span>`:""}
             </div>
             ${row.description?`<p>${escapeHtml(row.description)}</p>`:""}
@@ -716,8 +755,8 @@ function resetAdminEventForm({keepDate=true}={}) {
   if (!keepDate) selectedAdminEventDate=null;
   $("#eventPicker").value="__new__";
   $("#eventTitle").value="";
-  $("#eventStartTime").value="";
-  $("#eventEndTime").value="";
+  $("#eventStartDate").value=selectedAdminEventDate||"";
+  $("#eventEndDate").value=selectedAdminEventDate||"";
   $("#eventLocation").value="";
   $("#eventDescription").value="";
   $("#eventPublished").checked=true;
@@ -728,17 +767,19 @@ function resetAdminEventForm({keepDate=true}={}) {
 function refreshAdminEventPicker() {
   const picker=$("#eventPicker");
   if(!picker) return;
-  const list=adminEventRows.filter(row=>String(row.event_date)===selectedAdminEventDate);
-  picker.innerHTML='<option value="__new__">＋ 새 행사 등록</option>'+list.map(row=>`<option value="${escapeHtml(String(row.id))}">${escapeHtml(`${eventTimeText(row)?eventTimeText(row)+" · ":""}${row.title}`)}</option>`).join("");
+  const list=adminEventRows.filter(row=>selectedAdminEventDate && dateInEvent(row,selectedAdminEventDate));
+  picker.innerHTML='<option value="__new__">＋ 새 행사 등록</option>'+list.map(row=>`<option value="${escapeHtml(String(row.id))}">${escapeHtml(`${eventPeriodText(row)} · ${row.title}`)}</option>`).join("");
   picker.value=selectedAdminEventId && list.some(x=>String(x.id)===String(selectedAdminEventId)) ? String(selectedAdminEventId) : "__new__";
 }
 function fillAdminEvent(row) {
   selectedAdminEventId=String(row.id);
-  selectedAdminEventDate=String(row.event_date);
+  const rowStart=eventStartDate(row);
+  const rowEnd=eventEndDate(row);
+  if(!selectedAdminEventDate || !dateInEvent(row,selectedAdminEventDate)) selectedAdminEventDate=rowStart;
   $("#adminSelectedEventDate").textContent=fmtDate(selectedAdminEventDate);
   $("#eventTitle").value=row.title||"";
-  $("#eventStartTime").value=shortTime(row.start_time);
-  $("#eventEndTime").value=shortTime(row.end_time);
+  $("#eventStartDate").value=rowStart;
+  $("#eventEndDate").value=rowEnd;
   $("#eventLocation").value=row.location||"";
   $("#eventDescription").value=row.description||"";
   $("#eventPublished").checked=Boolean(row.published);
@@ -750,9 +791,17 @@ function fillAdminEvent(row) {
 async function loadAdminEventCalendar({selectDate=selectedAdminEventDate,selectId=selectedAdminEventId}={}) {
   if(!isAdmin) return;
   const range=calendarMonthRange(adminEventCalendarCursor);
-  const {data,error}=await db.from("church_events").select("*")
-    .gte("event_date",range.start).lte("event_date",range.end)
-    .order("event_date",{ascending:true}).order("start_time",{ascending:true});
+  let {data,error}=await db.from("church_events").select("*")
+    .lte("event_date",range.end).gte("end_date",range.start)
+    .order("event_date",{ascending:true});
+  if(error && (error.code==="PGRST204" || /end_date/i.test(error.message||""))){
+    const fallback=await db.from("church_events").select("*")
+      .gte("event_date",range.start).lte("event_date",range.end)
+      .order("event_date",{ascending:true});
+    data=(fallback.data||[]).map(row=>({...row,end_date:row.event_date}));
+    error=fallback.error;
+    if(!error) $("#eventAdminStatus").textContent="V18 기간형 달력 DB 업데이트가 필요합니다. 제공된 SQL을 먼저 실행해 주세요.";
+  }
   if(error){
     $("#eventAdminStatus").textContent=dbErrorMessage(error,"관리자 행사 달력을 불러오지 못했습니다.");
     return;
@@ -777,17 +826,17 @@ $("#adminEventCalendar")?.addEventListener("click",e=>{
   selectedAdminEventDate=btn.dataset.adminEventDate;
   selectedAdminEventId=null;
   renderEventCalendar($("#adminEventCalendar"), $("#adminEventCalendarMonth"), adminEventCalendarCursor, adminEventRows, {selectedDate:selectedAdminEventDate,admin:true});
-  const dayRows=adminEventRows.filter(row=>String(row.event_date)===String(selectedAdminEventDate));
+  const dayRows=adminEventRows.filter(row=>dateInEvent(row,selectedAdminEventDate));
   if(dayRows.length===1){
     fillAdminEvent(dayRows[0]);
-    $("#eventAdminStatus").textContent=`${fmtDate(selectedAdminEventDate)}의 행사를 불러왔습니다. 내용을 수정하거나 삭제할 수 있습니다.`;
+    $("#eventAdminStatus").textContent=`${fmtDate(selectedAdminEventDate)}에 해당하는 행사를 불러왔습니다. 기간과 내용을 수정하거나 삭제할 수 있습니다.`;
   } else {
     resetAdminEventForm({keepDate:true});
     refreshAdminEventPicker();
     renderAdminEventDayList(selectedAdminEventDate);
     $("#eventAdminStatus").textContent=dayRows.length
-      ? `${fmtDate(selectedAdminEventDate)}에 ${dayRows.length}개 행사가 있습니다. 아래 목록에서 수정하거나 삭제할 행사를 선택해 주세요.`
-      : `${fmtDate(selectedAdminEventDate)}에 새 행사를 등록할 수 있습니다.`;
+      ? `${fmtDate(selectedAdminEventDate)}에 해당하는 ${dayRows.length}개 행사가 있습니다. 수정하거나 삭제할 행사를 선택해 주세요.`
+      : `${fmtDate(selectedAdminEventDate)}부터 새 행사 기간을 등록할 수 있습니다.`;
   }
 });
 $("#adminEventPrevMonth")?.addEventListener("click",async()=>{
@@ -819,25 +868,30 @@ $("#eventPicker")?.addEventListener("change",e=>{
   const row=adminEventRows.find(x=>String(x.id)===String(id));
   if(row) fillAdminEvent(row);
 });
+$("#eventStartDate")?.addEventListener("change",()=>{
+  const start=$("#eventStartDate").value;
+  const end=$("#eventEndDate").value;
+  if(start && (!end || end<start)) $("#eventEndDate").value=start;
+});
 $("#eventAdminForm")?.addEventListener("submit",async e=>{
   e.preventDefault();
   if(!isAdmin){ $("#eventAdminStatus").textContent="관리자 로그인 후 저장해 주세요."; return; }
-  if(!selectedAdminEventDate){ $("#eventAdminStatus").textContent="달력에서 행사 날짜를 먼저 선택해 주세요."; return; }
+  const startDate=$("#eventStartDate").value;
+  const endDate=$("#eventEndDate").value;
   const payload={
-    event_date:selectedAdminEventDate,
+    event_date:startDate,
+    end_date:endDate,
     title:clean($("#eventTitle").value),
-    start_time:$("#eventStartTime").value||null,
-    end_time:$("#eventEndTime").value||null,
+    start_time:null,
+    end_time:null,
     location:clean($("#eventLocation").value)||null,
     description:clean($("#eventDescription").value)||null,
     published:$("#eventPublished").checked,
     updated_at:new Date().toISOString()
   };
   if(!payload.title){ $("#eventAdminStatus").textContent="행사명을 입력해 주세요."; return; }
-  if(payload.start_time && payload.end_time && payload.end_time < payload.start_time){
-    $("#eventAdminStatus").textContent="종료시간은 시작시간보다 빠를 수 없습니다.";
-    return;
-  }
+  if(!startDate || !endDate){ $("#eventAdminStatus").textContent="행사 시작일과 종료일을 모두 선택해 주세요."; return; }
+  if(endDate < startDate){ $("#eventAdminStatus").textContent="종료일은 시작일보다 빠를 수 없습니다."; return; }
   $("#eventSaveBtn").disabled=true;
   let result;
   if(selectedAdminEventId) result=await db.from("church_events").update(payload).eq("id",selectedAdminEventId).select("id").single();
@@ -845,13 +899,14 @@ $("#eventAdminForm")?.addEventListener("submit",async e=>{
   $("#eventSaveBtn").disabled=false;
   if(result.error){ $("#eventAdminStatus").textContent=dbErrorMessage(result.error,"행사 저장에 실패했습니다."); return; }
   selectedAdminEventId=String(result.data.id);
-  $("#eventAdminStatus").textContent="행사가 저장되었습니다.";
+  selectedAdminEventDate = selectedAdminEventDate && selectedAdminEventDate>=startDate && selectedAdminEventDate<=endDate ? selectedAdminEventDate : startDate;
+  $("#eventAdminStatus").textContent=`행사가 ${eventPeriodText(payload)} 기간으로 저장되었습니다.`;
   await Promise.all([loadAdminEventCalendar({selectDate:selectedAdminEventDate,selectId:selectedAdminEventId}),loadPublicEventCalendar()]);
 });
 async function deleteAdminEventById(eventId) {
   if(!isAdmin || !eventId) return false;
   const row=adminEventRows.find(x=>String(x.id)===String(eventId));
-  if(!confirm(`“${row?.title||"선택한 행사"}”를 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.`)) return false;
+  if(!confirm(`“${row?.title||"선택한 행사"}”를 삭제할까요?\n\n기간: ${row?eventPeriodText(row):""}\n삭제 후에는 되돌릴 수 없습니다.`)) return false;
   $("#eventAdminStatus").textContent="행사를 삭제하고 있습니다...";
   const deleted=await db.from("church_events").delete().eq("id",eventId).select("id");
   if(deleted.error){
@@ -888,7 +943,7 @@ $("#adminEventDayList")?.addEventListener("click",async e=>{
     const row=adminEventRows.find(x=>String(x.id)===String(editBtn.dataset.eventEditId));
     if(row){
       fillAdminEvent(row);
-      $("#eventAdminStatus").textContent=`“${row.title}” 수정 모드입니다.`;
+      $("#eventAdminStatus").textContent=`“${row.title}” 수정 모드입니다. 기간과 내용을 수정할 수 있습니다.`;
       $("#eventTitle").focus();
     }
     return;
@@ -920,7 +975,7 @@ const ADMIN_TAB_META = {
   notice:{title:"공지사항 관리",badge:"공지",description:"새 공지를 등록하거나 기존 공지를 선택해 수정·삭제할 수 있습니다."},
   prayer:{title:"기도제목 관리",badge:"기도",description:"학생들이 제출한 기도제목을 주일별로 확인하고 필요한 기록을 삭제할 수 있습니다."},
   records:{title:"학생 제출 기록",badge:"제출 기록",description:"말씀쓰기·성경공부·기도·감사·익명 제출을 주일별로 확인하고 개별 삭제할 수 있습니다."},
-  events:{title:"행사 · 이벤트 달력",badge:"행사 달력",description:"날짜를 선택해 행사를 등록하고 기존 일정을 수정·삭제할 수 있습니다."}
+  events:{title:"행사 · 이벤트 달력",badge:"행사 달력",description:"시작일과 종료일을 선택해 행사 기간을 등록하고 기존 일정을 수정·삭제할 수 있습니다."}
 };
 
 async function refreshActiveAdminTab(tab=activeAdminTab) {
