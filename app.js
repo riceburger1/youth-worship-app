@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v15-prayer-calendar-admin";
+const APP_VERSION = "v16-event-click-edit";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -671,6 +671,52 @@ $("#eventCalendar")?.addEventListener("click",e=>{
   renderPublicEventDay(btn.dataset.eventDate);
 });
 
+function renderAdminEventDayList(date=selectedAdminEventDate) {
+  const box = $("#adminEventDayList");
+  if (!box) return;
+  if (!date) {
+    box.innerHTML = '<p class="muted">달력에서 날짜를 클릭하면 그날의 행사를 바로 수정하거나 삭제할 수 있습니다.</p>';
+    return;
+  }
+  const list = adminEventRows
+    .filter(row=>String(row.event_date)===String(date))
+    .sort((a,b)=>String(a.start_time||"").localeCompare(String(b.start_time||"")) || String(a.created_at||"").localeCompare(String(b.created_at||"")));
+  if (!list.length) {
+    box.innerHTML = `
+      <div class="admin-event-day-list-head">
+        <div><strong>${escapeHtml(fmtDate(date))}</strong><span>등록된 행사 없음</span></div>
+        <button class="ghost compact-btn" type="button" data-event-new-date="${escapeHtml(date)}">＋ 이 날짜에 행사 등록</button>
+      </div>
+      <p class="muted admin-event-empty">이 날짜에는 등록된 행사가 없습니다. 오른쪽 입력창에서 새 행사를 등록할 수 있습니다.</p>`;
+    return;
+  }
+  box.innerHTML = `
+    <div class="admin-event-day-list-head">
+      <div><strong>${escapeHtml(fmtDate(date))}</strong><span>${list.length}개 행사</span></div>
+      <button class="ghost compact-btn" type="button" data-event-new-date="${escapeHtml(date)}">＋ 새 행사</button>
+    </div>
+    <div class="admin-event-list-cards">
+      ${list.map(row=>`
+        <article class="admin-event-list-card ${String(row.id)===String(selectedAdminEventId)?"active":""}" data-event-row-id="${escapeHtml(String(row.id))}">
+          <div class="admin-event-list-main">
+            <div class="admin-event-list-title-row">
+              <strong>${escapeHtml(row.title || "제목 없음")}</strong>
+              <span class="event-publish-badge ${row.published?"public":"private"}">${row.published?"공개":"비공개"}</span>
+            </div>
+            <div class="admin-event-list-meta">
+              ${eventTimeText(row)?`<span>🕒 ${escapeHtml(eventTimeText(row))}</span>`:""}
+              ${row.location?`<span>📍 ${escapeHtml(row.location)}</span>`:""}
+            </div>
+            ${row.description?`<p>${escapeHtml(row.description)}</p>`:""}
+          </div>
+          <div class="admin-event-list-actions">
+            <button class="ghost compact-btn" type="button" data-event-edit-id="${escapeHtml(String(row.id))}">수정</button>
+            <button class="ghost compact-btn danger-outline" type="button" data-event-delete-id="${escapeHtml(String(row.id))}">삭제</button>
+          </div>
+        </article>`).join("")}
+    </div>`;
+}
+
 function resetAdminEventForm({keepDate=true}={}) {
   selectedAdminEventId=null;
   if (!keepDate) selectedAdminEventDate=null;
@@ -705,6 +751,7 @@ function fillAdminEvent(row) {
   $("#eventSaveBtn").textContent="행사 수정 저장";
   $("#eventDeleteBtn").disabled=false;
   refreshAdminEventPicker();
+  renderAdminEventDayList(selectedAdminEventDate);
 }
 async function loadAdminEventCalendar({selectDate=selectedAdminEventDate,selectId=selectedAdminEventId}={}) {
   if(!isAdmin) return;
@@ -721,6 +768,7 @@ async function loadAdminEventCalendar({selectDate=selectedAdminEventDate,selectI
   selectedAdminEventId=selectId;
   renderEventCalendar($("#adminEventCalendar"), $("#adminEventCalendarMonth"), adminEventCalendarCursor, adminEventRows, {selectedDate:selectedAdminEventDate,admin:true});
   refreshAdminEventPicker();
+  renderAdminEventDayList(selectedAdminEventDate);
   if(selectedAdminEventId){
     const row=adminEventRows.find(x=>String(x.id)===String(selectedAdminEventId));
     if(row) fillAdminEvent(row); else resetAdminEventForm({keepDate:true});
@@ -735,9 +783,18 @@ $("#adminEventCalendar")?.addEventListener("click",e=>{
   selectedAdminEventDate=btn.dataset.adminEventDate;
   selectedAdminEventId=null;
   renderEventCalendar($("#adminEventCalendar"), $("#adminEventCalendarMonth"), adminEventCalendarCursor, adminEventRows, {selectedDate:selectedAdminEventDate,admin:true});
-  resetAdminEventForm({keepDate:true});
-  refreshAdminEventPicker();
-  $("#eventAdminStatus").textContent=`${fmtDate(selectedAdminEventDate)} 일정을 등록하거나 수정할 수 있습니다.`;
+  const dayRows=adminEventRows.filter(row=>String(row.event_date)===String(selectedAdminEventDate));
+  if(dayRows.length===1){
+    fillAdminEvent(dayRows[0]);
+    $("#eventAdminStatus").textContent=`${fmtDate(selectedAdminEventDate)}의 행사를 불러왔습니다. 내용을 수정하거나 삭제할 수 있습니다.`;
+  } else {
+    resetAdminEventForm({keepDate:true});
+    refreshAdminEventPicker();
+    renderAdminEventDayList(selectedAdminEventDate);
+    $("#eventAdminStatus").textContent=dayRows.length
+      ? `${fmtDate(selectedAdminEventDate)}에 ${dayRows.length}개 행사가 있습니다. 아래 목록에서 수정하거나 삭제할 행사를 선택해 주세요.`
+      : `${fmtDate(selectedAdminEventDate)}에 새 행사를 등록할 수 있습니다.`;
+  }
 });
 $("#adminEventPrevMonth")?.addEventListener("click",async()=>{
   adminEventCalendarCursor=new Date(adminEventCalendarCursor.getFullYear(),adminEventCalendarCursor.getMonth()-1,1);
@@ -758,6 +815,7 @@ $("#newEventBtn")?.addEventListener("click",()=>{
   selectedAdminEventId=null;
   resetAdminEventForm({keepDate:true});
   refreshAdminEventPicker();
+  renderAdminEventDayList(selectedAdminEventDate);
   renderEventCalendar($("#adminEventCalendar"), $("#adminEventCalendarMonth"), adminEventCalendarCursor, adminEventRows, {selectedDate:selectedAdminEventDate,admin:true});
   $("#eventTitle").focus();
 });
@@ -796,17 +854,69 @@ $("#eventAdminForm")?.addEventListener("submit",async e=>{
   $("#eventAdminStatus").textContent="행사가 저장되었습니다.";
   await Promise.all([loadAdminEventCalendar({selectDate:selectedAdminEventDate,selectId:selectedAdminEventId}),loadPublicEventCalendar()]);
 });
+async function deleteAdminEventById(eventId) {
+  if(!isAdmin || !eventId) return false;
+  const row=adminEventRows.find(x=>String(x.id)===String(eventId));
+  if(!confirm(`“${row?.title||"선택한 행사"}”를 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.`)) return false;
+  $("#eventAdminStatus").textContent="행사를 삭제하고 있습니다...";
+  const deleted=await db.from("church_events").delete().eq("id",eventId).select("id");
+  if(deleted.error){
+    $("#eventAdminStatus").textContent=dbErrorMessage(deleted.error,"행사 삭제에 실패했습니다.");
+    return false;
+  }
+  if(!deleted.data?.length){
+    $("#eventAdminStatus").textContent="삭제할 행사를 찾지 못했습니다.";
+    return false;
+  }
+  if(String(selectedAdminEventId)===String(eventId)) selectedAdminEventId=null;
+  $("#eventAdminStatus").textContent="행사가 삭제되었습니다.";
+  await Promise.all([
+    loadAdminEventCalendar({selectDate:selectedAdminEventDate,selectId:null}),
+    loadPublicEventCalendar()
+  ]);
+  renderAdminEventDayList(selectedAdminEventDate);
+  return true;
+}
+
+$("#adminEventDayList")?.addEventListener("click",async e=>{
+  const newBtn=e.target.closest("[data-event-new-date]");
+  if(newBtn){
+    selectedAdminEventDate=newBtn.dataset.eventNewDate;
+    selectedAdminEventId=null;
+    resetAdminEventForm({keepDate:true});
+    refreshAdminEventPicker();
+    renderAdminEventDayList(selectedAdminEventDate);
+    $("#eventTitle").focus();
+    return;
+  }
+  const editBtn=e.target.closest("[data-event-edit-id]");
+  if(editBtn){
+    const row=adminEventRows.find(x=>String(x.id)===String(editBtn.dataset.eventEditId));
+    if(row){
+      fillAdminEvent(row);
+      $("#eventAdminStatus").textContent=`“${row.title}” 수정 모드입니다.`;
+      $("#eventTitle").focus();
+    }
+    return;
+  }
+  const deleteBtn=e.target.closest("[data-event-delete-id]");
+  if(deleteBtn){
+    deleteBtn.disabled=true;
+    await deleteAdminEventById(deleteBtn.dataset.eventDeleteId);
+    return;
+  }
+  const card=e.target.closest("[data-event-row-id]");
+  if(card){
+    const row=adminEventRows.find(x=>String(x.id)===String(card.dataset.eventRowId));
+    if(row) fillAdminEvent(row);
+  }
+});
+
 $("#eventDeleteBtn")?.addEventListener("click",async()=>{
   if(!isAdmin||!selectedAdminEventId) return;
-  const row=adminEventRows.find(x=>String(x.id)===String(selectedAdminEventId));
-  if(!confirm(`“${row?.title||"선택한 행사"}”를 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.`)) return;
   $("#eventDeleteBtn").disabled=true;
-  const deleted=await db.from("church_events").delete().eq("id",selectedAdminEventId).select("id");
-  if(deleted.error){ $("#eventAdminStatus").textContent=dbErrorMessage(deleted.error,"행사 삭제에 실패했습니다."); $("#eventDeleteBtn").disabled=false; return; }
-  if(!deleted.data?.length){ $("#eventAdminStatus").textContent="삭제할 행사를 찾지 못했습니다."; $("#eventDeleteBtn").disabled=false; return; }
-  selectedAdminEventId=null;
-  $("#eventAdminStatus").textContent="행사가 삭제되었습니다.";
-  await Promise.all([loadAdminEventCalendar({selectDate:selectedAdminEventDate,selectId:null}),loadPublicEventCalendar()]);
+  await deleteAdminEventById(selectedAdminEventId);
+  $("#eventDeleteBtn").disabled=!selectedAdminEventId;
 });
 
 $("#openAdminBtn").addEventListener("click", () => {

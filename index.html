@@ -370,7 +370,7 @@
             <div class="admin-editor-head">
               <div>
                 <h3>행사 · 이벤트 달력 관리</h3>
-                <p class="muted">달력에서 날짜를 선택한 뒤 행사를 등록하세요. 등록된 일정은 학생 화면 하단 달력에 표시됩니다.</p>
+                <p class="muted">날짜를 클릭하면 그날의 행사 목록이 나타납니다. 각 행사에서 바로 수정·삭제하거나 새 행사를 등록할 수 있습니다.</p>
               </div>
               <button id="newEventBtn" class="ghost compact-btn" type="button">새 행사 작성</button>
             </div>
@@ -388,6 +388,9 @@
                   <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
                 </div>
                 <div id="adminEventCalendar" class="event-calendar admin-event-calendar" role="grid" aria-label="관리자 행사 달력"></div>
+                <div id="adminEventDayList" class="admin-event-day-list">
+                  <p class="muted">달력에서 날짜를 클릭하면 그날의 행사를 바로 수정하거나 삭제할 수 있습니다.</p>
+                </div>
               </div>
 
               <form id="eventAdminForm" class="event-admin-form">
