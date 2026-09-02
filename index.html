@@ -21,11 +21,6 @@
       <button id="installBtn" class="ghost hidden" type="button">앱 설치</button>
     </header>
 
-    <div id="supabaseConnection" class="connection-bar checking" role="status" aria-live="polite">
-      <span id="supabaseConnectionText">Supabase 연결 확인 중…</span>
-      <button id="retryConnectionBtn" class="connection-retry" type="button" disabled>다시 연결</button>
-    </div>
-
     <section id="bannerArea" class="banner-wrap"></section>
 
     <main>
@@ -437,6 +432,11 @@
     </main>
 
     <footer>양정중앙교회 청소년부 · 주의울림</footer>
+
+    <div id="supabaseConnection" class="connection-bar connection-footer checking" role="status" aria-live="polite">
+      <span id="supabaseConnectionText">Supabase 연결 확인 중…</span>
+      <button id="retryConnectionBtn" class="connection-retry" type="button" disabled>다시 연결</button>
+    </div>
   </div>
 
   <script type="module" src="./app.js"></script>

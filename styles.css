@@ -335,3 +335,20 @@ body.admin-window #adminWorkspace .admin-panel-active{animation:adminPanelIn .16
 /* ===== v18 행사 기간 선택 ===== */
 .event-period-grid input[type="date"]{width:100%;min-width:0}
 @media (max-width:520px){.event-detail-head{flex-direction:column}.event-detail-head span{white-space:normal}.event-period-grid{grid-template-columns:1fr}}
+
+
+/* ===== v20 Supabase 연결 상태를 화면 최하단으로 이동 ===== */
+.connection-bar.connection-footer{
+  margin:12px auto 22px;
+  max-width:1100px;
+  opacity:.88;
+}
+.connection-bar.connection-footer.connected{
+  background:#f4faf6;
+}
+@media (max-width:600px){
+  .connection-bar.connection-footer{
+    margin:10px 12px calc(18px + env(safe-area-inset-bottom));
+    padding:8px 11px;
+  }
+}
