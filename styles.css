@@ -14,7 +14,7 @@ main,.banner-wrap{max-width:980px;margin:auto;padding:0 20px}.banner-wrap{displa
 .identity-card{margin-top:0}.identity-card h2,.card h2,.subcard h3{margin:0}.identity-card p,.muted,.status{color:var(--muted)}
 .identity-grid,.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.identity-tip{font-size:.8rem;margin:10px 0 0!important}
 label{display:grid;gap:6px;font-weight:700;font-size:.9rem}input,select,textarea{width:100%;min-height:46px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:white;color:var(--ink);font-size:16px}textarea{resize:vertical}
-.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:12px 0 14px}.tab,.ghost,.primary{min-height:46px;border-radius:12px;border:1px solid var(--line);padding:10px 12px;font-weight:800}.tab,.ghost{background:white;color:var(--ink)}.tab.active,.primary{background:var(--accent);color:white;border-color:var(--accent)}
+.tabs{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:12px 0 14px}.tab,.ghost,.primary{min-height:46px;border-radius:12px;border:1px solid var(--line);padding:10px 12px;font-weight:800}.tab,.ghost{background:white;color:var(--ink)}.tab.active,.primary{background:var(--accent);color:white;border-color:var(--accent)}
 .section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.section-head.compact{align-items:center}.section-head.compact h3{margin:0}.eyebrow{display:block;color:var(--muted);font-size:.82rem;font-weight:800;margin-bottom:4px}.pill{background:var(--accent2);border-radius:999px;padding:6px 10px;font-weight:800;font-size:.85rem}
 .verse{margin:18px 0 12px;padding:18px;border-radius:16px;background:#f3f7f4;font-size:1.1rem;line-height:1.9;font-weight:700}.typing-note{font-size:.82rem;color:var(--danger);margin-bottom:12px}.field-label{margin:10px 0}
 .progress{height:9px;background:#e8ece9;border-radius:999px;overflow:hidden}.progress>div{height:100%;width:0;background:var(--accent);transition:width .2s ease}.primary:disabled{opacity:.45;cursor:not-allowed}
@@ -388,3 +388,19 @@ body.admin-window #adminWorkspace .admin-panel-active{animation:adminPanelIn .16
 @media(max-width:390px){
   .weekly-stat-grid{grid-template-columns:1fr}
 }
+
+
+/* V24: 내 정보 독립 탭 + 공통 프로필 연동 */
+.profile-tab{white-space:nowrap}
+.profile-card{margin-top:0}
+.profile-card .identity-grid{margin-top:16px}
+.profile-save-btn{margin-top:14px;min-width:160px}
+.profile-sync-box{margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:14px;background:rgba(31,77,63,.045)}
+.profile-sync-box>strong{display:block;margin-bottom:10px}
+.profile-sync-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.profile-sync-grid span{padding:9px 10px;border-radius:10px;background:#fff;border:1px solid var(--line);font-weight:700;font-size:.9rem}
+.profile-sync-box p{margin:10px 0 0;color:var(--muted);font-size:.84rem;line-height:1.55}
+.profile-link-note{margin:10px 0 14px;padding:9px 11px;border-radius:10px;background:rgba(31,77,63,.06);border:1px solid rgba(31,77,63,.12);color:var(--muted);font-size:.82rem;font-weight:700}
+@media(max-width:900px){.tabs{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:640px){.tabs{grid-template-columns:repeat(3,1fr)}.profile-sync-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.tabs{grid-template-columns:repeat(2,1fr)}.profile-sync-grid{grid-template-columns:1fr}.profile-save-btn{width:100%}}

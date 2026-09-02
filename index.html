@@ -31,13 +31,17 @@
         <button class="tab" data-tab="notice">공지사항</button>
         <button class="tab" data-tab="gratitude">감사기도</button>
         <button class="tab" data-tab="board">익명게시판</button>
+        <button class="tab profile-tab" data-tab="profile">내 정보</button>
       </nav>
 
-      <section id="studentIdentity" class="card identity-card">
-        <div>
-          <span class="eyebrow">나의 기록</span>
-          <h2>내 정보</h2>
-          <p>말씀쓰기·성경공부·기도제목·감사기도 기록에 이 정보가 사용됩니다.</p>
+      <section id="profile" class="panel card hidden profile-card">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">나의 기록 정보</span>
+            <h2>내 정보</h2>
+            <p class="muted">학년과 이름을 한 번 입력하면 이 기기에 저장되고, 나의 신앙활동 기록에 자동으로 연결됩니다.</p>
+          </div>
+          <span class="pill">공통 프로필</span>
         </div>
         <div class="identity-grid">
           <label>학년
@@ -51,7 +55,19 @@
             <input id="studentName" type="text" maxlength="30" autocomplete="name" placeholder="이름 입력" />
           </label>
         </div>
-        <p class="identity-tip">한 번 입력하면 이 기기에 저장되어 다음 접속 때 자동으로 불러옵니다.</p>
+        <button id="saveProfileBtn" class="primary profile-save-btn" type="button">내 정보 저장</button>
+        <p id="profileStatus" class="status">학년과 이름을 입력해 주세요.</p>
+
+        <div class="profile-sync-box">
+          <strong>내 정보가 자동으로 연결되는 기록</strong>
+          <div class="profile-sync-grid">
+            <span>📖 말씀쓰기·출석</span>
+            <span>📝 성경공부 답안</span>
+            <span>🙏 기도제목</span>
+            <span>🔥 감사기도</span>
+          </div>
+          <p>위 활동을 제출하면 저장된 학년·이름이 함께 기록되어 관리자 기록에 반영됩니다. 익명게시판은 익명성을 위해 내 정보와 연결하지 않습니다.</p>
+        </div>
       </section>
 
       <section id="word" class="panel card">
@@ -62,6 +78,7 @@
           </div>
           <span id="progressText" class="pill">0%</span>
         </div>
+        <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
         <blockquote id="verseText" class="verse">말씀을 불러오는 중입니다.</blockquote>
         <div class="typing-note">
           복사·붙여넣기, 드래그앤드롭 입력은 사용할 수 없습니다. 말씀을 직접 따라 써 주세요.
@@ -79,6 +96,7 @@
       <section id="study" class="panel card hidden">
         <span class="eyebrow">이번 주 성경공부</span>
         <h2 id="studyTitle">성경공부</h2>
+        <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
         <form id="studyForm">
           <div id="studyQuestions"></div>
           <button class="primary" type="submit">나눔 제출</button>
@@ -89,6 +107,7 @@
       <section id="prayer" class="panel card hidden">
         <span class="eyebrow">함께 기도해요</span>
         <h2>이번 주 기도제목</h2>
+        <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
         <form id="prayerForm">
           <label class="field-label">기도제목
             <textarea id="prayerText" rows="6" maxlength="3000" placeholder="이번 주 기도제목을 적어 주세요."></textarea>
@@ -115,6 +134,8 @@
           </div>
           <div class="gratitude-flame" aria-hidden="true">🔥</div>
         </div>
+
+        <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
 
         <div class="challenge-stats">
           <div class="challenge-stat main"><span>현재 연속</span><strong id="gratitudeStreak">0일</strong></div>

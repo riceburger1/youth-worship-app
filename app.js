@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v23-anonymous-board-submit-delete";
+const APP_VERSION = "v24-profile-tab-linked-records";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -119,28 +119,67 @@ const PROFILE_STORAGE_KEY = "주의울림-profile-v2";
 const GRATITUDE_PREFIX = "주의울림-gratitude-v2:";
 
 function profile() {
-  return { grade: $("#grade").value, name: clean($("#studentName").value) };
+  return { grade: $("#grade")?.value || "", name: clean($("#studentName")?.value || "") };
 }
-function requireProfile(statusEl) {
+function profileReady(p = profile()) {
+  return Boolean(p.grade && p.name);
+}
+function updateProfileLinkedUI(p = profile()) {
+  const ready = profileReady(p);
+  const text = ready
+    ? `현재 기록 정보: ${p.grade} ${p.name} · 제출 시 관리자 기록에 함께 저장됩니다.`
+    : "내 정보 탭에서 학년과 이름을 입력하면 이 기록에 자동으로 연결됩니다.";
+  $$('[data-profile-display]').forEach(el => { el.textContent = text; });
+  return ready;
+}
+function persistProfile({feedback=false} = {}) {
   const p = profile();
-  if (!p.grade || !p.name) {
-    statusEl.textContent = "학년과 이름을 먼저 입력해 주세요.";
-    $("#studentIdentity").scrollIntoView({behavior:"smooth", block:"center"});
-    return null;
+  const ready = updateProfileLinkedUI(p);
+  const status = $("#profileStatus");
+  if (!ready) {
+    if (feedback && status) status.textContent = "학년과 이름을 모두 입력해 주세요.";
+    return false;
   }
-  return p;
-}
-function saveProfile() {
-  const p = profile();
-  if (p.grade || p.name) localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(p));
+  localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(p));
+  if (feedback && status) status.textContent = `${p.grade} ${p.name} 학생 정보가 저장되었습니다. 말씀쓰기·성경공부·기도제목·감사기도에 자동 연동됩니다.`;
   renderGratitudeChallenge();
+  return true;
 }
 function restoreProfile() {
   try {
     const p = JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "null");
-    if (p?.grade) $("#grade").value = p.grade;
-    if (p?.name) $("#studentName").value = p.name;
+    if (p?.grade && $("#grade")) $("#grade").value = p.grade;
+    if (p?.name && $("#studentName")) $("#studentName").value = p.name;
   } catch {}
+  const restored = profile();
+  updateProfileLinkedUI(restored);
+  const status = $("#profileStatus");
+  if (status) {
+    status.textContent = profileReady(restored)
+      ? `저장된 내 정보: ${restored.grade} ${restored.name}`
+      : "학년과 이름을 입력해 주세요.";
+  }
+  return restored;
+}
+function activateStudentTab(tabName) {
+  const target = $("#" + tabName);
+  if (!target) return;
+  $$(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tabName));
+  $$(".panel").forEach(panel => panel.classList.add("hidden"));
+  target.classList.remove("hidden");
+  if (tabName === "gratitude") renderGratitudeChallenge();
+}
+function requireProfile(statusEl) {
+  const p = profile();
+  if (!profileReady(p)) {
+    if (statusEl) statusEl.textContent = "내 정보 탭에서 학년과 이름을 먼저 입력해 주세요.";
+    activateStudentTab("profile");
+    requestAnimationFrame(() => $("#profile")?.scrollIntoView({behavior:"smooth", block:"start"}));
+    return null;
+  }
+  // 제출할 때마다 현재 공통 프로필을 다시 저장해 네 가지 기록이 동일한 학년·이름을 사용하도록 합니다.
+  persistProfile({feedback:false});
+  return p;
 }
 function fmtDate(v) {
   if (!v) return "일정 미정";
@@ -274,16 +313,23 @@ function renderGratitudeChallenge() {
     </article>`).join("") : '<p class="muted">아직 기록이 없습니다. 오늘 첫 감사기도를 남겨 보세요.</p>';
 }
 
-restoreProfile();
-$("#grade").addEventListener("change", saveProfile);
-$("#studentName").addEventListener("input", saveProfile);
+const restoredProfile = restoreProfile();
+$("#grade").addEventListener("change", () => {
+  updateProfileLinkedUI();
+  if (profileReady()) persistProfile({feedback:false});
+});
+$("#studentName").addEventListener("input", () => {
+  updateProfileLinkedUI();
+  const status = $("#profileStatus");
+  if (status) status.textContent = profileReady() ? "입력한 정보를 저장해 주세요." : "학년과 이름을 모두 입력해 주세요.";
+});
+$("#studentName").addEventListener("change", () => {
+  if (profileReady()) persistProfile({feedback:false});
+});
+$("#saveProfileBtn").addEventListener("click", () => persistProfile({feedback:true}));
 
-$$(".tab").forEach(btn => btn.addEventListener("click", () => {
-  $$(".tab").forEach(x => x.classList.toggle("active", x === btn));
-  $$(".panel").forEach(p => p.classList.add("hidden"));
-  $("#" + btn.dataset.tab).classList.remove("hidden");
-  if (btn.dataset.tab === "gratitude") renderGratitudeChallenge();
-}));
+$$(".tab").forEach(btn => btn.addEventListener("click", () => activateStudentTab(btn.dataset.tab)));
+if (!ADMIN_WINDOW && !profileReady(restoredProfile)) activateStudentTab("profile");
 $("#gratitudePrevMonth").addEventListener("click", () => {
   gratitudeCalendarCursor = new Date(gratitudeCalendarCursor.getFullYear(), gratitudeCalendarCursor.getMonth()-1, 1);
   renderGratitudeChallenge();
