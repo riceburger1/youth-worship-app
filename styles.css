@@ -287,3 +287,47 @@ body.admin-window #churchCalendarSection{display:none!important}
   .admin-event-list-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}
   .admin-event-list-actions .compact-btn{width:100%;min-height:40px}
 }
+
+
+/* ===== v17 관리자 탭형 작업공간 ===== */
+body.admin-window #adminWorkspace{min-width:0}
+.admin-tabs{
+  position:sticky;top:8px;z-index:30;
+  display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;
+  margin:4px 0 12px;padding:9px;
+  border:1px solid var(--line);border-radius:16px;
+  background:rgba(247,250,248,.94);backdrop-filter:blur(12px);
+  box-shadow:0 7px 22px rgba(31,77,63,.06)
+}
+.admin-tab{
+  min-width:0;min-height:46px;padding:9px 8px;border:1px solid var(--line);border-radius:11px;
+  background:#fff;color:var(--ink);font-weight:800;cursor:pointer;line-height:1.25
+}
+.admin-tab:hover{border-color:#a9c1b5;background:#fbfdfc}
+.admin-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 5px 13px rgba(31,77,63,.16)}
+.admin-section-info{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  margin-bottom:13px;padding:14px 16px;border:1px solid #dfe7e2;border-radius:15px;background:#f8fbf9
+}
+.admin-section-info h3{margin:2px 0 0;font-size:1.08rem}
+.admin-section-info p{margin:5px 0 0;line-height:1.5;font-size:.84rem}
+body.admin-window #adminWorkspace [data-admin-panel]{display:none!important}
+body.admin-window #adminWorkspace [data-admin-panel].admin-panel-active{display:block!important}
+body.admin-window #adminWorkspace .admin-editor-card.admin-panel-active{display:grid!important}
+body.admin-window #adminWorkspace .admin-grid{grid-template-columns:1fr;gap:12px}
+body.admin-window #adminWorkspace .admin-span-2{grid-column:auto}
+body.admin-window #adminWorkspace .records-manager-card,
+body.admin-window #adminWorkspace .calendar-manager-card{margin-top:0}
+body.admin-window #adminWorkspace .admin-panel-active{animation:adminPanelIn .16s ease-out}
+@keyframes adminPanelIn{from{opacity:.3;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+@media(max-width:820px){
+  .admin-tabs{grid-template-columns:repeat(3,minmax(0,1fr));position:static}
+  .admin-tab{min-height:44px;font-size:.84rem}
+}
+@media(max-width:520px){
+  .admin-tabs{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:7px;border-radius:13px}
+  .admin-tab{min-height:43px;padding:8px 5px;font-size:.8rem}
+  .admin-section-info{padding:12px;align-items:flex-start}
+  .admin-section-info .pill{flex:0 0 auto}
+}

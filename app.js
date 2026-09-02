@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v16-event-click-edit";
+const APP_VERSION = "v17-admin-tabs";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -83,14 +83,7 @@ async function checkSupabaseConnection({reloadData=false} = {}) {
     if (reloadData) {
       await Promise.all([loadWeekly(), loadNotices(), loadBoard(), loadPublicEventCalendar()]);
       if (isAdmin) {
-        await Promise.all([
-          loadAdminWordOptions(),
-          loadAdminStudyOptions(),
-          loadAdminNoticeOptions(),
-          loadAdminPrayers(),
-          loadAdminRecords(),
-          loadAdminEventCalendar()
-        ]);
+        await refreshActiveAdminTab(activeAdminTab);
       }
     }
     return true;
@@ -120,6 +113,7 @@ let publicEventRows = [];
 let adminEventRows = [];
 let selectedAdminEventDate = null;
 let selectedAdminEventId = null;
+let activeAdminTab = sessionStorage.getItem("주의울림-admin-tab-v17") || "word";
 
 const PROFILE_STORAGE_KEY = "주의울림-profile-v2";
 const GRATITUDE_PREFIX = "주의울림-gratitude-v2:";
@@ -919,6 +913,51 @@ $("#eventDeleteBtn")?.addEventListener("click",async()=>{
   $("#eventDeleteBtn").disabled=!selectedAdminEventId;
 });
 
+
+const ADMIN_TAB_META = {
+  word:{title:"말씀 관리",badge:"말씀",description:"새 말씀을 등록하거나 지난 말씀을 선택해 수정·삭제할 수 있습니다."},
+  study:{title:"성경공부 관리",badge:"성경공부",description:"말씀 주차를 선택한 뒤 성경공부 제목과 질문을 등록·수정·삭제할 수 있습니다."},
+  notice:{title:"공지사항 관리",badge:"공지",description:"새 공지를 등록하거나 기존 공지를 선택해 수정·삭제할 수 있습니다."},
+  prayer:{title:"기도제목 관리",badge:"기도",description:"학생들이 제출한 기도제목을 주일별로 확인하고 필요한 기록을 삭제할 수 있습니다."},
+  records:{title:"학생 제출 기록",badge:"제출 기록",description:"말씀쓰기·성경공부·기도·감사·익명 제출을 주일별로 확인하고 개별 삭제할 수 있습니다."},
+  events:{title:"행사 · 이벤트 달력",badge:"행사 달력",description:"날짜를 선택해 행사를 등록하고 기존 일정을 수정·삭제할 수 있습니다."}
+};
+
+async function refreshActiveAdminTab(tab=activeAdminTab) {
+  if (!isAdmin) return;
+  if (tab === "word") await loadAdminWordOptions(adminWordId);
+  else if (tab === "study") await loadAdminStudyOptions(adminStudyId);
+  else if (tab === "notice") await loadAdminNoticeOptions(adminNoticeId);
+  else if (tab === "prayer") await loadAdminPrayers();
+  else if (tab === "records") await loadAdminRecords();
+  else if (tab === "events") await loadAdminEventCalendar();
+}
+
+function setAdminTab(tab, {reload=true}={}) {
+  if (!ADMIN_TAB_META[tab]) tab = "word";
+  activeAdminTab = tab;
+  sessionStorage.setItem("주의울림-admin-tab-v17", tab);
+  $$(".admin-tab").forEach(btn => {
+    const active = btn.dataset.adminTab === tab;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  $$('[data-admin-panel]').forEach(panel => {
+    panel.classList.toggle("admin-panel-active", panel.dataset.adminPanel === tab);
+  });
+  const meta = ADMIN_TAB_META[tab];
+  if ($("#adminSectionTitle")) $("#adminSectionTitle").textContent = meta.title;
+  if ($("#adminSectionDescription")) $("#adminSectionDescription").textContent = meta.description;
+  if ($("#adminSectionBadge")) $("#adminSectionBadge").textContent = meta.badge;
+  if (reload && isAdmin) refreshActiveAdminTab(tab).catch(err => console.error("관리자 탭 새로고침 실패", err));
+}
+
+$("#adminTabs")?.addEventListener("click", e => {
+  const btn = e.target.closest(".admin-tab");
+  if (!btn) return;
+  setAdminTab(btn.dataset.adminTab, {reload:true});
+});
+
 $("#openAdminBtn").addEventListener("click", () => {
   const url = new URL(window.location.href);
   url.searchParams.set("admin", "1");
@@ -932,6 +971,7 @@ function applyAdminWindowMode() {
   document.title = "주의울림 관리자 | 양정중앙교회 청소년부";
   $(".brand .subtitle").textContent = "관리자 콘텐츠 · 제출 기록 관리";
   $("#adminPanel").classList.remove("hidden");
+  setAdminTab(activeAdminTab, {reload:false});
 }
 applyAdminWindowMode();
 $("#adminLoginForm").addEventListener("submit", async e => {
@@ -953,9 +993,10 @@ async function verifyAdmin(user) {
   }
   $("#adminLoginStatus").textContent = "";
   setAdminState(true);
-  $("#wordAdminStatus").textContent = "말씀 관리 준비 완료 · v15";
-  $("#studyAdminStatus").textContent = "성경공부 관리 준비 완료 · v15";
-  await Promise.all([loadAdminWordOptions(), loadAdminStudyOptions(), loadAdminNoticeOptions(), loadAdminPrayers(), loadAdminRecords(), loadAdminEventCalendar()]);
+  $("#wordAdminStatus").textContent = "말씀 관리 준비 완료 · v17";
+  $("#studyAdminStatus").textContent = "성경공부 관리 준비 완료 · v17";
+  setAdminTab(activeAdminTab, {reload:false});
+  await refreshActiveAdminTab(activeAdminTab);
 }
 function setAdminState(value) {
   isAdmin = value;
@@ -965,14 +1006,7 @@ function setAdminState(value) {
 }
 $("#adminLogoutBtn").addEventListener("click", async () => { await db.auth.signOut(); setAdminState(false); });
 $("#refreshAdminBtn").addEventListener("click", async () => {
-  await Promise.all([
-    loadAdminWordOptions(adminWordId),
-    loadAdminStudyOptions(adminStudyId),
-    loadAdminNoticeOptions(adminNoticeId),
-    loadAdminPrayers(),
-    loadAdminRecords(),
-    loadAdminEventCalendar()
-  ]);
+  await refreshActiveAdminTab(activeAdminTab);
 });
 
 function currentMondayISO() {
