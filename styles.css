@@ -7,6 +7,11 @@
 button,input,select,textarea{font:inherit}button{cursor:pointer}
 .hero{max-width:980px;margin:auto;padding:28px 20px 18px;display:flex;justify-content:space-between;align-items:center;gap:16px}
 .brand{display:grid;gap:2px}.brand .church{font-size:.84rem;color:var(--muted);font-weight:700}.brand strong{font-size:2.15rem;line-height:1.05}.subtitle{font-size:.92rem;color:var(--muted);margin-top:4px}
+
+.hero-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.header-profile-btn{min-height:44px;border:1px solid rgba(31,77,63,.22);border-radius:999px;padding:9px 14px;background:var(--accent2);color:var(--accent);font-weight:900;white-space:nowrap;box-shadow:0 2px 8px rgba(31,77,63,.06)}
+.header-profile-btn:hover{border-color:rgba(31,77,63,.4)}
+.header-profile-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 main,.banner-wrap{max-width:980px;margin:auto;padding:0 20px}.banner-wrap{display:grid;gap:8px;margin-bottom:12px}
 .banner{border-radius:16px;padding:14px 16px;background:var(--accent);color:white}.banner b{display:block;margin-bottom:4px}.banner small{opacity:.86}
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;margin-bottom:14px}
@@ -14,7 +19,7 @@ main,.banner-wrap{max-width:980px;margin:auto;padding:0 20px}.banner-wrap{displa
 .identity-card{margin-top:0}.identity-card h2,.card h2,.subcard h3{margin:0}.identity-card p,.muted,.status{color:var(--muted)}
 .identity-grid,.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.identity-tip{font-size:.8rem;margin:10px 0 0!important}
 label{display:grid;gap:6px;font-weight:700;font-size:.9rem}input,select,textarea{width:100%;min-height:46px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:white;color:var(--ink);font-size:16px}textarea{resize:vertical}
-.tabs{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:12px 0 14px}.tab,.ghost,.primary{min-height:46px;border-radius:12px;border:1px solid var(--line);padding:10px 12px;font-weight:800}.tab,.ghost{background:white;color:var(--ink)}.tab.active,.primary{background:var(--accent);color:white;border-color:var(--accent)}
+.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:12px 0 14px}.tab,.ghost,.primary{min-height:46px;border-radius:12px;border:1px solid var(--line);padding:10px 12px;font-weight:800}.tab,.ghost{background:white;color:var(--ink)}.tab.active,.primary{background:var(--accent);color:white;border-color:var(--accent)}
 .section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.section-head.compact{align-items:center}.section-head.compact h3{margin:0}.eyebrow{display:block;color:var(--muted);font-size:.82rem;font-weight:800;margin-bottom:4px}.pill{background:var(--accent2);border-radius:999px;padding:6px 10px;font-weight:800;font-size:.85rem}
 .verse{margin:18px 0 12px;padding:18px;border-radius:16px;background:#f3f7f4;font-size:1.1rem;line-height:1.9;font-weight:700}.typing-note{font-size:.82rem;color:var(--danger);margin-bottom:12px}.field-label{margin:10px 0}
 .progress{height:9px;background:#e8ece9;border-radius:999px;overflow:hidden}.progress>div{height:100%;width:0;background:var(--accent);transition:width .2s ease}.primary:disabled{opacity:.45;cursor:not-allowed}
@@ -141,7 +146,8 @@ body.admin-window .tabs,
 body.admin-window #studentIdentity,
 body.admin-window main>.panel,
 body.admin-window .admin-entry,
-body.admin-window #installBtn{display:none!important}
+body.admin-window #installBtn,
+body.admin-window #profileHeaderBtn{display:none!important}
 body.admin-window .hero,body.admin-window main,body.admin-window .connection-bar{max-width:1180px}
 body.admin-window .hero{padding-bottom:10px}
 body.admin-window #adminPanel{display:block!important;margin-top:14px;padding:24px}
@@ -404,3 +410,16 @@ body.admin-window #adminWorkspace .admin-panel-active{animation:adminPanelIn .16
 @media(max-width:900px){.tabs{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:640px){.tabs{grid-template-columns:repeat(3,1fr)}.profile-sync-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:420px){.tabs{grid-template-columns:repeat(2,1fr)}.profile-sync-grid{grid-template-columns:1fr}.profile-save-btn{width:100%}}
+
+/* V25: 내 정보는 최상단 주의울림 오른쪽의 독립 버튼으로 배치 */
+@media(max-width:520px){
+  .hero{gap:10px}
+  .hero-actions{flex:0 0 auto}
+  .header-profile-btn{min-height:40px;padding:8px 11px;font-size:.86rem}
+}
+@media(max-width:360px){
+  .brand strong{font-size:1.68rem}
+  .brand .church{font-size:.76rem}
+  .subtitle{font-size:.78rem}
+  .header-profile-btn{padding:7px 9px;font-size:.8rem}
+}

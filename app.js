@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v24-profile-tab-linked-records";
+const APP_VERSION = "v25-profile-header-button";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -128,7 +128,7 @@ function updateProfileLinkedUI(p = profile()) {
   const ready = profileReady(p);
   const text = ready
     ? `현재 기록 정보: ${p.grade} ${p.name} · 제출 시 관리자 기록에 함께 저장됩니다.`
-    : "내 정보 탭에서 학년과 이름을 입력하면 이 기록에 자동으로 연결됩니다.";
+    : "오른쪽 위 내 정보에서 학년과 이름을 입력하면 이 기록에 자동으로 연결됩니다.";
   $$('[data-profile-display]').forEach(el => { el.textContent = text; });
   return ready;
 }
@@ -165,6 +165,12 @@ function activateStudentTab(tabName) {
   const target = $("#" + tabName);
   if (!target) return;
   $$(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tabName));
+  const profileHeaderBtn = $("#profileHeaderBtn");
+  if (profileHeaderBtn) {
+    const profileActive = tabName === "profile";
+    profileHeaderBtn.classList.toggle("active", profileActive);
+    profileHeaderBtn.setAttribute("aria-pressed", profileActive ? "true" : "false");
+  }
   $$(".panel").forEach(panel => panel.classList.add("hidden"));
   target.classList.remove("hidden");
   if (tabName === "gratitude") renderGratitudeChallenge();
@@ -172,7 +178,7 @@ function activateStudentTab(tabName) {
 function requireProfile(statusEl) {
   const p = profile();
   if (!profileReady(p)) {
-    if (statusEl) statusEl.textContent = "내 정보 탭에서 학년과 이름을 먼저 입력해 주세요.";
+    if (statusEl) statusEl.textContent = "오른쪽 위 내 정보에서 학년과 이름을 먼저 입력해 주세요.";
     activateStudentTab("profile");
     requestAnimationFrame(() => $("#profile")?.scrollIntoView({behavior:"smooth", block:"start"}));
     return null;
@@ -329,6 +335,7 @@ $("#studentName").addEventListener("change", () => {
 $("#saveProfileBtn").addEventListener("click", () => persistProfile({feedback:true}));
 
 $$(".tab").forEach(btn => btn.addEventListener("click", () => activateStudentTab(btn.dataset.tab)));
+$("#profileHeaderBtn")?.addEventListener("click", () => activateStudentTab("profile"));
 if (!ADMIN_WINDOW && !profileReady(restoredProfile)) activateStudentTab("profile");
 $("#gratitudePrevMonth").addEventListener("click", () => {
   gratitudeCalendarCursor = new Date(gratitudeCalendarCursor.getFullYear(), gratitudeCalendarCursor.getMonth()-1, 1);
