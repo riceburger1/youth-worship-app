@@ -1,6 +1,20 @@
-주의울림 V18 행사 기간형 달력 업데이트입니다.
+# 주의울림 V19 — 행사 기간 저장 PGRST204 수정
 
-필수: 먼저 Supabase SQL Editor에서 `event_period_v18.sql`을 실행하세요.
-그 다음 GitHub의 index.html, app.js, styles.css, sw.js를 교체하세요.
+## 원인
+앱은 `church_events.end_date`를 저장하지만 Supabase 테이블 또는 PostgREST 스키마 캐시에 `end_date`가 없어 `PGRST204`가 발생했습니다.
 
-행사는 시간 대신 시작일~종료일 기간으로 등록되며, 해당 기간의 모든 날짜에 표시됩니다.
+## 적용 순서
+1. Supabase `youth-worship` 프로젝트 → SQL Editor → New query
+2. `event_period_v19.sql` 전체 실행
+3. 마지막 진단 결과가 모두 `true`인지 확인
+4. GitHub에서 `index.html`, `app.js`, `styles.css`, `sw.js` 교체
+5. GitHub Pages 배포 후 Ctrl+F5
+
+## 정상 진단값
+- end_date_exists = true
+- no_null_end_date = true
+- valid_event_periods = true
+- calendar_public_select = true
+- calendar_admin_insert = true
+- calendar_admin_update = true
+- calendar_admin_delete = true

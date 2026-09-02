@@ -897,7 +897,14 @@ $("#eventAdminForm")?.addEventListener("submit",async e=>{
   if(selectedAdminEventId) result=await db.from("church_events").update(payload).eq("id",selectedAdminEventId).select("id").single();
   else result=await db.from("church_events").insert(payload).select("id").single();
   $("#eventSaveBtn").disabled=false;
-  if(result.error){ $("#eventAdminStatus").textContent=dbErrorMessage(result.error,"행사 저장에 실패했습니다."); return; }
+  if(result.error){
+    if(result.error.code==="PGRST204" && /end_date/i.test(result.error.message||"")){
+      $("#eventAdminStatus").textContent="행사 기간 저장용 DB 업데이트가 아직 적용되지 않았습니다. Supabase SQL Editor에서 V19 행사기간 수정 SQL을 실행한 뒤 다시 저장해 주세요. [PGRST204]";
+    } else {
+      $("#eventAdminStatus").textContent=dbErrorMessage(result.error,"행사 저장에 실패했습니다.");
+    }
+    return;
+  }
   selectedAdminEventId=String(result.data.id);
   selectedAdminEventDate = selectedAdminEventDate && selectedAdminEventDate>=startDate && selectedAdminEventDate<=endDate ? selectedAdminEventDate : startDate;
   $("#eventAdminStatus").textContent=`행사가 ${eventPeriodText(payload)} 기간으로 저장되었습니다.`;
