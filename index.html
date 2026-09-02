@@ -24,6 +24,18 @@
       </div>
     </header>
 
+    <section id="gratitudeLeaderTop" class="gratitude-leader-top" aria-labelledby="gratitudeLeaderTitle">
+      <div class="gratitude-leader-head">
+        <div>
+          <span class="eyebrow">감사기도 챌린지</span>
+          <h2 id="gratitudeLeaderTitle">🔥 지금 이어가는 학생</h2>
+        </div>
+        <button id="refreshGratitudeLeaderBtn" class="ghost compact-btn" type="button">새로고침</button>
+      </div>
+      <div id="gratitudeLeaderList" class="gratitude-leader-list"></div>
+      <p id="gratitudeLeaderStatus" class="status">챌린지 현황을 불러오는 중입니다.</p>
+    </section>
+
     <section id="profile" class="profile-drawer card hidden profile-card" aria-hidden="true">
         <div class="section-head">
           <div>
@@ -188,9 +200,17 @@
 
         <form id="gratitudeForm" class="gratitude-form">
           <label class="field-label">오늘의 감사기도
-            <textarea id="gratitudeText" rows="5" maxlength="2000" placeholder="오늘 하나님께 감사한 일, 사람, 순간을 적어 보세요."></textarea>
+            <textarea id="gratitudeText" rows="5" minlength="10" maxlength="2000" placeholder="오늘 하나님께 감사한 일, 사람, 순간을 10자 이상 적어 보세요."></textarea>
           </label>
-          <button id="gratitudeSubmitBtn" class="primary" type="submit">오늘 감사기도 기록하기</button>
+          <div class="gratitude-input-meta">
+            <span>10자 이상 작성해야 저장할 수 있습니다.</span>
+            <strong id="gratitudeCharCount">0자 · 최소 10자</strong>
+          </div>
+          <div class="gratitude-form-actions">
+            <button id="gratitudeSubmitBtn" class="primary" type="submit">오늘 감사기도 기록하기</button>
+            <button id="gratitudeEditCancelBtn" class="ghost hidden" type="button">수정 취소</button>
+          </div>
+          <p id="gratitudeEditHint" class="gratitude-edit-hint hidden"></p>
           <p id="gratitudeStatus" class="status">매일 기록하면 연속일수가 올라갑니다.</p>
         </form>
 
@@ -250,7 +270,7 @@
           <div>
             <span class="eyebrow">관리자 전용</span>
             <h2>주의울림 관리자</h2>
-            <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
+            <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 감사기도 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
           </div>
           <div class="admin-head-actions">
             <a class="ghost admin-student-link" href="./" target="_blank" rel="noopener">학생 화면 보기 ↗</a>
@@ -271,6 +291,7 @@
             <button class="admin-tab" type="button" data-admin-tab="study">📝 성경공부</button>
             <button class="admin-tab" type="button" data-admin-tab="notice">📢 공지사항</button>
             <button class="admin-tab" type="button" data-admin-tab="prayer">🙏 기도제목</button>
+            <button class="admin-tab" type="button" data-admin-tab="gratitude">🔥 감사기도</button>
             <button class="admin-tab" type="button" data-admin-tab="board">💬 익명게시판</button>
             <button class="admin-tab" type="button" data-admin-tab="records">📊 학생 제출</button>
             <button class="admin-tab" type="button" data-admin-tab="events">📅 행사 달력</button>
@@ -395,6 +416,31 @@
               </div>
               <p id="prayerAdminStatus" class="status"></p>
               <div id="adminPrayerGroups" class="weekly-record-groups prayer-groups"></div>
+            </section>
+
+            <section class="subcard admin-editor-card admin-span-2" data-admin-panel="gratitude">
+              <div class="admin-editor-head">
+                <div>
+                  <h3>감사기도 챌린지 결과</h3>
+                  <p class="muted admin-mode-label">학생별 현재 연속일·최고 연속일·누적 기록을 확인하고, 감사기도 내용은 주일별로 확인·삭제할 수 있습니다.</p>
+                </div>
+                <button id="refreshGratitudeAdminBtn" class="ghost compact-btn" type="button">결과 새로고침</button>
+              </div>
+              <p id="gratitudeAdminStatus" class="status"></p>
+              <div class="gratitude-admin-result-section">
+                <div class="compact-section-head">
+                  <h4>학생별 챌린지 현황</h4>
+                  <p class="muted">현재 연속일이 긴 학생부터 표시합니다.</p>
+                </div>
+                <div id="adminGratitudeResults" class="gratitude-admin-results"></div>
+              </div>
+              <div class="gratitude-admin-result-section">
+                <div class="compact-section-head">
+                  <h4>주일별 감사기도 기록</h4>
+                  <p class="muted">작성 내용을 주일별로 확인하고 필요한 기록은 개별 삭제할 수 있습니다.</p>
+                </div>
+                <div id="adminGratitudeGroups" class="weekly-record-groups"></div>
+              </div>
             </section>
 
             <section class="subcard admin-editor-card admin-span-2" data-admin-panel="board">

@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v26-profile-header-drawer-fix";
+const APP_VERSION = "v27-gratitude-challenge-leaderboard-edit";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -81,7 +81,7 @@ async function checkSupabaseConnection({reloadData=false} = {}) {
     retry.disabled = false;
 
     if (reloadData) {
-      await Promise.all([loadWeekly(), loadNotices(), loadBoard(), loadPublicEventCalendar()]);
+      await Promise.all([loadWeekly(), loadNotices(), loadBoard(), loadPublicEventCalendar(), loadGratitudeLeaders()]);
       if (isAdmin) {
         await refreshActiveAdminTab(activeAdminTab);
       }
@@ -102,6 +102,7 @@ let questions = [];
 let deferredPrompt = null;
 let isAdmin = false;
 let gratitudeCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let gratitudeEditingDate = null;
 let adminWordId = null;
 let adminStudyId = null;
 let adminWeeklyRows = [];
@@ -117,6 +118,7 @@ let activeAdminTab = sessionStorage.getItem("주의울림-admin-tab-v17") || "wo
 
 const PROFILE_STORAGE_KEY = "주의울림-profile-v2";
 const GRATITUDE_PREFIX = "주의울림-gratitude-v2:";
+const GRATITUDE_EDIT_TOKEN_PREFIX = "주의울림-gratitude-edit-token-v27:";
 
 function profile() {
   return { grade: $("#grade")?.value || "", name: clean($("#studentName")?.value || "") };
@@ -228,6 +230,70 @@ function getLocalGratitude(p) {
 function setLocalGratitude(p, rows) {
   localStorage.setItem(gratitudeStorageKey(p), JSON.stringify(rows.slice(0,365)));
 }
+function gratitudeEditTokenKey(p) {
+  return `${GRATITUDE_EDIT_TOKEN_PREFIX}${encodeURIComponent(p.grade)}:${encodeURIComponent(p.name.toLowerCase())}`;
+}
+function getGratitudeEditToken(p) {
+  if (!p?.grade || !p?.name) return null;
+  const key = gratitudeEditTokenKey(p);
+  let token = localStorage.getItem(key);
+  if (!token) {
+    token = globalThis.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+    localStorage.setItem(key, token);
+  }
+  return token;
+}
+function gratitudeTextLength(value) {
+  return clean(value).length;
+}
+function updateGratitudeCharCount() {
+  const len = gratitudeTextLength($("#gratitudeText")?.value || "");
+  const counter = $("#gratitudeCharCount");
+  if (counter) {
+    counter.textContent = len >= 10 ? `${len}자 · 저장 가능 ✓` : `${len}자 · 최소 10자`;
+    counter.classList.toggle("ready", len >= 10);
+  }
+  const submitBtn = $("#gratitudeSubmitBtn");
+  if (submitBtn) {
+    const p = profile();
+    const doneToday = profileReady(p) && getLocalGratitude(p).some(x => x.date === localISODate());
+    submitBtn.disabled = len < 10 || (!gratitudeEditingDate && doneToday);
+  }
+}
+function resetGratitudeEditor({clear=true} = {}) {
+  gratitudeEditingDate = null;
+  if (clear && $("#gratitudeText")) $("#gratitudeText").value = "";
+  $("#gratitudeSubmitBtn").textContent = "오늘 감사기도 기록하기";
+  $("#gratitudeEditCancelBtn")?.classList.add("hidden");
+  $("#gratitudeEditHint")?.classList.add("hidden");
+  if ($("#gratitudeEditHint")) $("#gratitudeEditHint").textContent = "";
+  updateGratitudeCharCount();
+}
+function startGratitudeEdit(date) {
+  const p = requireProfile($("#gratitudeStatus"));
+  if (!p) return;
+  const row = getLocalGratitude(p).find(x => x.date === date);
+  if (!row) {
+    $("#gratitudeStatus").textContent = "이 기기에 저장된 감사기도만 수정할 수 있습니다.";
+    return;
+  }
+  gratitudeEditingDate = date;
+  $("#gratitudeText").value = row.text || "";
+  $("#gratitudeSubmitBtn").disabled = false;
+  $("#gratitudeSubmitBtn").textContent = "감사기도 수정 저장";
+  $("#gratitudeEditCancelBtn")?.classList.remove("hidden");
+  if ($("#gratitudeEditHint")) {
+    $("#gratitudeEditHint").textContent = `${fmtDate(date)} 기록을 수정하고 있습니다.`;
+    $("#gratitudeEditHint").classList.remove("hidden");
+  }
+  $("#gratitudeStatus").textContent = "오타나 내용을 고친 뒤 ‘감사기도 수정 저장’을 눌러 주세요.";
+  updateGratitudeCharCount();
+  $("#gratitudeText")?.focus();
+  $("#gratitudeText")?.scrollIntoView({behavior:"smooth", block:"center"});
+}
 function streakStats(rows) {
   const dates = [...new Set(rows.map(x=>x.date).filter(Boolean))].sort();
   if (!dates.length) return {current:0,best:0};
@@ -308,6 +374,34 @@ function renderGratitudeBadges(stats, ready) {
     </article>`;
   }).join("");
 }
+async function loadGratitudeLeaders() {
+  if (ADMIN_WINDOW || !$("#gratitudeLeaderList")) return;
+  const list = $("#gratitudeLeaderList");
+  const status = $("#gratitudeLeaderStatus");
+  if (status) status.textContent = "챌린지 현황을 불러오는 중입니다…";
+  const { data, error } = await db.rpc("youth_gratitude_leaderboard_v27");
+  if (error) {
+    list.innerHTML = "";
+    if (status) status.textContent = isMissingRpc(error, "youth_gratitude_leaderboard_v27")
+      ? "감사기도 챌린지 현황 기능을 사용하려면 V27 SQL을 먼저 실행해 주세요."
+      : dbErrorMessage(error, "감사기도 챌린지 현황을 불러오지 못했습니다.");
+    return;
+  }
+  const rows = (data || []).filter(row => Number(row.current_streak || 0) > 0);
+  if (!rows.length) {
+    list.innerHTML = '<div class="gratitude-leader-empty">아직 연속 챌린지를 이어가는 학생이 없습니다. 오늘 첫 기록을 시작해 보세요! 🔥</div>';
+    if (status) status.textContent = "감사기도를 오늘 또는 어제까지 이어온 학생이 여기에 표시됩니다.";
+    return;
+  }
+  list.innerHTML = rows.map((row,index)=>`
+    <article class="gratitude-leader-chip ${index===0?"top":""}">
+      <span class="gratitude-leader-rank">${index===0?"🏆":`${index+1}`}</span>
+      <div><b>${escapeHtml(row.grade)} ${escapeHtml(row.student_name)}</b><small>현재 연속</small></div>
+      <strong>🔥 ${Number(row.current_streak || 0)}일</strong>
+    </article>`).join("");
+  if (status) status.textContent = `${rows.length}명이 감사기도 챌린지를 이어가고 있습니다.`;
+}
+
 function renderGratitudeChallenge() {
   const p = profile();
   const ready = Boolean(p.grade && p.name);
@@ -319,19 +413,24 @@ function renderGratitudeChallenge() {
   $("#gratitudeBest").textContent = `${stats.best}일`;
   $("#gratitudeToday").textContent = doneToday ? "완료 ✓" : "미기록";
   $("#gratitudeCount").textContent = `${rows.length}회`;
-  $("#gratitudeSubmitBtn").disabled = doneToday;
+  $("#gratitudeSubmitBtn").disabled = !gratitudeEditingDate && doneToday;
   renderGratitudeCalendar(rows, stats, ready);
   renderGratitudeBadges(stats, ready);
+  updateGratitudeCharCount();
   if (!ready) {
     $("#gratitudeHistory").innerHTML = '<p class="muted">내 정보에서 학년과 이름을 입력하면 챌린지 기록이 표시됩니다.</p>';
     return;
   }
   $("#gratitudeHistory").innerHTML = rows.length ? rows.slice(0,14).map((r,i)=>`
     <article class="gratitude-record ${i===0&&r.date===today?"today":""}">
-      <div class="gratitude-date"><span>${fmtDate(r.date)}</span>${r.date===today?'<b>오늘</b>':''}</div>
+      <div class="gratitude-record-head">
+        <div class="gratitude-date"><span>${fmtDate(r.date)}</span>${r.date===today?'<b>오늘</b>':''}</div>
+        <button class="ghost compact-btn gratitude-edit-btn" type="button" data-gratitude-date="${escapeHtml(r.date)}">수정</button>
+      </div>
       <p>${escapeHtml(r.text || "감사기도 기록 완료")}</p>
     </article>`).join("") : '<p class="muted">아직 기록이 없습니다. 오늘 첫 감사기도를 남겨 보세요.</p>';
 }
+
 
 const restoredProfile = restoreProfile();
 $("#grade").addEventListener("change", () => {
@@ -366,6 +465,19 @@ $("#gratitudeNextMonth").addEventListener("click", () => {
   if (next <= current) gratitudeCalendarCursor = next;
   renderGratitudeChallenge();
 });
+$("#gratitudeText")?.addEventListener("input", updateGratitudeCharCount);
+$("#gratitudeEditCancelBtn")?.addEventListener("click", () => {
+  resetGratitudeEditor();
+  renderGratitudeChallenge();
+  $("#gratitudeStatus").textContent = "수정을 취소했습니다.";
+});
+$("#gratitudeHistory")?.addEventListener("click", e => {
+  const btn = e.target.closest(".gratitude-edit-btn");
+  if (!btn) return;
+  startGratitudeEdit(btn.dataset.gratitudeDate);
+});
+$("#refreshGratitudeLeaderBtn")?.addEventListener("click", loadGratitudeLeaders);
+updateGratitudeCharCount();
 
 window.addEventListener("beforeinstallprompt", e => {
   e.preventDefault();
@@ -564,41 +676,86 @@ $("#prayerForm").addEventListener("submit", async e => {
 
 $("#gratitudeForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const p = requireProfile($("#gratitudeStatus"));
+  const status = $("#gratitudeStatus");
+  const p = requireProfile(status);
   if (!p) return;
+
   const text = clean($("#gratitudeText").value);
-  if (!text) { $("#gratitudeStatus").textContent = "오늘 감사한 내용을 적어 주세요."; return; }
+  const textLength = gratitudeTextLength(text);
+  if (textLength < 10) {
+    status.textContent = `감사기도를 10자 이상 적어 주세요. 현재 ${textLength}자입니다.`;
+    $("#gratitudeText").focus();
+    updateGratitudeCharCount();
+    return;
+  }
+
   const today = localISODate();
+  const targetDate = gratitudeEditingDate || today;
   let localRows = getLocalGratitude(p);
+  const existingLocal = localRows.find(x => x.date === targetDate) || null;
   const beforeStats = streakStats(localRows);
-  if (localRows.some(x=>x.date===today)) {
-    $("#gratitudeStatus").textContent = "오늘 감사기도는 이미 기록했습니다. 내일 다시 이어가세요!";
+
+  if (!gratitudeEditingDate && localRows.some(x => x.date === today)) {
+    status.textContent = "오늘 감사기도는 이미 기록했습니다. 최근 기록의 ‘수정’ 버튼을 눌러 내용을 고칠 수 있습니다.";
     renderGratitudeChallenge();
     return;
   }
-  $("#gratitudeSubmitBtn").disabled = true;
-  $("#gratitudeStatus").textContent = "감사기도를 기록하고 있습니다...";
-  const { error } = await db.from("gratitude_prayers").insert({
-    grade:p.grade, student_name:p.name, prayer_date:today, gratitude_text:text
+
+  const submitBtn = $("#gratitudeSubmitBtn");
+  submitBtn.disabled = true;
+  status.textContent = gratitudeEditingDate ? "감사기도를 수정하고 있습니다…" : "감사기도를 기록하고 있습니다…";
+
+  const editToken = getGratitudeEditToken(p);
+  let result = await db.rpc("youth_gratitude_save_v27", {
+    p_grade:p.grade,
+    p_student_name:p.name,
+    p_prayer_date:targetDate,
+    p_gratitude_text:text,
+    p_edit_token:editToken,
+    p_original_text:existingLocal?.text || null
   });
-  if (error && error.code !== "23505") {
-    $("#gratitudeSubmitBtn").disabled = false;
-    $("#gratitudeStatus").textContent = error.code === "PGRST205"
-      ? "감사기도 기능 준비가 필요합니다. Supabase에서 감사기도 SQL을 먼저 실행해 주세요."
-      : "감사기도 저장 중 오류가 발생했습니다.";
+
+  if (result.error && isMissingRpc(result.error, "youth_gratitude_save_v27") && !gratitudeEditingDate) {
+    // V27 SQL 적용 전에도 신규 기록 자체는 기존 INSERT 정책으로 저장할 수 있도록 보조합니다.
+    result = await db.from("gratitude_prayers").insert({
+      grade:p.grade, student_name:p.name, prayer_date:today, gratitude_text:text
+    });
+  }
+
+  if (result.error) {
+    submitBtn.disabled = false;
+    status.textContent = isMissingRpc(result.error, "youth_gratitude_save_v27")
+      ? "감사기도 수정 기능을 사용하려면 Supabase에서 V27 SQL을 먼저 실행해 주세요."
+      : dbErrorMessage(result.error, gratitudeEditingDate ? "감사기도 수정에 실패했습니다." : "감사기도 저장에 실패했습니다.");
     return;
   }
-  const localText = error?.code === "23505" ? "오늘 감사기도 기록 완료(다른 기기에서 먼저 기록됨)" : text;
-  localRows = [{date:today,text:localText,createdAt:new Date().toISOString()}, ...localRows.filter(x=>x.date!==today)];
+
+  const wasEditing = Boolean(gratitudeEditingDate);
+  localRows = [{
+    date:targetDate,
+    text,
+    createdAt:existingLocal?.createdAt || new Date().toISOString(),
+    updatedAt:new Date().toISOString()
+  }, ...localRows.filter(x=>x.date!==targetDate)];
   setLocalGratitude(p, localRows);
-  e.target.reset();
+  resetGratitudeEditor();
   renderGratitudeChallenge();
+  await loadGratitudeLeaders();
+
+  if (wasEditing) {
+    status.textContent = `${fmtDate(targetDate)} 감사기도 내용이 수정되었습니다. 연속 기록은 그대로 유지됩니다. ✓`;
+    if (isAdmin) await loadAdminGratitude();
+    return;
+  }
+
   const stats = streakStats(localRows);
   let badgeMessage = "";
   if (beforeStats.best < 30 && stats.best >= 30) badgeMessage = " 🏆 30일 감사습관 배지를 획득했습니다!";
   else if (beforeStats.best < 7 && stats.best >= 7) badgeMessage = " 🏅 7일 감사습관 배지를 획득했습니다!";
-  $("#gratitudeStatus").textContent = `오늘의 감사기도 완료! 현재 ${stats.current}일 연속 기록 중입니다. 🔥${badgeMessage}`;
+  status.textContent = `오늘의 감사기도 완료! 현재 ${stats.current}일 연속 기록 중입니다. 🔥${badgeMessage}`;
+  if (isAdmin) await Promise.all([loadAdminGratitude(), loadAdminRecords()]);
 });
+
 
 async function loadNotices() {
   const { data, error } = await db.from("notices")
@@ -1097,6 +1254,7 @@ const ADMIN_TAB_META = {
   study:{title:"성경공부 관리",badge:"성경공부",description:"말씀 주차를 선택한 뒤 성경공부 제목과 질문을 등록·수정·삭제할 수 있습니다."},
   notice:{title:"공지사항 관리",badge:"공지",description:"새 공지를 등록하거나 기존 공지를 선택해 수정·삭제할 수 있습니다."},
   prayer:{title:"기도제목 관리",badge:"기도",description:"학생들이 제출한 기도제목을 주일별로 확인하고 필요한 기록을 삭제할 수 있습니다."},
+  gratitude:{title:"감사기도 챌린지",badge:"감사 챌린지",description:"학생별 현재·최고 연속일과 누적 기록을 확인하고 감사기도를 주일별로 관리합니다."},
   board:{title:"익명게시판 관리",badge:"익명글",description:"익명 게시글을 주일별로 모아 확인하고 개별 삭제할 수 있습니다."},
   records:{title:"학생 제출 통계",badge:"통계",description:"제출 내용은 숨기고 말씀쓰기·성경공부·기도·감사·익명 제출 건수만 주일별로 집계합니다."},
   events:{title:"행사 · 이벤트 달력",badge:"행사 달력",description:"시작일과 종료일을 선택해 행사 기간을 등록하고 기존 일정을 수정·삭제할 수 있습니다."}
@@ -1108,6 +1266,7 @@ async function refreshActiveAdminTab(tab=activeAdminTab) {
   else if (tab === "study") await Promise.all([loadAdminStudyOptions(adminStudyId), loadAdminStudySubmissions()]);
   else if (tab === "notice") await loadAdminNoticeOptions(adminNoticeId);
   else if (tab === "prayer") await loadAdminPrayers();
+  else if (tab === "gratitude") await loadAdminGratitude();
   else if (tab === "board") await loadAdminBoardGroups();
   else if (tab === "records") await loadAdminRecords();
   else if (tab === "events") await loadAdminEventCalendar();
@@ -1825,6 +1984,86 @@ $("#adminStudySubmissionGroups")?.addEventListener("click", async e => {
   $("#studySubmissionStatus").textContent = "성경공부 답안이 삭제되었습니다.";
 });
 
+async function loadAdminGratitude() {
+  if (!isAdmin || !$("#adminGratitudeResults") || !$("#adminGratitudeGroups")) return;
+  const status = $("#gratitudeAdminStatus");
+  status.textContent = "감사기도 챌린지 결과를 불러오는 중입니다…";
+  const { data, error } = await db.from("gratitude_prayers")
+    .select("id,grade,student_name,prayer_date,gratitude_text,created_at")
+    .order("prayer_date", {ascending:false})
+    .limit(3000);
+  if (error) {
+    status.textContent = dbErrorMessage(error, "감사기도 챌린지 결과를 불러오지 못했습니다.");
+    return;
+  }
+
+  const rows = data || [];
+  const byStudent = new Map();
+  rows.forEach(row => {
+    const key = `${row.grade}|||${row.student_name}`;
+    if (!byStudent.has(key)) byStudent.set(key, []);
+    byStudent.get(key).push(row);
+  });
+
+  const students = [...byStudent.entries()].map(([key, items]) => {
+    const [grade, student_name] = key.split("|||");
+    const dates = items.map(x => ({date:x.prayer_date}));
+    const stats = streakStats(dates);
+    const lastDate = items.map(x=>x.prayer_date).filter(Boolean).sort().at(-1) || null;
+    return { grade, student_name, current:stats.current, best:stats.best, total:items.length, lastDate };
+  }).sort((a,b) => b.current-a.current || b.best-a.best || b.total-a.total || a.student_name.localeCompare(b.student_name,"ko"));
+
+  $("#adminGratitudeResults").innerHTML = students.length ? students.map((student,index)=>`
+    <article class="gratitude-admin-result-card ${student.current>0?"active":""}">
+      <div class="gratitude-admin-student">
+        <span class="gratitude-admin-rank">${index+1}</span>
+        <div><b>${escapeHtml(student.grade)} ${escapeHtml(student.student_name)}</b><small>최근 기록 ${escapeHtml(fmtDate(student.lastDate))}</small></div>
+      </div>
+      <div class="gratitude-admin-metrics">
+        <span><small>현재 연속</small><strong>${student.current>0?`🔥 ${student.current}일`:`0일`}</strong></span>
+        <span><small>최고 연속</small><strong>${student.best}일</strong></span>
+        <span><small>누적</small><strong>${student.total}일</strong></span>
+      </div>
+    </article>`).join("") : '<p class="muted">아직 감사기도 챌린지 기록이 없습니다.</p>';
+
+  const groups = groupBySunday(rows, row => sundayForISO(row.prayer_date || row.created_at));
+  const keys = [...groups.keys()].sort((a,b)=>String(b).localeCompare(String(a)));
+  $("#adminGratitudeGroups").innerHTML = keys.length ? keys.map((key,index)=>{
+    const groupRows = groups.get(key) || [];
+    return `<details class="record-week-group gratitude-admin-week-group" ${index===0?"open":""}>
+      <summary><span><b>${escapeHtml(sundayGroupLabel(key))}</b><small>감사기도 ${groupRows.length}건</small></span><span class="record-week-counts"><span>감사 ${groupRows.length}</span></span></summary>
+      <div class="record-week-body">${groupRows.map(row=>`
+        <article class="list-item record-item gratitude-admin-record">
+          <div class="record-item-head"><div><b>${escapeHtml(row.grade)} ${escapeHtml(row.student_name)}</b><div class="meta">${escapeHtml(fmtDate(row.prayer_date))} · ${escapeHtml(recordTime(row.created_at))}</div></div>
+          <button class="ghost danger-outline compact-btn gratitude-admin-delete-btn" type="button" data-record-id="${escapeHtml(String(row.id))}">삭제</button></div>
+          <p>${escapeHtml(row.gratitude_text)}</p>
+        </article>`).join("")}</div>
+    </details>`;
+  }).join("") : '<p class="muted">주일별 감사기도 기록이 없습니다.</p>';
+
+  const activeCount = students.filter(x=>x.current>0).length;
+  status.textContent = `학생 ${students.length}명 · 감사기도 ${rows.length}건 · 현재 챌린지 진행 ${activeCount}명`;
+}
+
+$("#refreshGratitudeAdminBtn")?.addEventListener("click", loadAdminGratitude);
+$("#adminGratitudeGroups")?.addEventListener("click", async e => {
+  const btn = e.target.closest(".gratitude-admin-delete-btn");
+  if (!btn) return;
+  if (!confirm("이 감사기도 기록을 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.")) return;
+  btn.disabled = true;
+  $("#gratitudeAdminStatus").textContent = "감사기도 기록을 삭제하고 있습니다…";
+  const result = await db.from("gratitude_prayers").delete().eq("id", btn.dataset.recordId).select("id");
+  if (result.error || !result.data?.length) {
+    btn.disabled = false;
+    $("#gratitudeAdminStatus").textContent = result.error
+      ? dbErrorMessage(result.error, "감사기도 삭제에 실패했습니다.")
+      : "삭제할 감사기도 기록을 찾지 못했습니다.";
+    return;
+  }
+  await Promise.all([loadAdminGratitude(), loadAdminRecords(), loadGratitudeLeaders()]);
+  $("#gratitudeAdminStatus").textContent = "감사기도 기록이 삭제되었습니다.";
+});
+
 async function loadAdminBoardGroups() {
   if (!isAdmin || !$("#adminBoardGroups")) return;
   $("#boardAdminStatus").textContent = "익명 게시글을 불러오는 중입니다…";
@@ -2004,4 +2243,4 @@ const { data:{session} } = await db.auth.getSession();
 if(session?.user) await verifyAdmin(session.user);
 
 renderGratitudeChallenge();
-await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar()]);
+await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar(),loadGratitudeLeaders()]);
