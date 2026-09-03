@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v28-gratitude-leaderboard-in-tab";
+const APP_VERSION = "v29-word-practice-gratitude-sync-study-min10";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -119,6 +119,10 @@ let activeAdminTab = sessionStorage.getItem("주의울림-admin-tab-v17") || "wo
 const PROFILE_STORAGE_KEY = "주의울림-profile-v2";
 const GRATITUDE_PREFIX = "주의울림-gratitude-v2:";
 const GRATITUDE_EDIT_TOKEN_PREFIX = "주의울림-gratitude-edit-token-v27:";
+const GRATITUDE_SYNC_SIGNAL_KEY = "주의울림-gratitude-sync-signal-v29";
+const gratitudeSyncChannel = "BroadcastChannel" in window ? new BroadcastChannel("주의울림-gratitude-sync-v29") : null;
+let gratitudeSyncTimer = null;
+let wordModeTimer = null;
 
 function profile() {
   return { grade: $("#grade")?.value || "", name: clean($("#studentName")?.value || "") };
@@ -192,7 +196,7 @@ function activateStudentTab(tabName) {
   target.classList.remove("hidden");
   if (tabName === "gratitude") {
     renderGratitudeChallenge();
-    void loadGratitudeLeaders();
+    void refreshGratitudeStudentFromServer();
   }
 }
 function requireProfile(statusEl) {
@@ -219,6 +223,51 @@ function addDaysISO(iso, days) {
   const date = new Date(y,m-1,d);
   date.setDate(date.getDate()+days);
   return localISODate(date);
+}
+
+function wordRegistrationState(content = weekly) {
+  if (!content?.week_start) return { canRegister:false, sunday:null, openAt:null, label:"주일 날짜를 확인할 수 없어 연습모드로 동작합니다." };
+  const sunday = addDaysISO(String(content.week_start).slice(0,10), 6);
+  const openAt = new Date(`${sunday}T10:30:00+09:00`);
+  const canRegister = Date.now() >= openAt.getTime();
+  return {
+    canRegister,
+    sunday,
+    openAt,
+    label: canRegister
+      ? `${fmtDate(sunday)} 주일 오전 10:30부터 출석 등록이 가능합니다.`
+      : `${fmtDate(sunday)} 주일 오전 10:30 전에는 연습모드입니다. 따라쓰기는 가능하지만 출석 기록은 저장되지 않습니다.`
+  };
+}
+
+function isVerseExact() {
+  return Boolean(weekly?.verse_text) && normalize($("#verseInput")?.value || "") === normalize(weekly.verse_text);
+}
+
+function updateWordModeUI({updateStatus=false} = {}) {
+  const notice = $("#wordModeNotice");
+  const badge = $("#wordModeBadge");
+  const text = $("#wordModeText");
+  const btn = $("#completeWordBtn");
+  if (!notice || !badge || !text || !btn) return;
+  const state = wordRegistrationState();
+  notice.classList.toggle("practice", !state.canRegister);
+  notice.classList.toggle("open", state.canRegister);
+  badge.textContent = state.canRegister ? "출석등록 가능" : "연습모드";
+  text.textContent = state.label;
+  btn.textContent = state.canRegister ? "말씀쓰기 완료 및 출석" : "연습 완료 확인";
+  btn.disabled = !isVerseExact();
+  if (updateStatus && weekly) {
+    $("#wordStatus").textContent = state.canRegister
+      ? "말씀을 직접 입력해 주세요. 정확히 완성하면 출석을 등록할 수 있습니다."
+      : "지금은 연습모드입니다. 말씀을 직접 따라 써 보세요.";
+  }
+}
+
+function startWordModeClock() {
+  if (wordModeTimer) clearInterval(wordModeTimer);
+  updateWordModeUI();
+  wordModeTimer = setInterval(() => updateWordModeUI(), 30000);
 }
 function gratitudeStorageKey(p) {
   return `${GRATITUDE_PREFIX}${encodeURIComponent(p.grade)}:${encodeURIComponent(p.name.toLowerCase())}`;
@@ -249,6 +298,69 @@ function getGratitudeEditToken(p) {
   }
   return token;
 }
+async function syncGratitudeRecordsFromServer({quiet=true} = {}) {
+  if (ADMIN_WINDOW) return false;
+  const p = profile();
+  if (!profileReady(p)) return false;
+  const localRows = getLocalGratitude(p);
+  const token = getGratitudeEditToken(p);
+  const { data, error } = await db.rpc("youth_gratitude_sync_v29", {
+    p_grade:p.grade,
+    p_student_name:p.name,
+    p_edit_token:token,
+    p_local_records:localRows.map(row => ({date:row.date, text:row.text || ""}))
+  });
+  if (error) {
+    if (!isMissingRpc(error, "youth_gratitude_sync_v29") && !quiet && $("#gratitudeStatus")) {
+      $("#gratitudeStatus").textContent = dbErrorMessage(error, "감사기도 기록 동기화에 실패했습니다.");
+    }
+    return false;
+  }
+  const serverRows = (data || []).map(row => ({
+    date:String(row.prayer_date || "").slice(0,10),
+    text:row.gratitude_text || "",
+    createdAt:row.created_at || new Date().toISOString(),
+    updatedAt:row.updated_at || row.created_at || new Date().toISOString()
+  })).filter(row => row.date);
+  setLocalGratitude(p, serverRows);
+  if (gratitudeEditingDate && !serverRows.some(row => row.date === gratitudeEditingDate)) {
+    resetGratitudeEditor();
+    if ($("#gratitudeStatus")) $("#gratitudeStatus").textContent = "관리자에서 삭제된 감사기도 기록이 챌린지 화면에도 반영되었습니다.";
+  }
+  renderGratitudeChallenge();
+  return true;
+}
+
+async function refreshGratitudeStudentFromServer() {
+  await Promise.all([syncGratitudeRecordsFromServer(), loadGratitudeLeaders()]);
+}
+
+function signalGratitudeServerChanged() {
+  const value = String(Date.now());
+  try { localStorage.setItem(GRATITUDE_SYNC_SIGNAL_KEY, value); } catch {}
+  try { gratitudeSyncChannel?.postMessage({type:"gratitude-server-changed", at:value}); } catch {}
+}
+
+async function handleGratitudeServerChanged() {
+  if (ADMIN_WINDOW) return;
+  await refreshGratitudeStudentFromServer();
+}
+
+gratitudeSyncChannel?.addEventListener("message", event => {
+  if (event.data?.type === "gratitude-server-changed") void handleGratitudeServerChanged();
+});
+window.addEventListener("storage", event => {
+  if (event.key === GRATITUDE_SYNC_SIGNAL_KEY) void handleGratitudeServerChanged();
+});
+window.addEventListener("focus", () => {
+  if (!ADMIN_WINDOW && $("#gratitude") && !$("#gratitude").classList.contains("hidden")) void refreshGratitudeStudentFromServer();
+});
+if (!ADMIN_WINDOW) {
+  gratitudeSyncTimer = setInterval(() => {
+    if ($("#gratitude") && !$("#gratitude").classList.contains("hidden")) void refreshGratitudeStudentFromServer();
+  }, 15000);
+}
+
 function gratitudeTextLength(value) {
   return clean(value).length;
 }
@@ -514,8 +626,30 @@ async function loadWeekly() {
   $("#verseReference").textContent = data.verse_reference;
   $("#verseText").textContent = data.verse_text;
   $("#studyTitle").textContent = data.study_title;
-  $("#wordStatus").textContent = "말씀을 직접 입력해 주세요.";
+  updateWordModeUI({updateStatus:true});
+  startWordModeClock();
   await loadQuestions();
+}
+
+function studyAnswerLength(value) {
+  return clean(value).length;
+}
+
+function updateStudyAnswerState() {
+  const fields = $$('[data-answer]');
+  const submitBtn = $("#studySubmitBtn");
+  fields.forEach(field => {
+    const index = field.dataset.answer;
+    const len = studyAnswerLength(field.value);
+    const counter = $(`[data-answer-count="${index}"]`);
+    if (counter) {
+      counter.textContent = len >= 10 ? `${len}자 · 등록 가능 ✓` : `${len}자 · 최소 10자`;
+      counter.classList.toggle("ready", len >= 10);
+    }
+  });
+  const ready = fields.length >= 2 && fields.every(field => studyAnswerLength(field.value) >= 10);
+  if (submitBtn) submitBtn.disabled = !ready;
+  return ready;
 }
 
 async function loadQuestions() {
@@ -525,9 +659,15 @@ async function loadQuestions() {
   questions = data || [];
   $("#studyQuestions").innerHTML = questions.map((q,i)=>`
     <label class="field-label">${i+1}. ${escapeHtml(q.question_text)}
-      <textarea data-answer="${i}" rows="4" maxlength="2000" required placeholder="내 생각을 적어 주세요."></textarea>
+      <textarea data-answer="${i}" rows="4" minlength="10" maxlength="2000" required placeholder="내 생각을 10자 이상 적어 주세요."></textarea>
+      <small class="study-answer-count" data-answer-count="${i}">0자 · 최소 10자</small>
     </label>`).join("");
+  updateStudyAnswerState();
 }
+
+$("#studyQuestions")?.addEventListener("input", e => {
+  if (e.target.closest("[data-answer]")) updateStudyAnswerState();
+});
 
 const verseInput = $("#verseInput");
 ["paste","drop"].forEach(type => verseInput.addEventListener(type, e => {
@@ -553,11 +693,20 @@ verseInput.addEventListener("input", () => {
   $("#progressText").textContent = pct + "%";
   $("#progressBar").style.width = Math.min(100,pct) + "%";
   const exact = input === target && target.length > 0;
+  const mode = wordRegistrationState();
   $("#completeWordBtn").disabled = !exact;
-  if (exact) $("#wordStatus").textContent = "말씀을 정확하게 완성했습니다. 출석 버튼을 눌러 주세요.";
-  else if (!input) $("#wordStatus").textContent = "말씀을 직접 입력해 주세요.";
-  else if (matched === input.length) $("#wordStatus").textContent = "좋아요. 계속 입력해 주세요.";
-  else $("#wordStatus").textContent = "다른 글자가 있습니다. 본문을 다시 확인해 주세요.";
+  $("#completeWordBtn").textContent = mode.canRegister ? "말씀쓰기 완료 및 출석" : "연습 완료 확인";
+  if (exact) {
+    $("#wordStatus").textContent = mode.canRegister
+      ? "말씀을 정확하게 완성했습니다. 출석을 등록할 수 있습니다."
+      : `연습 완료! ${fmtDate(mode.sunday)} 주일 오전 10:30부터 출석 등록이 가능합니다.`;
+  } else if (!input) {
+    $("#wordStatus").textContent = mode.canRegister ? "말씀을 직접 입력해 주세요." : "연습모드입니다. 말씀을 직접 따라 써 보세요.";
+  } else if (matched === input.length) {
+    $("#wordStatus").textContent = "좋아요. 계속 입력해 주세요.";
+  } else {
+    $("#wordStatus").textContent = "다른 글자가 있습니다. 본문을 다시 확인해 주세요.";
+  }
 });
 
 async function submitAttendance(p) {
@@ -581,10 +730,17 @@ async function submitAttendance(p) {
 
 $("#completeWordBtn").addEventListener("click", async () => {
   const status = $("#wordStatus");
-  const p = requireProfile(status);
-  if (!p || !weekly) return;
+  if (!weekly) return;
   if (normalize(verseInput.value) !== normalize(weekly.verse_text)) return;
 
+  const mode = wordRegistrationState();
+  if (!mode.canRegister) {
+    status.textContent = `연습 완료! 지금은 연습모드라 출석은 저장되지 않습니다. ${fmtDate(mode.sunday)} 주일 오전 10:30부터 등록할 수 있습니다.`;
+    return;
+  }
+
+  const p = requireProfile(status);
+  if (!p) return;
   $("#completeWordBtn").disabled = true;
   status.textContent = "말씀쓰기 완료와 출석을 저장하고 있습니다…";
   const result = await submitAttendance(p);
@@ -618,6 +774,14 @@ $("#studyForm").addEventListener("submit", async e => {
   }
   if (answers.some(x => !x)) {
     status.textContent = "모든 질문에 답을 작성해 주세요.";
+    updateStudyAnswerState();
+    return;
+  }
+  const shortIndex = answers.findIndex(x => x.length < 10);
+  if (shortIndex >= 0) {
+    status.textContent = `${shortIndex+1}번 답변을 10자 이상 작성해 주세요. 현재 ${answers[shortIndex].length}자입니다.`;
+    $(`[data-answer="${shortIndex}"]`)?.focus();
+    updateStudyAnswerState();
     return;
   }
 
@@ -642,7 +806,7 @@ $("#studyForm").addEventListener("submit", async e => {
 
   status.textContent = "성경공부 답안이 저장되었습니다.";
   e.target.reset();
-  if (submitBtn) submitBtn.disabled = false;
+  updateStudyAnswerState();
 });
 
 $("#prayerForm").addEventListener("submit", async e => {
@@ -744,6 +908,7 @@ $("#gratitudeForm").addEventListener("submit", async e => {
   resetGratitudeEditor();
   renderGratitudeChallenge();
   await loadGratitudeLeaders();
+  signalGratitudeServerChanged();
 
   if (wasEditing) {
     status.textContent = `${fmtDate(targetDate)} 감사기도 내용이 수정되었습니다. 연속 기록은 그대로 유지됩니다. ✓`;
@@ -2063,8 +2228,9 @@ $("#adminGratitudeGroups")?.addEventListener("click", async e => {
       : "삭제할 감사기도 기록을 찾지 못했습니다.";
     return;
   }
-  await Promise.all([loadAdminGratitude(), loadAdminRecords(), loadGratitudeLeaders()]);
-  $("#gratitudeAdminStatus").textContent = "감사기도 기록이 삭제되었습니다.";
+  await Promise.all([loadAdminGratitude(), loadAdminRecords()]);
+  signalGratitudeServerChanged();
+  $("#gratitudeAdminStatus").textContent = "감사기도 기록이 삭제되었고 학생 챌린지 화면에도 동기화됩니다.";
 });
 
 async function loadAdminBoardGroups() {

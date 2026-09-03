@@ -85,6 +85,10 @@
           <span id="progressText" class="pill">0%</span>
         </div>
         <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
+        <div id="wordModeNotice" class="word-mode-notice practice" aria-live="polite">
+          <strong id="wordModeBadge">연습모드</strong>
+          <span id="wordModeText">해당 주일 오전 10:30 전에는 따라쓰기 연습만 가능하며 출석은 등록되지 않습니다.</span>
+        </div>
         <blockquote id="verseText" class="verse">말씀을 불러오는 중입니다.</blockquote>
         <div class="typing-note">
           복사·붙여넣기, 드래그앤드롭 입력은 사용할 수 없습니다. 말씀을 직접 따라 써 주세요.
@@ -105,7 +109,7 @@
         <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
         <form id="studyForm">
           <div id="studyQuestions"></div>
-          <button class="primary" type="submit">나눔 제출</button>
+          <button id="studySubmitBtn" class="primary" type="submit" disabled>나눔 제출</button>
           <p id="studyStatus" class="status"></p>
         </form>
       </section>
