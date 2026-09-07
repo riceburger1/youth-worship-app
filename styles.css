@@ -541,3 +541,24 @@ body.admin-window #gratitudeLeaderTop{display:none!important}
 
 @media(max-width:900px){.tabs{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:640px){.tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.new-friend-grid,.new-friend-public-list,.new-friend-private-grid{grid-template-columns:1fr}}
+
+/* V31 성경공부 시간 제한 · 감사기도 날짜별 공개 */
+.calendar-day{
+  appearance:none;
+  width:100%;
+  color:inherit;
+  font:inherit;
+  cursor:pointer;
+}
+.calendar-day:disabled{cursor:not-allowed;opacity:.62}
+.calendar-day.selected-public{
+  box-shadow:0 0 0 3px rgba(31,77,63,.16);
+  border-color:var(--accent);
+}
+.gratitude-date-public-wrap{
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px dashed var(--line);
+}
+.gratitude-date-public-wrap h4{margin:0;font-size:1rem}
+.gratitude-date-public-wrap .gratitude-public-list{margin-top:10px}

@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v30-public-gratitude-teacher-newfriends-attendance-window";
+const APP_VERSION = "v31-study-window-gratitude-date-feed";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -123,6 +123,8 @@ const GRATITUDE_SYNC_SIGNAL_KEY = "주의울림-gratitude-sync-signal-v29";
 const gratitudeSyncChannel = "BroadcastChannel" in window ? new BroadcastChannel("주의울림-gratitude-sync-v29") : null;
 let gratitudeSyncTimer = null;
 let wordModeTimer = null;
+let studyModeTimer = null;
+let gratitudePublicSelectedDate = null;
 
 function profile() {
   return { grade: $("#grade")?.value || "", name: clean($("#studentName")?.value || "") };
@@ -242,6 +244,47 @@ function wordRegistrationState(content = weekly) {
   return { canRegister, sunday, openAt, closeAt, phase, label };
 }
 
+function studyRegistrationState(content = weekly) {
+  if (!content?.week_start) return { canWrite:false, sunday:null, openAt:null, closeAt:null, phase:"closed", label:"주일 날짜를 확인할 수 없어 성경공부 작성이 잠겨 있습니다." };
+  const sunday = addDaysISO(String(content.week_start).slice(0,10), 6);
+  const openAt = new Date(`${sunday}T10:30:00+09:00`);
+  const closeAt = new Date(`${sunday}T13:00:00+09:00`);
+  const now = Date.now();
+  const canWrite = now >= openAt.getTime() && now < closeAt.getTime();
+  const phase = now < openAt.getTime() ? "before" : (now >= closeAt.getTime() ? "after" : "open");
+  let label;
+  if (phase === "open") label = `${fmtDate(sunday)} 주일 오전 10:30 ~ 오후 1:00 성경공부 작성·제출 시간입니다.`;
+  else if (phase === "before") label = `${fmtDate(sunday)} 주일 오전 10:30부터 성경공부를 작성할 수 있습니다.`;
+  else label = `${fmtDate(sunday)} 주일 오후 1:00에 성경공부 작성·제출 시간이 종료되었습니다.`;
+  return { canWrite, sunday, openAt, closeAt, phase, label };
+}
+
+function updateStudyModeUI({updateStatus=false} = {}) {
+  const state = studyRegistrationState();
+  const notice = $("#studyModeNotice");
+  const badge = $("#studyModeBadge");
+  const text = $("#studyModeText");
+  if (notice) {
+    notice.classList.toggle("practice", !state.canWrite);
+    notice.classList.toggle("open", state.canWrite);
+  }
+  if (badge) badge.textContent = state.canWrite ? "작성 가능" : "작성시간 아님";
+  if (text) text.textContent = state.label;
+  $$('[data-answer]').forEach(field => { field.disabled = !state.canWrite; });
+  updateStudyAnswerState();
+  if (updateStatus && $("#studyStatus")) {
+    $("#studyStatus").textContent = state.canWrite
+      ? "각 질문에 10자 이상 답을 작성한 뒤 제출해 주세요."
+      : state.label;
+  }
+}
+
+function startStudyModeClock() {
+  if (studyModeTimer) clearInterval(studyModeTimer);
+  updateStudyModeUI({updateStatus:true});
+  studyModeTimer = setInterval(() => updateStudyModeUI({updateStatus:true}), 30000);
+}
+
 function isVerseExact() {
   return Boolean(weekly?.verse_text) && normalize($("#verseInput")?.value || "") === normalize(weekly.verse_text);
 }
@@ -334,7 +377,9 @@ async function syncGratitudeRecordsFromServer({quiet=true} = {}) {
 }
 
 async function refreshGratitudeStudentFromServer() {
-  await Promise.all([syncGratitudeRecordsFromServer(), loadGratitudeLeaders(), loadPublicGratitudeFeed()]);
+  const jobs = [syncGratitudeRecordsFromServer(), loadGratitudeLeaders(), loadPublicGratitudeFeed()];
+  if (gratitudePublicSelectedDate) jobs.push(loadPublicGratitudeByDate(gratitudePublicSelectedDate));
+  await Promise.all(jobs);
 }
 
 function signalGratitudeServerChanged() {
@@ -460,18 +505,22 @@ function renderGratitudeCalendar(rows, stats, ready) {
     const isRecorded = recorded.has(iso);
     const isToday = iso === today;
     const isFuture = iso > today;
+    const isSelected = iso === gratitudePublicSelectedDate;
     const icon = isRecorded ? (active.has(iso) ? "🔥" : "✅") : "";
-    const classes = ["calendar-day", isRecorded?"recorded":"", active.has(iso)?"active-streak":"", isToday?"today":"", isFuture?"future":""].filter(Boolean).join(" ");
-    const label = `${year}년 ${month+1}월 ${day}일${isRecorded ? " 감사기도 기록 완료" : ""}${isToday ? " 오늘" : ""}`;
-    cells.push(`<span class="${classes}" role="gridcell" aria-label="${label}"><span class="day-number">${day}</span><span class="day-mark" aria-hidden="true">${icon}</span></span>`);
+    const classes = ["calendar-day", isRecorded?"recorded":"", active.has(iso)?"active-streak":"", isToday?"today":"", isFuture?"future":"", isSelected?"selected-public":""].filter(Boolean).join(" ");
+    const label = `${year}년 ${month+1}월 ${day}일${isRecorded ? " 나의 감사기도 기록 완료" : ""}${isToday ? " 오늘" : ""}. 이 날짜의 공개 감사기도 보기`;
+    cells.push(`<button type="button" class="${classes}" role="gridcell" data-gratitude-public-date="${iso}" aria-label="${label}" ${isFuture?"disabled":""}><span class="day-number">${day}</span><span class="day-mark" aria-hidden="true">${icon}</span></button>`);
   }
   $("#gratitudeCalendar").innerHTML = cells.join("");
   $("#gratitudeCalendarMonth").textContent = `${year}년 ${month+1}월`;
   const monthCount = rows.filter(x=>String(x.date).startsWith(monthKey)).length;
   $("#gratitudeMonthCount").textContent = `${month+1}월 ${monthCount}일 기록`;
-  $("#gratitudeCalendarHint").textContent = ready ? (monthCount ? "🔥는 현재 이어지는 연속 기록, ✅는 완료한 기록입니다." : "아직 이 달의 기록이 없습니다.") : "내 정보를 입력하면 나의 감사 기록을 표시합니다.";
+  $("#gratitudeCalendarHint").textContent = ready
+    ? (monthCount ? "🔥/✅는 나의 기록입니다. 날짜를 누르면 그날 다른 친구들의 공개 감사기도도 볼 수 있습니다." : "날짜를 누르면 그날 공개된 감사기도를 볼 수 있습니다.")
+    : "날짜를 누르면 그날 공개된 감사기도를 볼 수 있습니다. 내 정보를 입력하면 나의 기록 표시도 함께 보입니다.";
   $("#gratitudeNextMonth").disabled = monthKey >= currentMonthKey;
 }
+
 function renderGratitudeBadges(stats, ready) {
   const badges = [
     {days:7, icon:"🏅", title:"7일 감사습관", desc:"7일 연속 감사기도 달성"},
@@ -519,29 +568,61 @@ async function loadGratitudeLeaders() {
   if (status) status.textContent = `${rows.length}명이 감사기도 챌린지를 이어가고 있습니다.`;
 }
 
-async function loadPublicGratitudeFeed() {
-  if (ADMIN_WINDOW || !$("#gratitudePublicList")) return;
-  const list = $("#gratitudePublicList");
-  const status = $("#gratitudePublicStatus");
-  if (status) status.textContent = "모두의 감사기도를 불러오는 중입니다…";
-  const { data, error } = await db.rpc("youth_gratitude_public_feed_v30", { p_limit: 100 });
-  if (error) {
-    list.innerHTML = "";
-    if (status) status.textContent = isMissingRpc(error, "youth_gratitude_public_feed_v30")
-      ? "감사기도 전체공개 기능을 사용하려면 V30 SQL을 먼저 실행해 주세요."
-      : dbErrorMessage(error, "공개 감사기도를 불러오지 못했습니다.");
-    return;
-  }
-  const rows = data || [];
-  list.innerHTML = rows.length ? rows.map(row => `
+async function fetchPublicGratitudeByDate(date, limit=200) {
+  return db.rpc("youth_gratitude_public_by_date_v31", {
+    p_prayer_date:date,
+    p_limit:limit
+  });
+}
+
+function renderPublicGratitudeCards(rows) {
+  return rows.length ? rows.map(row => `
     <article class="gratitude-public-card">
       <div class="gratitude-public-head">
         <b>${escapeHtml(row.grade)} ${escapeHtml(row.student_name)}</b>
         <span>${escapeHtml(fmtDate(String(row.prayer_date || "").slice(0,10)))}</span>
       </div>
       <p>${escapeHtml(row.gratitude_text || "")}</p>
-    </article>`).join("") : '<p class="muted">아직 공개된 감사기도가 없습니다.</p>';
-  if (status) status.textContent = rows.length ? `최근 감사기도 ${rows.length}건이 공개되어 있습니다.` : "첫 감사기도를 남겨 보세요.";
+    </article>`).join("") : '<p class="muted">이 날짜에 공개된 감사기도가 없습니다.</p>';
+}
+
+async function loadPublicGratitudeFeed() {
+  if (ADMIN_WINDOW || !$("#gratitudePublicList")) return;
+  const list = $("#gratitudePublicList");
+  const status = $("#gratitudePublicStatus");
+  const today = localISODate();
+  if (status) status.textContent = "오늘의 감사기도를 불러오는 중입니다…";
+  const { data, error } = await fetchPublicGratitudeByDate(today, 200);
+  if (error) {
+    list.innerHTML = "";
+    if (status) status.textContent = isMissingRpc(error, "youth_gratitude_public_by_date_v31")
+      ? "오늘의 감사기도 공개 기능을 사용하려면 V31 SQL을 먼저 실행해 주세요."
+      : dbErrorMessage(error, "오늘의 공개 감사기도를 불러오지 못했습니다.");
+    return;
+  }
+  const rows = data || [];
+  list.innerHTML = renderPublicGratitudeCards(rows);
+  if (status) status.textContent = rows.length ? `오늘 공개된 감사기도 ${rows.length}건입니다.` : "오늘 아직 공개된 감사기도가 없습니다.";
+}
+
+async function loadPublicGratitudeByDate(date) {
+  if (ADMIN_WINDOW || !$("#gratitudeDatePublicList") || !date) return;
+  const list = $("#gratitudeDatePublicList");
+  const status = $("#gratitudeDatePublicStatus");
+  const title = $("#gratitudeDatePublicTitle");
+  if (title) title.textContent = `${fmtDate(date)} 감사기도`;
+  if (status) status.textContent = "선택한 날짜의 감사기도를 불러오는 중입니다…";
+  const { data, error } = await fetchPublicGratitudeByDate(date, 200);
+  if (error) {
+    list.innerHTML = "";
+    if (status) status.textContent = isMissingRpc(error, "youth_gratitude_public_by_date_v31")
+      ? "날짜별 감사기도 보기 기능을 사용하려면 V31 SQL을 먼저 실행해 주세요."
+      : dbErrorMessage(error, "선택한 날짜의 감사기도를 불러오지 못했습니다.");
+    return;
+  }
+  const rows = data || [];
+  list.innerHTML = renderPublicGratitudeCards(rows);
+  if (status) status.textContent = rows.length ? `${rows.length}명의 감사기도가 공개되어 있습니다.` : "이 날짜에 공개된 감사기도가 없습니다.";
 }
 
 $("#refreshGratitudePublicBtn")?.addEventListener("click", loadPublicGratitudeFeed);
@@ -600,14 +681,29 @@ $("#closeProfileBtn")?.addEventListener("click", () => setProfilePanel(false));
 if (!ADMIN_WINDOW && !profileReady(restoredProfile)) setProfilePanel(true, {scroll:false, focus:false});
 $("#gratitudePrevMonth").addEventListener("click", () => {
   gratitudeCalendarCursor = new Date(gratitudeCalendarCursor.getFullYear(), gratitudeCalendarCursor.getMonth()-1, 1);
+  gratitudePublicSelectedDate = null;
   renderGratitudeChallenge();
+  if ($("#gratitudeDatePublicTitle")) $("#gratitudeDatePublicTitle").textContent = "날짜별 감사기도";
+  if ($("#gratitudeDatePublicList")) $("#gratitudeDatePublicList").innerHTML = '<p class="muted">달력에서 날짜를 선택해 주세요.</p>';
+  if ($("#gratitudeDatePublicStatus")) $("#gratitudeDatePublicStatus").textContent = "";
 });
 $("#gratitudeNextMonth").addEventListener("click", () => {
   const now = new Date();
   const next = new Date(gratitudeCalendarCursor.getFullYear(), gratitudeCalendarCursor.getMonth()+1, 1);
   const current = new Date(now.getFullYear(), now.getMonth(), 1);
   if (next <= current) gratitudeCalendarCursor = next;
+  gratitudePublicSelectedDate = null;
   renderGratitudeChallenge();
+  if ($("#gratitudeDatePublicTitle")) $("#gratitudeDatePublicTitle").textContent = "날짜별 감사기도";
+  if ($("#gratitudeDatePublicList")) $("#gratitudeDatePublicList").innerHTML = '<p class="muted">달력에서 날짜를 선택해 주세요.</p>';
+  if ($("#gratitudeDatePublicStatus")) $("#gratitudeDatePublicStatus").textContent = "";
+});
+$("#gratitudeCalendar")?.addEventListener("click", e => {
+  const day = e.target.closest("[data-gratitude-public-date]");
+  if (!day || day.disabled) return;
+  gratitudePublicSelectedDate = day.dataset.gratitudePublicDate;
+  renderGratitudeChallenge();
+  void loadPublicGratitudeByDate(gratitudePublicSelectedDate);
 });
 $("#gratitudeText")?.addEventListener("input", updateGratitudeCharCount);
 $("#gratitudeEditCancelBtn")?.addEventListener("click", () => {
@@ -658,6 +754,7 @@ async function loadWeekly() {
   updateWordModeUI({updateStatus:true});
   startWordModeClock();
   await loadQuestions();
+  startStudyModeClock();
 }
 
 function studyAnswerLength(value) {
@@ -676,7 +773,8 @@ function updateStudyAnswerState() {
       counter.classList.toggle("ready", len >= 10);
     }
   });
-  const ready = fields.length >= 2 && fields.every(field => studyAnswerLength(field.value) >= 10);
+  const timeOpen = studyRegistrationState().canWrite;
+  const ready = timeOpen && fields.length >= 2 && fields.every(field => studyAnswerLength(field.value) >= 10);
   if (submitBtn) submitBtn.disabled = !ready;
   return ready;
 }
@@ -691,7 +789,7 @@ async function loadQuestions() {
       <textarea data-answer="${i}" rows="4" minlength="10" maxlength="2000" required placeholder="내 생각을 10자 이상 적어 주세요."></textarea>
       <small class="study-answer-count" data-answer-count="${i}">0자 · 최소 10자</small>
     </label>`).join("");
-  updateStudyAnswerState();
+  updateStudyModeUI({updateStatus:true});
 }
 
 $("#studyQuestions")?.addEventListener("input", e => {
@@ -793,8 +891,15 @@ $("#completeWordBtn").addEventListener("click", async () => {
 $("#studyForm").addEventListener("submit", async e => {
   e.preventDefault();
   const status = $("#studyStatus");
+  if (!weekly) return;
+  const studyMode = studyRegistrationState();
+  if (!studyMode.canWrite) {
+    status.textContent = `${studyMode.label} 이 시간 밖에는 작성·제출할 수 없습니다.`;
+    updateStudyModeUI();
+    return;
+  }
   const p = requireProfile(status);
-  if (!p || !weekly) return;
+  if (!p) return;
 
   const answers = $$('[data-answer]').map(x => clean(x.value));
   if (answers.length < 2) {
@@ -936,7 +1041,9 @@ $("#gratitudeForm").addEventListener("submit", async e => {
   setLocalGratitude(p, localRows);
   resetGratitudeEditor();
   renderGratitudeChallenge();
-  await Promise.all([loadGratitudeLeaders(), loadPublicGratitudeFeed()]);
+  const gratitudeRefreshJobs = [loadGratitudeLeaders(), loadPublicGratitudeFeed()];
+  if (gratitudePublicSelectedDate === targetDate) gratitudeRefreshJobs.push(loadPublicGratitudeByDate(targetDate));
+  await Promise.all(gratitudeRefreshJobs);
   signalGratitudeServerChanged();
 
   if (wasEditing) {

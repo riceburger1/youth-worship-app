@@ -109,6 +109,10 @@
         <span class="eyebrow">이번 주 성경공부</span>
         <h2 id="studyTitle">성경공부</h2>
         <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
+        <div id="studyModeNotice" class="word-mode-notice practice" aria-live="polite">
+          <strong id="studyModeBadge">작성시간 아님</strong>
+          <span id="studyModeText">성경공부는 해당 주일 오전 10:30부터 오후 1:00 전까지만 작성·제출할 수 있습니다.</span>
+        </div>
         <form id="studyForm">
           <div id="studyQuestions"></div>
           <button id="studySubmitBtn" class="primary" type="submit" disabled>나눔 제출</button>
@@ -189,7 +193,17 @@
           <div id="gratitudeCalendar" class="gratitude-calendar" role="grid" aria-label="감사기도 기록 달력"></div>
           <div class="calendar-summary">
             <strong id="gratitudeMonthCount">이번 달 0일 기록</strong>
-            <span id="gratitudeCalendarHint">감사기도를 기록한 날에 표시가 생깁니다.</span>
+            <span id="gratitudeCalendarHint">날짜를 누르면 그날 공개된 다른 감사기도를 볼 수 있습니다.</span>
+          </div>
+          <div class="gratitude-date-public-wrap" aria-live="polite">
+            <div class="section-head compact">
+              <div>
+                <span class="eyebrow">달력에서 날짜 선택</span>
+                <h4 id="gratitudeDatePublicTitle">날짜별 감사기도</h4>
+              </div>
+            </div>
+            <div id="gratitudeDatePublicList" class="gratitude-public-list"><p class="muted">달력에서 날짜를 선택해 주세요.</p></div>
+            <p id="gratitudeDatePublicStatus" class="status"></p>
           </div>
         </section>
 
@@ -223,9 +237,9 @@
         <section class="gratitude-public-wrap" aria-labelledby="gratitudePublicTitle">
           <div class="section-head compact">
             <div>
-              <span class="eyebrow">함께 나누는 감사</span>
-              <h3 id="gratitudePublicTitle">모두의 감사기도</h3>
-              <p class="muted">V30 이후 새로 작성하거나 수정한 감사기도는 학년/구분·이름과 함께 모든 이용자에게 공개됩니다.</p>
+              <span class="eyebrow">오늘 함께 나누는 감사</span>
+              <h3 id="gratitudePublicTitle">오늘의 감사기도</h3>
+              <p class="muted">오늘 작성한 감사기도를 학년/구분·이름과 함께 공개합니다. 지난 날짜의 감사기도는 위 달력에서 날짜를 눌러 확인할 수 있습니다.</p>
             </div>
             <button id="refreshGratitudePublicBtn" class="ghost compact-btn" type="button">새로고침</button>
           </div>
@@ -239,7 +253,7 @@
             <span class="pill" id="gratitudeCount">0회</span>
           </div>
           <div id="gratitudeHistory" class="gratitude-history"></div>
-          <p class="privacy-note">V30 이후 새로 작성하거나 수정한 감사기도는 학년/구분·이름과 함께 모두에게 공개됩니다. 이전에 비공개로 작성한 기존 기록은 자동 공개하지 않습니다. 오타 수정은 작성한 기기에서 가능하며, 삭제는 관리자 모드에서만 가능합니다.</p>
+          <p class="privacy-note">새로 작성하거나 수정한 감사기도는 작성 당일 ‘오늘의 감사기도’에 공개됩니다. 지난 기록은 달력 날짜를 선택하면 다시 볼 수 있습니다. 이전에 비공개로 작성한 기존 기록은 자동 공개하지 않습니다. 오타 수정은 작성한 기기에서 가능하며, 삭제는 관리자 모드에서만 가능합니다.</p>
         </div>
       </section>
 
