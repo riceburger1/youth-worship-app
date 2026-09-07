@@ -19,7 +19,7 @@ main,.banner-wrap{max-width:980px;margin:auto;padding:0 20px}.banner-wrap{displa
 .identity-card{margin-top:0}.identity-card h2,.card h2,.subcard h3{margin:0}.identity-card p,.muted,.status{color:var(--muted)}
 .identity-grid,.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.identity-tip{font-size:.8rem;margin:10px 0 0!important}
 label{display:grid;gap:6px;font-weight:700;font-size:.9rem}input,select,textarea{width:100%;min-height:46px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:white;color:var(--ink);font-size:16px}textarea{resize:vertical}
-.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:12px 0 14px}.tab,.ghost,.primary{min-height:46px;border-radius:12px;border:1px solid var(--line);padding:10px 12px;font-weight:800}.tab,.ghost{background:white;color:var(--ink)}.tab.active,.primary{background:var(--accent);color:white;border-color:var(--accent)}
+.tabs{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:12px 0 14px}.tab,.ghost,.primary{min-height:46px;border-radius:12px;border:1px solid var(--line);padding:10px 12px;font-weight:800}.tab,.ghost{background:white;color:var(--ink)}.tab.active,.primary{background:var(--accent);color:white;border-color:var(--accent)}
 .section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.section-head.compact{align-items:center}.section-head.compact h3{margin:0}.eyebrow{display:block;color:var(--muted);font-size:.82rem;font-weight:800;margin-bottom:4px}.pill{background:var(--accent2);border-radius:999px;padding:6px 10px;font-weight:800;font-size:.85rem}
 .verse{margin:18px 0 12px;padding:18px;border-radius:16px;background:#f3f7f4;font-size:1.1rem;line-height:1.9;font-weight:700}.typing-note{font-size:.82rem;color:var(--danger);margin-bottom:12px}.field-label{margin:10px 0}
 .progress{height:9px;background:#e8ece9;border-radius:999px;overflow:hidden}.progress>div{height:100%;width:0;background:var(--accent);transition:width .2s ease}.primary:disabled{opacity:.45;cursor:not-allowed}
@@ -462,7 +462,7 @@ body.admin-window #gratitudeLeaderTop{display:none!important}
 .gratitude-admin-results{display:grid;gap:8px}.gratitude-admin-result-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}.gratitude-admin-result-card.active{background:#fffaf0;border-color:var(--warm-line)}
 .gratitude-admin-student{display:flex;align-items:center;gap:10px;min-width:0}.gratitude-admin-rank{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;background:var(--accent2);color:var(--accent);font-weight:900;flex:0 0 auto}.gratitude-admin-student>div{display:grid;gap:2px}.gratitude-admin-student b{font-size:.95rem}.gratitude-admin-student small{font-size:.72rem;color:var(--muted)}
 .gratitude-admin-metrics{display:grid;grid-template-columns:repeat(3,minmax(78px,1fr));gap:7px}.gratitude-admin-metrics span{display:grid;gap:2px;padding:7px 9px;border-radius:10px;background:#f5f7f5;text-align:center}.gratitude-admin-result-card.active .gratitude-admin-metrics span:first-child{background:var(--warm)}.gratitude-admin-metrics small{font-size:.67rem;color:var(--muted);font-weight:800}.gratitude-admin-metrics strong{font-size:.88rem;color:var(--accent)}
-.admin-tabs{grid-template-columns:repeat(8,minmax(0,1fr))}
+.admin-tabs{grid-template-columns:repeat(9,minmax(0,1fr))}
 
 @media(max-width:980px){.gratitude-leader-top{margin-left:20px;margin-right:20px}}
 @media(max-width:960px){.admin-tabs{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -511,3 +511,33 @@ body.admin-window #gratitudeLeaderTop{display:none!important}
 @media (max-width:520px){
   .word-mode-notice{align-items:flex-start;flex-direction:column;gap:7px;}
 }
+
+
+/* ===== V30: 감사기도 공개 · 새친구 · 출석시간 제한 ===== */
+.gratitude-public-wrap{margin:18px 0;padding:16px;border:1px solid var(--line);border-radius:16px;background:#f8fbf9}
+.gratitude-public-list{display:grid;gap:10px}
+.gratitude-public-card{padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.gratitude-public-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+.gratitude-public-head b{font-size:.95rem;color:var(--accent)}
+.gratitude-public-head span{font-size:.75rem;color:var(--muted);white-space:nowrap}
+.gratitude-public-card p{margin:0;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+
+.new-friend-form{display:grid;gap:14px;margin-top:14px}
+.new-friend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.new-friend-grid label{display:grid;gap:6px;font-weight:800;font-size:.86rem}
+.new-friend-full{grid-column:1/-1}
+.privacy-split-note{display:flex;flex-wrap:wrap;gap:8px 12px;padding:10px 12px;border:1px solid #dbe7e0;border-radius:12px;background:#f7fbf8;font-size:.78rem;font-weight:800;color:var(--muted)}
+.privacy-split-note span:last-child{color:#7a4a15}
+.new-friend-public-wrap{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.new-friend-public-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.new-friend-public-card{display:flex;align-items:center;gap:11px;padding:13px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.new-friend-welcome{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:999px;background:var(--accent2);font-size:1.15rem;flex:0 0 auto}
+.new-friend-public-card b{display:block;margin-bottom:2px}.new-friend-public-card p{margin:0;color:var(--muted);font-size:.82rem}
+.admin-privacy-note{margin-bottom:10px}
+.new-friend-private-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.new-friend-private-grid>div,.new-friend-other{padding:9px 10px;border-radius:10px;background:#f6f7f6}
+.new-friend-private-grid small,.new-friend-other small{display:block;margin-bottom:3px;color:var(--muted);font-weight:800}
+.new-friend-private-grid strong{font-size:.88rem;overflow-wrap:anywhere}.new-friend-other{margin-top:8px}.new-friend-other p{margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+
+@media(max-width:900px){.tabs{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:640px){.tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.new-friend-grid,.new-friend-public-list,.new-friend-private-grid{grid-template-columns:1fr}}

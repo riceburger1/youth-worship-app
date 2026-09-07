@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v29-word-practice-gratitude-sync-study-min10";
+const APP_VERSION = "v30-public-gratitude-teacher-newfriends-attendance-window";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -134,7 +134,7 @@ function updateProfileLinkedUI(p = profile()) {
   const ready = profileReady(p);
   const text = ready
     ? `현재 기록 정보: ${p.grade} ${p.name} · 제출 시 관리자 기록에 함께 저장됩니다.`
-    : "오른쪽 위 내 정보에서 학년과 이름을 입력하면 이 기록에 자동으로 연결됩니다.";
+    : "오른쪽 위 내 정보에서 학년/구분과 이름을 입력하면 이 기록에 자동으로 연결됩니다.";
   $$('[data-profile-display]').forEach(el => { el.textContent = text; });
   return ready;
 }
@@ -143,11 +143,11 @@ function persistProfile({feedback=false} = {}) {
   const ready = updateProfileLinkedUI(p);
   const status = $("#profileStatus");
   if (!ready) {
-    if (feedback && status) status.textContent = "학년과 이름을 모두 입력해 주세요.";
+    if (feedback && status) status.textContent = "학년/구분과 이름을 모두 입력해 주세요.";
     return false;
   }
   localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(p));
-  if (feedback && status) status.textContent = `${p.grade} ${p.name} 학생 정보가 저장되었습니다. 말씀쓰기·성경공부·기도제목·감사기도에 자동 연동됩니다.`;
+  if (feedback && status) status.textContent = `${p.grade} ${p.name} 내 정보가 저장되었습니다. 말씀쓰기·성경공부·기도제목·감사기도에 자동 연동됩니다.`;
   renderGratitudeChallenge();
   return true;
 }
@@ -163,7 +163,7 @@ function restoreProfile() {
   if (status) {
     status.textContent = profileReady(restored)
       ? `저장된 내 정보: ${restored.grade} ${restored.name}`
-      : "학년과 이름을 입력해 주세요.";
+      : "학년/구분과 이름을 입력해 주세요.";
   }
   return restored;
 }
@@ -197,12 +197,14 @@ function activateStudentTab(tabName) {
   if (tabName === "gratitude") {
     renderGratitudeChallenge();
     void refreshGratitudeStudentFromServer();
+  } else if (tabName === "newfriend") {
+    void loadNewFriendPublicList();
   }
 }
 function requireProfile(statusEl) {
   const p = profile();
   if (!profileReady(p)) {
-    if (statusEl) statusEl.textContent = "오른쪽 위 내 정보에서 학년과 이름을 먼저 입력해 주세요.";
+    if (statusEl) statusEl.textContent = "오른쪽 위 내 정보에서 학년/구분과 이름을 먼저 입력해 주세요.";
     setProfilePanel(true, {scroll:true, focus:true});
     return null;
   }
@@ -226,18 +228,18 @@ function addDaysISO(iso, days) {
 }
 
 function wordRegistrationState(content = weekly) {
-  if (!content?.week_start) return { canRegister:false, sunday:null, openAt:null, label:"주일 날짜를 확인할 수 없어 연습모드로 동작합니다." };
+  if (!content?.week_start) return { canRegister:false, sunday:null, openAt:null, closeAt:null, phase:"practice", label:"주일 날짜를 확인할 수 없어 연습모드로 동작합니다." };
   const sunday = addDaysISO(String(content.week_start).slice(0,10), 6);
   const openAt = new Date(`${sunday}T10:30:00+09:00`);
-  const canRegister = Date.now() >= openAt.getTime();
-  return {
-    canRegister,
-    sunday,
-    openAt,
-    label: canRegister
-      ? `${fmtDate(sunday)} 주일 오전 10:30부터 출석 등록이 가능합니다.`
-      : `${fmtDate(sunday)} 주일 오전 10:30 전에는 연습모드입니다. 따라쓰기는 가능하지만 출석 기록은 저장되지 않습니다.`
-  };
+  const closeAt = new Date(`${sunday}T13:00:00+09:00`);
+  const now = Date.now();
+  const canRegister = now >= openAt.getTime() && now < closeAt.getTime();
+  const phase = now < openAt.getTime() ? "before" : (now >= closeAt.getTime() ? "after" : "open");
+  let label;
+  if (phase === "open") label = `${fmtDate(sunday)} 주일 오전 10:30 ~ 오후 1:00 출석 인정시간입니다.`;
+  else if (phase === "before") label = `${fmtDate(sunday)} 주일 오전 10:30 전에는 연습모드입니다. 따라쓰기는 가능하지만 출석은 저장되지 않습니다.`;
+  else label = `${fmtDate(sunday)} 주일 오후 1:00 이후에는 연습모드입니다. 따라쓰기는 가능하지만 출석은 저장되지 않습니다.`;
+  return { canRegister, sunday, openAt, closeAt, phase, label };
 }
 
 function isVerseExact() {
@@ -253,14 +255,14 @@ function updateWordModeUI({updateStatus=false} = {}) {
   const state = wordRegistrationState();
   notice.classList.toggle("practice", !state.canRegister);
   notice.classList.toggle("open", state.canRegister);
-  badge.textContent = state.canRegister ? "출석등록 가능" : "연습모드";
+  badge.textContent = state.canRegister ? "출석 인정시간" : "연습모드";
   text.textContent = state.label;
   btn.textContent = state.canRegister ? "말씀쓰기 완료 및 출석" : "연습 완료 확인";
   btn.disabled = !isVerseExact();
   if (updateStatus && weekly) {
     $("#wordStatus").textContent = state.canRegister
       ? "말씀을 직접 입력해 주세요. 정확히 완성하면 출석을 등록할 수 있습니다."
-      : "지금은 연습모드입니다. 말씀을 직접 따라 써 보세요.";
+      : "지금은 연습모드입니다. 말씀을 직접 따라 써 보세요. 출석 인정시간은 주일 오전 10:30~오후 1:00입니다.";
   }
 }
 
@@ -332,7 +334,7 @@ async function syncGratitudeRecordsFromServer({quiet=true} = {}) {
 }
 
 async function refreshGratitudeStudentFromServer() {
-  await Promise.all([syncGratitudeRecordsFromServer(), loadGratitudeLeaders()]);
+  await Promise.all([syncGratitudeRecordsFromServer(), loadGratitudeLeaders(), loadPublicGratitudeFeed()]);
 }
 
 function signalGratitudeServerChanged() {
@@ -517,6 +519,33 @@ async function loadGratitudeLeaders() {
   if (status) status.textContent = `${rows.length}명이 감사기도 챌린지를 이어가고 있습니다.`;
 }
 
+async function loadPublicGratitudeFeed() {
+  if (ADMIN_WINDOW || !$("#gratitudePublicList")) return;
+  const list = $("#gratitudePublicList");
+  const status = $("#gratitudePublicStatus");
+  if (status) status.textContent = "모두의 감사기도를 불러오는 중입니다…";
+  const { data, error } = await db.rpc("youth_gratitude_public_feed_v30", { p_limit: 100 });
+  if (error) {
+    list.innerHTML = "";
+    if (status) status.textContent = isMissingRpc(error, "youth_gratitude_public_feed_v30")
+      ? "감사기도 전체공개 기능을 사용하려면 V30 SQL을 먼저 실행해 주세요."
+      : dbErrorMessage(error, "공개 감사기도를 불러오지 못했습니다.");
+    return;
+  }
+  const rows = data || [];
+  list.innerHTML = rows.length ? rows.map(row => `
+    <article class="gratitude-public-card">
+      <div class="gratitude-public-head">
+        <b>${escapeHtml(row.grade)} ${escapeHtml(row.student_name)}</b>
+        <span>${escapeHtml(fmtDate(String(row.prayer_date || "").slice(0,10)))}</span>
+      </div>
+      <p>${escapeHtml(row.gratitude_text || "")}</p>
+    </article>`).join("") : '<p class="muted">아직 공개된 감사기도가 없습니다.</p>';
+  if (status) status.textContent = rows.length ? `최근 감사기도 ${rows.length}건이 공개되어 있습니다.` : "첫 감사기도를 남겨 보세요.";
+}
+
+$("#refreshGratitudePublicBtn")?.addEventListener("click", loadPublicGratitudeFeed);
+
 function renderGratitudeChallenge() {
   const p = profile();
   const ready = Boolean(p.grade && p.name);
@@ -533,7 +562,7 @@ function renderGratitudeChallenge() {
   renderGratitudeBadges(stats, ready);
   updateGratitudeCharCount();
   if (!ready) {
-    $("#gratitudeHistory").innerHTML = '<p class="muted">내 정보에서 학년과 이름을 입력하면 챌린지 기록이 표시됩니다.</p>';
+    $("#gratitudeHistory").innerHTML = '<p class="muted">내 정보에서 학년/구분과 이름을 입력하면 챌린지 기록이 표시됩니다.</p>';
     return;
   }
   $("#gratitudeHistory").innerHTML = rows.length ? rows.slice(0,14).map((r,i)=>`
@@ -555,7 +584,7 @@ $("#grade").addEventListener("change", () => {
 $("#studentName").addEventListener("input", () => {
   updateProfileLinkedUI();
   const status = $("#profileStatus");
-  if (status) status.textContent = profileReady() ? "입력한 정보를 저장해 주세요." : "학년과 이름을 모두 입력해 주세요.";
+  if (status) status.textContent = profileReady() ? "입력한 정보를 저장해 주세요." : "학년/구분과 이름을 모두 입력해 주세요.";
 });
 $("#studentName").addEventListener("change", () => {
   if (profileReady()) persistProfile({feedback:false});
@@ -699,7 +728,7 @@ verseInput.addEventListener("input", () => {
   if (exact) {
     $("#wordStatus").textContent = mode.canRegister
       ? "말씀을 정확하게 완성했습니다. 출석을 등록할 수 있습니다."
-      : `연습 완료! ${fmtDate(mode.sunday)} 주일 오전 10:30부터 출석 등록이 가능합니다.`;
+      : `연습 완료! 출석 인정시간은 ${fmtDate(mode.sunday)} 주일 오전 10:30 ~ 오후 1:00입니다.`;
   } else if (!input) {
     $("#wordStatus").textContent = mode.canRegister ? "말씀을 직접 입력해 주세요." : "연습모드입니다. 말씀을 직접 따라 써 보세요.";
   } else if (matched === input.length) {
@@ -735,7 +764,7 @@ $("#completeWordBtn").addEventListener("click", async () => {
 
   const mode = wordRegistrationState();
   if (!mode.canRegister) {
-    status.textContent = `연습 완료! 지금은 연습모드라 출석은 저장되지 않습니다. ${fmtDate(mode.sunday)} 주일 오전 10:30부터 등록할 수 있습니다.`;
+    status.textContent = `연습 완료! 지금은 연습모드라 출석은 저장되지 않습니다. 출석 인정시간은 ${fmtDate(mode.sunday)} 주일 오전 10:30 ~ 오후 1:00입니다.`;
     return;
   }
 
@@ -907,7 +936,7 @@ $("#gratitudeForm").addEventListener("submit", async e => {
   setLocalGratitude(p, localRows);
   resetGratitudeEditor();
   renderGratitudeChallenge();
-  await loadGratitudeLeaders();
+  await Promise.all([loadGratitudeLeaders(), loadPublicGratitudeFeed()]);
   signalGratitudeServerChanged();
 
   if (wasEditing) {
@@ -1023,6 +1052,61 @@ function parseISODate(iso) {
 function eventStartDate(row) {
   return String(row?.event_date || "");
 }
+async function loadNewFriendPublicList() {
+  if (ADMIN_WINDOW || !$("#newFriendPublicList")) return;
+  const list = $("#newFriendPublicList");
+  const status = $("#newFriendPublicStatus");
+  if (status) status.textContent = "새친구 목록을 불러오는 중입니다…";
+  const { data, error } = await db.rpc("youth_new_friend_public_v30", { p_limit: 100 });
+  if (error) {
+    list.innerHTML = "";
+    if (status) status.textContent = isMissingRpc(error, "youth_new_friend_public_v30")
+      ? "새친구 기능을 사용하려면 V30 SQL을 먼저 실행해 주세요."
+      : dbErrorMessage(error, "새친구 목록을 불러오지 못했습니다.");
+    return;
+  }
+  const rows = data || [];
+  list.innerHTML = rows.length ? rows.map(row => `
+    <article class="new-friend-public-card">
+      <span class="new-friend-welcome">👋</span>
+      <div><b>${escapeHtml(row.grade)} ${escapeHtml(row.friend_name)}</b><p>${escapeHtml(row.school)}</p></div>
+    </article>`).join("") : '<p class="muted">아직 등록된 새친구가 없습니다.</p>';
+  if (status) status.textContent = rows.length ? `새친구 ${rows.length}명이 등록되어 있습니다.` : "새친구를 환영해 주세요!";
+}
+
+$("#refreshNewFriendBtn")?.addEventListener("click", loadNewFriendPublicList);
+$("#newFriendForm")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const status = $("#newFriendStatus");
+  const payload = {
+    grade: $("#newFriendGrade").value,
+    friend_name: clean($("#newFriendName").value),
+    school: clean($("#newFriendSchool").value),
+    phone: clean($("#newFriendPhone").value) || null,
+    inviter: clean($("#newFriendInviter").value) || null,
+    other_info: clean($("#newFriendOther").value) || null
+  };
+  if (!payload.grade || !payload.friend_name || !payload.school) {
+    status.textContent = "학년, 이름, 학교는 반드시 입력해 주세요.";
+    return;
+  }
+  const btn = e.target.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+  status.textContent = "새친구를 등록하고 있습니다…";
+  const { error } = await db.from("new_friends").insert(payload);
+  if (btn) btn.disabled = false;
+  if (error) {
+    status.textContent = error.code === "PGRST205"
+      ? "새친구 DB가 아직 준비되지 않았습니다. V30 SQL을 먼저 실행해 주세요."
+      : dbErrorMessage(error, "새친구 등록에 실패했습니다.");
+    return;
+  }
+  e.target.reset();
+  status.textContent = "새친구가 등록되었습니다. 학년·이름·학교만 모두에게 공개됩니다. 👋";
+  await loadNewFriendPublicList();
+  if (isAdmin) await loadAdminNewFriends();
+});
+
 function eventEndDate(row) {
   return String(row?.end_date || row?.event_date || "");
 }
@@ -1424,6 +1508,7 @@ const ADMIN_TAB_META = {
   prayer:{title:"기도제목 관리",badge:"기도",description:"학생들이 제출한 기도제목을 주일별로 확인하고 필요한 기록을 삭제할 수 있습니다."},
   gratitude:{title:"감사기도 챌린지",badge:"감사 챌린지",description:"학생별 현재·최고 연속일과 누적 기록을 확인하고 감사기도를 주일별로 관리합니다."},
   board:{title:"익명게시판 관리",badge:"익명글",description:"익명 게시글을 주일별로 모아 확인하고 개별 삭제할 수 있습니다."},
+  newfriend:{title:"새친구 관리",badge:"새친구",description:"학년·이름·학교와 관리자 전용 연락처·인도자·기타정보를 함께 확인하고 관리합니다."},
   records:{title:"학생 제출 통계",badge:"통계",description:"제출 내용은 숨기고 말씀쓰기·성경공부·기도·감사·익명 제출 건수만 주일별로 집계합니다."},
   events:{title:"행사 · 이벤트 달력",badge:"행사 달력",description:"시작일과 종료일을 선택해 행사 기간을 등록하고 기존 일정을 수정·삭제할 수 있습니다."}
 };
@@ -1436,6 +1521,7 @@ async function refreshActiveAdminTab(tab=activeAdminTab) {
   else if (tab === "prayer") await loadAdminPrayers();
   else if (tab === "gratitude") await loadAdminGratitude();
   else if (tab === "board") await loadAdminBoardGroups();
+  else if (tab === "newfriend") await loadAdminNewFriends();
   else if (tab === "records") await loadAdminRecords();
   else if (tab === "events") await loadAdminEventCalendar();
 }
@@ -2336,6 +2422,58 @@ $("#adminPrayerGroups")?.addEventListener("click",async e=>{
   $("#prayerAdminStatus").textContent="기도제목이 삭제되었습니다.";
 });
 
+async function loadAdminNewFriends() {
+  if (!isAdmin || !$("#adminNewFriendGroups")) return;
+  const status = $("#newFriendAdminStatus");
+  if (status) status.textContent = "새친구 정보를 불러오는 중입니다…";
+  const { data, error } = await db.from("new_friends")
+    .select("id,grade,friend_name,school,phone,inviter,other_info,created_at")
+    .order("created_at", {ascending:false}).limit(1000);
+  if (error) {
+    $("#adminNewFriendGroups").innerHTML = "";
+    if (status) status.textContent = dbErrorMessage(error, "새친구 정보를 불러오지 못했습니다.");
+    return;
+  }
+  const groups = groupBySunday(data || [], row => sundayForISO(row.created_at));
+  const keys = [...groups.keys()].sort((a,b)=>String(b).localeCompare(String(a)));
+  $("#adminNewFriendGroups").innerHTML = keys.length ? keys.map((key,index) => {
+    const rows = groups.get(key) || [];
+    return `<details class="record-week-group new-friend-admin-week" ${index===0?"open":""}>
+      <summary><span><b>${escapeHtml(sundayGroupLabel(key))}</b><small>새친구 ${rows.length}명</small></span><span class="record-week-counts"><span>새친구 ${rows.length}</span></span></summary>
+      <div class="record-week-body">${rows.map(row => `
+        <article class="list-item record-item new-friend-admin-card">
+          <div class="record-item-head">
+            <div><b>👋 ${escapeHtml(row.grade)} ${escapeHtml(row.friend_name)}</b><div class="meta">🏫 ${escapeHtml(row.school)} · ${escapeHtml(recordTime(row.created_at))}</div></div>
+            <button class="ghost danger-outline compact-btn new-friend-admin-delete-btn" type="button" data-record-id="${escapeHtml(String(row.id))}">삭제</button>
+          </div>
+          <div class="new-friend-private-grid">
+            <div><small>연락처 🔒</small><strong>${escapeHtml(row.phone || "미입력")}</strong></div>
+            <div><small>인도자 🔒</small><strong>${escapeHtml(row.inviter || "미입력")}</strong></div>
+          </div>
+          ${row.other_info ? `<div class="new-friend-other"><small>기타정보 🔒</small><p>${escapeHtml(row.other_info)}</p></div>` : ""}
+        </article>`).join("")}</div>
+    </details>`;
+  }).join("") : '<p class="muted">아직 등록된 새친구가 없습니다.</p>';
+  if (status) status.textContent = `새친구 ${(data||[]).length}명의 전체 정보를 불러왔습니다.`;
+}
+
+$("#refreshNewFriendAdminBtn")?.addEventListener("click", loadAdminNewFriends);
+$("#adminNewFriendGroups")?.addEventListener("click", async e => {
+  const btn = e.target.closest(".new-friend-admin-delete-btn");
+  if (!btn) return;
+  if (!confirm("이 새친구 등록 정보를 삭제할까요?\n\n삭제 후에는 되돌릴 수 없습니다.")) return;
+  btn.disabled = true;
+  $("#newFriendAdminStatus").textContent = "새친구 정보를 삭제하고 있습니다…";
+  const result = await db.from("new_friends").delete().eq("id", btn.dataset.recordId).select("id");
+  if (result.error || !result.data?.length) {
+    btn.disabled = false;
+    $("#newFriendAdminStatus").textContent = result.error ? dbErrorMessage(result.error, "새친구 삭제에 실패했습니다.") : "삭제할 새친구 정보를 찾지 못했습니다.";
+    return;
+  }
+  await Promise.all([loadAdminNewFriends(), loadNewFriendPublicList()]);
+  $("#newFriendAdminStatus").textContent = "새친구 등록 정보가 삭제되었습니다.";
+});
+
 async function loadAdminRecords() {
   if (!isAdmin) return;
   $("#recordsAdminStatus").textContent = "주일별 제출 통계를 집계하는 중입니다…";
@@ -2412,4 +2550,4 @@ const { data:{session} } = await db.auth.getSession();
 if(session?.user) await verifyAdmin(session.user);
 
 renderGratitudeChallenge();
-await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar(),loadGratitudeLeaders()]);
+await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar(),loadGratitudeLeaders(),loadPublicGratitudeFeed(),loadNewFriendPublicList()]);

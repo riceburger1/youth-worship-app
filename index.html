@@ -29,7 +29,7 @@
           <div>
             <span class="eyebrow">나의 기록 정보</span>
             <h2>내 정보</h2>
-            <p class="muted">학년과 이름을 한 번 입력하면 이 기기에 저장되고, 나의 신앙활동 기록에 자동으로 연결됩니다.</p>
+            <p class="muted">학년(또는 선생님)과 이름을 한 번 입력하면 이 기기에 저장되고, 나의 신앙활동 기록에 자동으로 연결됩니다.</p>
           </div>
           <div class="profile-head-actions">
             <span class="pill">공통 프로필</span>
@@ -37,11 +37,12 @@
           </div>
         </div>
         <div class="identity-grid">
-          <label>학년
+          <label>학년 / 구분
             <select id="grade">
-              <option value="">학년 선택</option>
+              <option value="">학년 또는 구분 선택</option>
               <option>중1</option><option>중2</option><option>중3</option>
               <option>고1</option><option>고2</option><option>고3</option>
+              <option>선생님</option>
             </select>
           </label>
           <label>이름
@@ -49,7 +50,7 @@
           </label>
         </div>
         <button id="saveProfileBtn" class="primary profile-save-btn" type="button">내 정보 저장</button>
-        <p id="profileStatus" class="status">학년과 이름을 입력해 주세요.</p>
+        <p id="profileStatus" class="status">학년/구분과 이름을 입력해 주세요.</p>
 
         <div class="profile-sync-box">
           <strong>내 정보가 자동으로 연결되는 기록</strong>
@@ -59,7 +60,7 @@
             <span>🙏 기도제목</span>
             <span>🔥 감사기도</span>
           </div>
-          <p>위 활동을 제출하면 저장된 학년·이름이 함께 기록되어 관리자 기록에 반영됩니다. 익명게시판은 익명성을 위해 내 정보와 연결하지 않습니다.</p>
+          <p>위 활동을 제출하면 저장된 학년/구분·이름이 함께 기록되어 관리자 기록에 반영됩니다. 익명게시판은 익명성을 위해 내 정보와 연결하지 않습니다.</p>
         </div>
       </section>
 
@@ -74,6 +75,7 @@
         <button class="tab" data-tab="notice">공지사항</button>
         <button class="tab" data-tab="gratitude">감사기도</button>
         <button class="tab" data-tab="board">익명게시판</button>
+        <button class="tab" data-tab="newfriend">새친구</button>
       </nav>
 
       <section id="word" class="panel card">
@@ -84,10 +86,10 @@
           </div>
           <span id="progressText" class="pill">0%</span>
         </div>
-        <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
+        <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
         <div id="wordModeNotice" class="word-mode-notice practice" aria-live="polite">
           <strong id="wordModeBadge">연습모드</strong>
-          <span id="wordModeText">해당 주일 오전 10:30 전에는 따라쓰기 연습만 가능하며 출석은 등록되지 않습니다.</span>
+          <span id="wordModeText">말씀쓰기 출석은 해당 주일 오전 10:30부터 오후 1:00 전까지 인정됩니다. 그 외 시간에는 연습만 가능합니다.</span>
         </div>
         <blockquote id="verseText" class="verse">말씀을 불러오는 중입니다.</blockquote>
         <div class="typing-note">
@@ -106,7 +108,7 @@
       <section id="study" class="panel card hidden">
         <span class="eyebrow">이번 주 성경공부</span>
         <h2 id="studyTitle">성경공부</h2>
-        <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
+        <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
         <form id="studyForm">
           <div id="studyQuestions"></div>
           <button id="studySubmitBtn" class="primary" type="submit" disabled>나눔 제출</button>
@@ -117,7 +119,7 @@
       <section id="prayer" class="panel card hidden">
         <span class="eyebrow">함께 기도해요</span>
         <h2>이번 주 기도제목</h2>
-        <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
+        <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
         <form id="prayerForm">
           <label class="field-label">기도제목
             <textarea id="prayerText" rows="6" maxlength="3000" placeholder="이번 주 기도제목을 적어 주세요."></textarea>
@@ -145,7 +147,7 @@
           <div class="gratitude-flame" aria-hidden="true">🔥</div>
         </div>
 
-        <p class="profile-link-note" data-profile-display>내 정보 탭의 학년·이름이 이 기록에 자동으로 연결됩니다.</p>
+        <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
 
         <section id="gratitudeLeaderTop" class="gratitude-leader-top gratitude-leader-in-tab" aria-labelledby="gratitudeLeaderTitle">
           <div class="gratitude-leader-head">
@@ -218,13 +220,26 @@
           <p id="gratitudeStatus" class="status">매일 기록하면 연속일수가 올라갑니다.</p>
         </form>
 
+        <section class="gratitude-public-wrap" aria-labelledby="gratitudePublicTitle">
+          <div class="section-head compact">
+            <div>
+              <span class="eyebrow">함께 나누는 감사</span>
+              <h3 id="gratitudePublicTitle">모두의 감사기도</h3>
+              <p class="muted">V30 이후 새로 작성하거나 수정한 감사기도는 학년/구분·이름과 함께 모든 이용자에게 공개됩니다.</p>
+            </div>
+            <button id="refreshGratitudePublicBtn" class="ghost compact-btn" type="button">새로고침</button>
+          </div>
+          <div id="gratitudePublicList" class="gratitude-public-list"></div>
+          <p id="gratitudePublicStatus" class="status"></p>
+        </section>
+
         <div class="gratitude-history-wrap">
           <div class="section-head compact">
             <h3>나의 최근 기록</h3>
             <span class="pill" id="gratitudeCount">0회</span>
           </div>
           <div id="gratitudeHistory" class="gratitude-history"></div>
-          <p class="privacy-note">감사기도 내용은 다른 학생에게 공개되지 않습니다. 최근 기록 표시는 현재 기기에 저장된 기록을 기준으로 합니다.</p>
+          <p class="privacy-note">V30 이후 새로 작성하거나 수정한 감사기도는 학년/구분·이름과 함께 모두에게 공개됩니다. 이전에 비공개로 작성한 기존 기록은 자동 공개하지 않습니다. 오타 수정은 작성한 기기에서 가능하며, 삭제는 관리자 모드에서만 가능합니다.</p>
         </div>
       </section>
 
@@ -239,6 +254,47 @@
           <p id="boardStatus" class="status"></p>
         </form>
         <div id="boardList" class="list board-list"></div>
+      </section>
+
+      <section id="newfriend" class="panel card hidden">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">처음 온 친구를 환영해요</span>
+            <h2>새친구 등록</h2>
+            <p class="muted">학년·이름·학교는 새친구 소개 목록에 공개되고, 연락처·인도자·기타정보는 관리자만 확인합니다.</p>
+          </div>
+          <span class="pill">WELCOME</span>
+        </div>
+        <form id="newFriendForm" class="new-friend-form">
+          <div class="new-friend-grid">
+            <label>학년 *
+              <select id="newFriendGrade" required>
+                <option value="">학년 선택</option>
+                <option>중1</option><option>중2</option><option>중3</option>
+                <option>고1</option><option>고2</option><option>고3</option>
+              </select>
+            </label>
+            <label>이름 *<input id="newFriendName" maxlength="30" required placeholder="이름" /></label>
+            <label>학교 *<input id="newFriendSchool" maxlength="100" required placeholder="학교명" /></label>
+            <label>연락처<input id="newFriendPhone" type="tel" maxlength="30" placeholder="예: 010-1234-5678" /></label>
+            <label>인도자<input id="newFriendInviter" maxlength="50" placeholder="함께 데려온 친구/선생님" /></label>
+            <label class="new-friend-full">기타정보<textarea id="newFriendOther" rows="4" maxlength="1000" placeholder="알아두면 좋은 내용이 있으면 적어 주세요."></textarea></label>
+          </div>
+          <div class="privacy-split-note">
+            <span>🌐 공개: 학년 · 이름 · 학교</span>
+            <span>🔒 관리자만: 연락처 · 인도자 · 기타정보</span>
+          </div>
+          <button class="primary" type="submit">새친구 등록</button>
+          <p id="newFriendStatus" class="status"></p>
+        </form>
+        <div class="new-friend-public-wrap">
+          <div class="section-head compact">
+            <h3>우리 새친구</h3>
+            <button id="refreshNewFriendBtn" class="ghost compact-btn" type="button">새로고침</button>
+          </div>
+          <div id="newFriendPublicList" class="new-friend-public-list"></div>
+          <p id="newFriendPublicStatus" class="status"></p>
+        </div>
       </section>
 
 
@@ -274,7 +330,7 @@
           <div>
             <span class="eyebrow">관리자 전용</span>
             <h2>주의울림 관리자</h2>
-            <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 감사기도 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
+            <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 감사기도 · 새친구 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
           </div>
           <div class="admin-head-actions">
             <a class="ghost admin-student-link" href="./" target="_blank" rel="noopener">학생 화면 보기 ↗</a>
@@ -297,6 +353,7 @@
             <button class="admin-tab" type="button" data-admin-tab="prayer">🙏 기도제목</button>
             <button class="admin-tab" type="button" data-admin-tab="gratitude">🔥 감사기도</button>
             <button class="admin-tab" type="button" data-admin-tab="board">💬 익명게시판</button>
+            <button class="admin-tab" type="button" data-admin-tab="newfriend">👋 새친구</button>
             <button class="admin-tab" type="button" data-admin-tab="records">📊 학생 제출</button>
             <button class="admin-tab" type="button" data-admin-tab="events">📅 행사 달력</button>
           </nav>
@@ -457,6 +514,22 @@
               </div>
               <p id="boardAdminStatus" class="status"></p>
               <div id="adminBoardGroups" class="weekly-record-groups"></div>
+            </section>
+
+            <section class="subcard admin-editor-card admin-span-2" data-admin-panel="newfriend">
+              <div class="admin-editor-head">
+                <div>
+                  <h3>새친구 관리</h3>
+                  <p class="muted admin-mode-label">등록된 새친구의 공개정보와 비공개 연락정보를 함께 확인하고 필요한 기록을 삭제할 수 있습니다.</p>
+                </div>
+                <button id="refreshNewFriendAdminBtn" class="ghost compact-btn" type="button">새친구 새로고침</button>
+              </div>
+              <div class="privacy-split-note admin-privacy-note">
+                <span>🌐 학생 공개: 학년 · 이름 · 학교</span>
+                <span>🔒 관리자 전용: 연락처 · 인도자 · 기타정보</span>
+              </div>
+              <p id="newFriendAdminStatus" class="status"></p>
+              <div id="adminNewFriendGroups" class="weekly-record-groups"></div>
             </section>
 
             <div class="subcard" data-admin-panel="records">
