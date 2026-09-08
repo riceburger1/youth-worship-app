@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v32-gratitude-permission-top3-weather";
+const APP_VERSION = "v33-worship-youtube-player";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -210,7 +210,7 @@ async function checkSupabaseConnection({reloadData=false} = {}) {
     retry.disabled = false;
 
     if (reloadData) {
-      await Promise.all([loadWeekly(), loadNotices(), loadBoard(), loadPublicEventCalendar(), loadGratitudeLeaders()]);
+      await Promise.all([loadWeekly(), loadNotices(), loadBoard(), loadPublicEventCalendar(), loadGratitudeLeaders(), loadStudentWorshipPlaylist()]);
       if (isAdmin) {
         await refreshActiveAdminTab(activeAdminTab);
       }
@@ -259,6 +259,19 @@ const WEATHER_CACHE_KEY = "주의울림-weather-v32";
 const WEATHER_FALLBACK = { lat:35.1796, lon:129.0756, label:"부산" };
 let weatherRows = [];
 let weatherLocationLabel = WEATHER_FALLBACK.label;
+
+// V33: YouTube 찬양 플레이리스트
+const WORSHIP_AUTONEXT_KEY = "주의울림-worship-autonext-v33";
+const WORSHIP_VOLUME_KEY = "주의울림-worship-volume-v33";
+let worshipRows = [];
+let worshipCurrentIndex = 0;
+let worshipPlayer = null;
+let worshipPlayerReady = false;
+let worshipPendingAutoplay = false;
+let worshipPlayerApiPromise = null;
+let youtubeApiKey = "";
+let adminWorshipRows = [];
+let youtubeSearchRows = [];
 
 function profile() {
   return { grade: $("#grade")?.value || "", name: clean($("#studentName")?.value || "") };
@@ -333,6 +346,8 @@ function activateStudentTab(tabName) {
   if (tabName === "gratitude") {
     renderGratitudeChallenge();
     void refreshGratitudeStudentFromServer();
+  } else if (tabName === "worship") {
+    void loadStudentWorshipPlaylist();
   } else if (tabName === "newfriend") {
     void loadNewFriendPublicList();
   }
@@ -1771,12 +1786,370 @@ $("#eventDeleteBtn")?.addEventListener("click",async()=>{
 });
 
 
+
+// ============================================================
+// V33 YouTube 찬양 플레이리스트
+// ============================================================
+function decodeYouTubeText(value) {
+  const el = document.createElement("textarea");
+  el.innerHTML = String(value ?? "");
+  return el.value;
+}
+function currentWorshipSunday() {
+  return sundayForISO(localISODate());
+}
+function getWorshipAutoNext() {
+  const saved = localStorage.getItem(WORSHIP_AUTONEXT_KEY);
+  return saved === null ? true : saved === "1";
+}
+function getWorshipVolume() {
+  const saved = Number(localStorage.getItem(WORSHIP_VOLUME_KEY));
+  return Number.isFinite(saved) && saved >= 0 && saved <= 100 ? saved : 70;
+}
+function resetYouTubePlayerSurface(message = "찬양을 선택해 주세요") {
+  try { worshipPlayer?.destroy?.(); } catch {}
+  worshipPlayer = null;
+  worshipPlayerReady = false;
+  const wrap = document.querySelector(".worship-video-wrap");
+  if (wrap) wrap.innerHTML = `<div id="youtubePlayer" class="youtube-player-placeholder" aria-label="YouTube 찬양 플레이어"><div class="youtube-placeholder-inner"><span aria-hidden="true">▶️</span><strong>${escapeHtml(message)}</strong><small>관리자가 등록한 이번 주 찬양이 여기에 재생됩니다.</small></div></div>`;
+}
+function ensureYouTubeIframeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  if (worshipPlayerApiPromise) return worshipPlayerApiPromise;
+  worshipPlayerApiPromise = new Promise((resolve, reject) => {
+    const previous = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      try { previous?.(); } catch {}
+      resolve(window.YT);
+    };
+    if (!document.querySelector('script[data-youth-youtube-api="1"]')) {
+      const script = document.createElement("script");
+      script.src = "https://www.youtube.com/iframe_api";
+      script.async = true;
+      script.dataset.youthYoutubeApi = "1";
+      script.onerror = () => reject(new Error("YouTube 플레이어 API를 불러오지 못했습니다."));
+      document.head.appendChild(script);
+    }
+    setTimeout(() => {
+      if (!window.YT?.Player) reject(new Error("YouTube 플레이어 연결 시간이 초과되었습니다."));
+    }, 12000);
+  });
+  return worshipPlayerApiPromise;
+}
+function updateWorshipControlState() {
+  const hasTracks = worshipRows.length > 0;
+  const prev = $("#worshipPrevBtn");
+  const next = $("#worshipNextBtn");
+  const play = $("#worshipPlayPauseBtn");
+  const volume = $("#worshipVolume");
+  if (prev) prev.disabled = !hasTracks || worshipCurrentIndex <= 0;
+  if (next) next.disabled = !hasTracks || worshipCurrentIndex >= worshipRows.length - 1;
+  if (play) play.disabled = !hasTracks || !worshipPlayerReady;
+  if (volume) volume.disabled = !hasTracks || !worshipPlayerReady;
+}
+function renderWorshipPlaylist() {
+  const list = $("#worshipPlaylist");
+  if (!list) return;
+  $("#worshipTrackCount").textContent = `${worshipRows.length}곡`;
+  if (!worshipRows.length) {
+    list.innerHTML = '<p class="muted">이번 주 찬양이 아직 등록되지 않았습니다.</p>';
+    return;
+  }
+  list.innerHTML = worshipRows.map((row, index) => `
+    <button class="worship-track-card ${index===worshipCurrentIndex?"active":""}" type="button" data-worship-index="${index}">
+      <span class="worship-track-number">${index+1}</span>
+      <img src="${escapeHtml(row.thumbnail_url || `https://i.ytimg.com/vi/${row.video_id}/mqdefault.jpg`)}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+      <span class="worship-track-copy"><strong>${escapeHtml(row.title)}</strong><small>${escapeHtml(row.channel_title || "YouTube")}</small></span>
+      <span class="worship-track-action">▶</span>
+    </button>`).join("");
+}
+function updateWorshipNowPlaying() {
+  const row = worshipRows[worshipCurrentIndex];
+  if ($("#worshipNowTitle")) $("#worshipNowTitle").textContent = row?.title || "재생할 찬양을 선택해 주세요.";
+  if ($("#worshipNowChannel")) $("#worshipNowChannel").textContent = row?.channel_title || "";
+  renderWorshipPlaylist();
+  updateWorshipControlState();
+}
+function handleWorshipPlayerState(event) {
+  const button = $("#worshipPlayPauseBtn");
+  if (!button || !window.YT) return;
+  if (event.data === window.YT.PlayerState.PLAYING) {
+    button.textContent = "⏸ 일시정지";
+    button.setAttribute("aria-label", "일시정지");
+  } else {
+    button.textContent = "▶ 재생";
+    button.setAttribute("aria-label", "재생");
+  }
+  if (event.data === window.YT.PlayerState.ENDED && getWorshipAutoNext()) {
+    if (worshipCurrentIndex < worshipRows.length - 1) void playWorshipIndex(worshipCurrentIndex + 1, true);
+  }
+}
+async function buildWorshipPlayer() {
+  if (!worshipRows.length || ADMIN_WINDOW) return;
+  try {
+    await ensureYouTubeIframeApi();
+    const target = document.getElementById("youtubePlayer");
+    if (!target) resetYouTubePlayerSurface();
+    const first = worshipRows[worshipCurrentIndex] || worshipRows[0];
+    worshipPlayer = new window.YT.Player("youtubePlayer", {
+      width:"100%", height:"100%", videoId:first.video_id,
+      playerVars:{playsinline:1,rel:0,autoplay:0,controls:1},
+      events:{
+        onReady:(event)=>{
+          worshipPlayerReady = true;
+          event.target.setVolume(getWorshipVolume());
+          updateWorshipControlState();
+          if (worshipPendingAutoplay) {
+            worshipPendingAutoplay = false;
+            event.target.playVideo();
+          }
+        },
+        onStateChange:handleWorshipPlayerState,
+        onError:(event)=>{
+          const status = $("#worshipStatus");
+          if (status) status.textContent = `이 영상은 앱 안에서 재생할 수 없습니다. [YouTube ${event.data}] 다른 곡을 선택해 주세요.`;
+        }
+      }
+    });
+  } catch (error) {
+    console.error("YouTube player init failed", error);
+    if ($("#worshipStatus")) $("#worshipStatus").textContent = "YouTube 플레이어를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.";
+  }
+}
+async function playWorshipIndex(index, autoplay = true) {
+  if (!worshipRows.length) return;
+  const nextIndex = Math.max(0, Math.min(Number(index), worshipRows.length - 1));
+  worshipCurrentIndex = nextIndex;
+  const row = worshipRows[worshipCurrentIndex];
+  updateWorshipNowPlaying();
+  if (!worshipPlayer || !worshipPlayerReady) {
+    worshipPendingAutoplay = autoplay;
+    resetYouTubePlayerSurface();
+    await buildWorshipPlayer();
+    return;
+  }
+  if (autoplay) worshipPlayer.loadVideoById(row.video_id);
+  else worshipPlayer.cueVideoById(row.video_id);
+}
+async function loadStudentWorshipPlaylist() {
+  if (ADMIN_WINDOW || !$("#worshipPlaylist")) return;
+  const sunday = currentWorshipSunday();
+  if ($("#worshipWeekLabel")) $("#worshipWeekLabel").textContent = `${fmtDate(sunday)} 주일`;
+  const status = $("#worshipStatus");
+  if (status) status.textContent = "이번 주 찬양을 불러오는 중입니다…";
+  const {data,error} = await db.from("worship_playlist_items")
+    .select("id,sunday_date,title,video_id,thumbnail_url,channel_title,sort_order")
+    .eq("sunday_date", sunday).eq("published", true).order("sort_order",{ascending:true}).order("created_at",{ascending:true});
+  if (error) {
+    worshipRows = [];
+    renderWorshipPlaylist();
+    resetYouTubePlayerSurface("찬양 목록을 불러오지 못했습니다");
+    if (status) status.textContent = dbErrorMessage(error, "이번 주 찬양을 불러오지 못했습니다. V33 SQL 적용 여부를 확인해 주세요.");
+    return;
+  }
+  worshipRows = data || [];
+  worshipCurrentIndex = 0;
+  renderWorshipPlaylist();
+  if (!worshipRows.length) {
+    resetYouTubePlayerSurface("이번 주 찬양이 아직 없습니다");
+    updateWorshipControlState();
+    if (status) status.textContent = "관리자가 이번 주 찬양을 등록하면 여기에 표시됩니다.";
+    return;
+  }
+  resetYouTubePlayerSurface();
+  updateWorshipNowPlaying();
+  await buildWorshipPlayer();
+  if (status) status.textContent = `이번 주 찬양 ${worshipRows.length}곡을 불러왔습니다. 곡을 선택하거나 재생 버튼을 눌러 주세요.`;
+}
+
+$("#worshipPlaylist")?.addEventListener("click", e => {
+  const card = e.target.closest("[data-worship-index]");
+  if (card) void playWorshipIndex(Number(card.dataset.worshipIndex), true);
+});
+$("#refreshWorshipBtn")?.addEventListener("click", () => loadStudentWorshipPlaylist());
+$("#worshipPlayPauseBtn")?.addEventListener("click", () => {
+  if (!worshipPlayerReady || !worshipPlayer || !window.YT) return;
+  if (worshipPlayer.getPlayerState() === window.YT.PlayerState.PLAYING) worshipPlayer.pauseVideo();
+  else worshipPlayer.playVideo();
+});
+$("#worshipPrevBtn")?.addEventListener("click", () => { if (worshipCurrentIndex > 0) void playWorshipIndex(worshipCurrentIndex - 1, true); });
+$("#worshipNextBtn")?.addEventListener("click", () => { if (worshipCurrentIndex < worshipRows.length - 1) void playWorshipIndex(worshipCurrentIndex + 1, true); });
+$("#worshipVolume")?.addEventListener("input", e => {
+  const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+  localStorage.setItem(WORSHIP_VOLUME_KEY, String(value));
+  if ($("#worshipVolumeValue")) $("#worshipVolumeValue").textContent = `${value}%`;
+  if (worshipPlayerReady) worshipPlayer?.setVolume?.(value);
+});
+$("#worshipAutoNext")?.addEventListener("change", e => localStorage.setItem(WORSHIP_AUTONEXT_KEY, e.target.checked ? "1" : "0"));
+if ($("#worshipVolume")) {
+  const v = getWorshipVolume();
+  $("#worshipVolume").value = String(v);
+  if ($("#worshipVolumeValue")) $("#worshipVolumeValue").textContent = `${v}%`;
+}
+if ($("#worshipAutoNext")) $("#worshipAutoNext").checked = getWorshipAutoNext();
+
+async function loadYoutubeApiKey() {
+  if (!isAdmin) return "";
+  const {data,error} = await db.from("youth_app_settings").select("setting_value").eq("setting_key","youtube_api_key").maybeSingle();
+  if (error) {
+    if ($("#youtubeApiKeyStatus")) $("#youtubeApiKeyStatus").textContent = dbErrorMessage(error, "YouTube API 키 설정을 불러오지 못했습니다.");
+    return "";
+  }
+  youtubeApiKey = String(data?.setting_value || "").trim();
+  if ($("#youtubeApiKeyStatus")) $("#youtubeApiKeyStatus").textContent = youtubeApiKey ? "저장된 YouTube API 키가 있습니다." : "YouTube 검색을 사용하려면 API 키를 한 번 저장해 주세요.";
+  if ($("#youtubeApiKeyInput")) $("#youtubeApiKeyInput").value = "";
+  return youtubeApiKey;
+}
+async function saveYoutubeApiKey() {
+  if (!isAdmin) return;
+  const input = $("#youtubeApiKeyInput");
+  const key = String(input?.value || "").trim();
+  const status = $("#youtubeApiKeyStatus");
+  if (!key) { if (status) status.textContent = "저장할 YouTube API 키를 입력해 주세요."; return; }
+  if (status) status.textContent = "API 키를 저장하는 중입니다…";
+  const {error} = await db.from("youth_app_settings").upsert({setting_key:"youtube_api_key",setting_value:key,updated_at:new Date().toISOString()},{onConflict:"setting_key"});
+  if (error) { if (status) status.textContent = dbErrorMessage(error, "YouTube API 키 저장에 실패했습니다."); return; }
+  youtubeApiKey = key;
+  if (input) input.value = "";
+  if (status) status.textContent = "YouTube API 키가 저장되었습니다. 이제 찬양 제목을 검색할 수 있습니다.";
+}
+function renderYoutubeSearchResults() {
+  const box = $("#youtubeSearchResults");
+  if (!box) return;
+  if (!youtubeSearchRows.length) { box.innerHTML = '<p class="muted">검색 결과가 여기에 표시됩니다.</p>'; return; }
+  box.innerHTML = youtubeSearchRows.map((row,index)=>`
+    <article class="youtube-search-card">
+      <img src="${escapeHtml(row.thumbnail_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+      <div class="youtube-search-copy"><strong>${escapeHtml(row.title)}</strong><small>${escapeHtml(row.channel_title)}</small></div>
+      <button class="primary compact-btn" type="button" data-youtube-add-index="${index}">주일 찬양에 추가</button>
+    </article>`).join("");
+}
+async function searchYoutubeVideos() {
+  if (!isAdmin) return;
+  const query = clean($("#youtubeSearchInput")?.value || "");
+  const status = $("#youtubeSearchStatus");
+  if (!query) { if (status) status.textContent = "검색할 찬양 제목을 입력해 주세요."; return; }
+  if (!youtubeApiKey) await loadYoutubeApiKey();
+  if (!youtubeApiKey) { if (status) status.textContent = "먼저 YouTube Data API 키를 저장해 주세요."; return; }
+  if (status) status.textContent = `“${query}” 검색 중입니다…`;
+  $("#youtubeSearchBtn").disabled = true;
+  try {
+    const params = new URLSearchParams({part:"snippet",q:query,type:"video",videoEmbeddable:"true",maxResults:"8",regionCode:"KR",relevanceLanguage:"ko",safeSearch:"moderate",key:youtubeApiKey});
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload?.error?.message || `YouTube API 오류 ${response.status}`);
+    youtubeSearchRows = (payload.items || []).map(item => ({
+      video_id:item?.id?.videoId,
+      title:decodeYouTubeText(item?.snippet?.title || "제목 없음"),
+      thumbnail_url:item?.snippet?.thumbnails?.medium?.url || item?.snippet?.thumbnails?.default?.url || "",
+      channel_title:decodeYouTubeText(item?.snippet?.channelTitle || "YouTube")
+    })).filter(row=>row.video_id);
+    renderYoutubeSearchResults();
+    if (status) status.textContent = `${youtubeSearchRows.length}개의 임베드 가능한 동영상을 찾았습니다.`;
+  } catch (error) {
+    console.error("YouTube search failed", error);
+    youtubeSearchRows = [];
+    renderYoutubeSearchResults();
+    if (status) status.textContent = `YouTube 검색에 실패했습니다. ${error.message || "API 키와 할당량을 확인해 주세요."}`;
+  } finally { $("#youtubeSearchBtn").disabled = false; }
+}
+async function loadAdminWorshipPlaylist(sunday = $("#worshipSundayPicker")?.value || currentWorshipSunday()) {
+  if (!isAdmin || !$("#adminWorshipPlaylist")) return;
+  const normalizedSunday = sundayForISO(sunday || currentWorshipSunday());
+  if ($("#worshipSundayPicker")) $("#worshipSundayPicker").value = normalizedSunday;
+  if ($("#adminWorshipWeekLabel")) $("#adminWorshipWeekLabel").textContent = `${fmtDate(normalizedSunday)} 주일`;
+  const status = $("#worshipAdminStatus");
+  if (status) status.textContent = "주일 찬양 목록을 불러오는 중입니다…";
+  const {data,error} = await db.from("worship_playlist_items").select("*").eq("sunday_date",normalizedSunday).order("sort_order",{ascending:true}).order("created_at",{ascending:true});
+  if (error) { adminWorshipRows=[]; $("#adminWorshipPlaylist").innerHTML=""; if(status) status.textContent=dbErrorMessage(error,"찬양 목록을 불러오지 못했습니다."); return; }
+  adminWorshipRows = data || [];
+  $("#adminWorshipCount").textContent = `${adminWorshipRows.length}곡`;
+  $("#adminWorshipPlaylist").innerHTML = adminWorshipRows.length ? adminWorshipRows.map((row,index)=>`
+    <article class="admin-worship-track">
+      <span class="admin-worship-order">${index+1}</span>
+      <img src="${escapeHtml(row.thumbnail_url || `https://i.ytimg.com/vi/${row.video_id}/mqdefault.jpg`)}" alt="" loading="lazy" referrerpolicy="no-referrer" />
+      <div class="admin-worship-copy"><strong>${escapeHtml(row.title)}</strong><small>${escapeHtml(row.channel_title || "YouTube")}</small></div>
+      <div class="admin-worship-actions">
+        <button class="ghost compact-btn" type="button" data-worship-move="up" data-worship-id="${escapeHtml(String(row.id))}" ${index===0?"disabled":""}>↑</button>
+        <button class="ghost compact-btn" type="button" data-worship-move="down" data-worship-id="${escapeHtml(String(row.id))}" ${index===adminWorshipRows.length-1?"disabled":""}>↓</button>
+        <button class="ghost danger-outline compact-btn" type="button" data-worship-delete-id="${escapeHtml(String(row.id))}">삭제</button>
+      </div>
+    </article>`).join("") : '<p class="muted">이 주일에 등록된 찬양이 없습니다. 왼쪽에서 검색해 추가해 주세요.</p>';
+  if (status) status.textContent = `선택한 주일에 ${adminWorshipRows.length}곡이 등록되어 있습니다.`;
+}
+async function loadAdminWorship() {
+  if (!isAdmin) return;
+  if ($("#worshipSundayPicker") && !$("#worshipSundayPicker").value) $("#worshipSundayPicker").value = currentWorshipSunday();
+  renderYoutubeSearchResults();
+  await Promise.all([loadYoutubeApiKey(), loadAdminWorshipPlaylist()]);
+}
+async function addYoutubeSearchResult(index) {
+  const row = youtubeSearchRows[index];
+  const sunday = sundayForISO($("#worshipSundayPicker")?.value || currentWorshipSunday());
+  const status = $("#youtubeSearchStatus");
+  if (!row) return;
+  const maxOrder = adminWorshipRows.reduce((m,r)=>Math.max(m,Number(r.sort_order)||0),0);
+  const {error} = await db.from("worship_playlist_items").insert({
+    sunday_date:sunday,title:row.title,video_id:row.video_id,thumbnail_url:row.thumbnail_url,channel_title:row.channel_title,sort_order:maxOrder+10,published:true
+  });
+  if (error) {
+    if (status) status.textContent = error.code === "23505" ? "이 찬양은 이미 선택한 주일 플레이리스트에 있습니다." : dbErrorMessage(error,"찬양 등록에 실패했습니다.");
+    return;
+  }
+  if (status) status.textContent = `“${row.title}”을 ${fmtDate(sunday)} 주일 찬양에 추가했습니다.`;
+  await loadAdminWorshipPlaylist(sunday);
+}
+async function moveAdminWorship(id, direction) {
+  const index = adminWorshipRows.findIndex(row=>String(row.id)===String(id));
+  const otherIndex = direction === "up" ? index-1 : index+1;
+  if (index < 0 || otherIndex < 0 || otherIndex >= adminWorshipRows.length) return;
+  const current = adminWorshipRows[index];
+  const other = adminWorshipRows[otherIndex];
+  const currentOrder = Number(current.sort_order)||((index+1)*10);
+  const otherOrder = Number(other.sort_order)||((otherIndex+1)*10);
+  const [a,b] = await Promise.all([
+    db.from("worship_playlist_items").update({sort_order:otherOrder,updated_at:new Date().toISOString()}).eq("id",current.id),
+    db.from("worship_playlist_items").update({sort_order:currentOrder,updated_at:new Date().toISOString()}).eq("id",other.id)
+  ]);
+  const error = a.error || b.error;
+  if (error) { $("#worshipAdminStatus").textContent = dbErrorMessage(error,"찬양 순서 변경에 실패했습니다."); return; }
+  await loadAdminWorshipPlaylist();
+}
+async function deleteAdminWorship(id) {
+  const row = adminWorshipRows.find(item=>String(item.id)===String(id));
+  if (!row || !confirm(`“${row.title}”을 이번 주 찬양에서 삭제할까요?`)) return;
+  const {data,error} = await db.from("worship_playlist_items").delete().eq("id",id).select("id");
+  if (error || !data?.length) { $("#worshipAdminStatus").textContent = error ? dbErrorMessage(error,"찬양 삭제에 실패했습니다.") : "삭제할 찬양을 찾지 못했습니다."; return; }
+  await loadAdminWorshipPlaylist();
+  $("#worshipAdminStatus").textContent = "찬양이 삭제되었습니다.";
+}
+
+$("#saveYoutubeApiKeyBtn")?.addEventListener("click", saveYoutubeApiKey);
+$("#youtubeSearchForm")?.addEventListener("submit", e => { e.preventDefault(); void searchYoutubeVideos(); });
+$("#youtubeSearchResults")?.addEventListener("click", e => {
+  const btn = e.target.closest("[data-youtube-add-index]");
+  if (btn) void addYoutubeSearchResult(Number(btn.dataset.youtubeAddIndex));
+});
+$("#worshipSundayPicker")?.addEventListener("change", e => {
+  const sunday = sundayForISO(e.target.value || currentWorshipSunday());
+  e.target.value = sunday;
+  void loadAdminWorshipPlaylist(sunday);
+});
+$("#refreshWorshipAdminBtn")?.addEventListener("click", () => loadAdminWorship());
+$("#adminWorshipPlaylist")?.addEventListener("click", e => {
+  const move = e.target.closest("[data-worship-move]");
+  if (move) { void moveAdminWorship(move.dataset.worshipId, move.dataset.worshipMove); return; }
+  const del = e.target.closest("[data-worship-delete-id]");
+  if (del) void deleteAdminWorship(del.dataset.worshipDeleteId);
+});
+
 const ADMIN_TAB_META = {
   word:{title:"말씀 관리",badge:"말씀",description:"새 말씀을 등록하거나 지난 말씀을 선택해 수정·삭제할 수 있습니다."},
   study:{title:"성경공부 관리",badge:"성경공부",description:"말씀 주차를 선택한 뒤 성경공부 제목과 질문을 등록·수정·삭제할 수 있습니다."},
   notice:{title:"공지사항 관리",badge:"공지",description:"새 공지를 등록하거나 기존 공지를 선택해 수정·삭제할 수 있습니다."},
   prayer:{title:"기도제목 관리",badge:"기도",description:"학생들이 제출한 기도제목을 주일별로 확인하고 필요한 기록을 삭제할 수 있습니다."},
   gratitude:{title:"감사기도 챌린지",badge:"감사 챌린지",description:"학생별 현재·최고 연속일과 누적 기록을 확인하고 감사기도를 주일별로 관리합니다."},
+  worship:{title:"찬양 관리",badge:"찬양",description:"YouTube에서 찬양 제목을 검색하고 썸네일을 확인한 뒤 주일별 플레이리스트에 등록·정렬·삭제합니다."},
   board:{title:"익명게시판 관리",badge:"익명글",description:"익명 게시글을 주일별로 모아 확인하고 개별 삭제할 수 있습니다."},
   newfriend:{title:"새친구 관리",badge:"새친구",description:"학년·이름·학교와 관리자 전용 연락처·인도자·기타정보를 함께 확인하고 관리합니다."},
   records:{title:"학생 제출 통계",badge:"통계",description:"제출 내용은 숨기고 말씀쓰기·성경공부·기도·감사·익명 제출 건수만 주일별로 집계합니다."},
@@ -1790,6 +2163,7 @@ async function refreshActiveAdminTab(tab=activeAdminTab) {
   else if (tab === "notice") await loadAdminNoticeOptions(adminNoticeId);
   else if (tab === "prayer") await loadAdminPrayers();
   else if (tab === "gratitude") await loadAdminGratitude();
+  else if (tab === "worship") await loadAdminWorship();
   else if (tab === "board") await loadAdminBoardGroups();
   else if (tab === "newfriend") await loadAdminNewFriends();
   else if (tab === "records") await loadAdminRecords();
@@ -2821,4 +3195,4 @@ if(session?.user) await verifyAdmin(session.user);
 
 renderGratitudeChallenge();
 void loadWeather();
-await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar(),loadGratitudeLeaders(),loadPublicGratitudeFeed(),loadNewFriendPublicList()]);
+await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar(),loadGratitudeLeaders(),loadPublicGratitudeFeed(),loadNewFriendPublicList(),loadStudentWorshipPlaylist()]);

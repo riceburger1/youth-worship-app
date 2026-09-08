@@ -112,6 +112,7 @@
         <button class="tab" data-tab="prayer">기도제목</button>
         <button class="tab" data-tab="notice">공지사항</button>
         <button class="tab" data-tab="gratitude">감사기도</button>
+        <button class="tab" data-tab="worship">찬양</button>
         <button class="tab" data-tab="board">익명게시판</button>
         <button class="tab" data-tab="newfriend">새친구</button>
       </nav>
@@ -295,6 +296,59 @@
         </div>
       </section>
 
+      <section id="worship" class="panel card hidden">
+        <div class="section-head worship-head">
+          <div>
+            <span class="eyebrow">이번 주 예배 찬양</span>
+            <h2>🎵 이번 주 찬양 플레이리스트</h2>
+            <p id="worshipWeekLabel" class="muted">이번 주 찬양을 불러오는 중입니다.</p>
+          </div>
+          <button id="refreshWorshipBtn" class="ghost compact-btn" type="button">새로고침</button>
+        </div>
+
+        <div class="worship-player-shell">
+          <div class="worship-video-wrap">
+            <div id="youtubePlayer" class="youtube-player-placeholder" aria-label="YouTube 찬양 플레이어">
+              <div class="youtube-placeholder-inner">
+                <span aria-hidden="true">▶️</span>
+                <strong>찬양을 선택해 주세요</strong>
+                <small>관리자가 등록한 이번 주 찬양이 여기에 재생됩니다.</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="worship-now-playing">
+            <span class="eyebrow">NOW PLAYING</span>
+            <h3 id="worshipNowTitle">재생할 찬양을 선택해 주세요.</h3>
+            <p id="worshipNowChannel" class="muted"></p>
+          </div>
+
+          <div class="worship-controls" aria-label="찬양 재생 제어">
+            <button id="worshipPrevBtn" class="ghost worship-control-btn" type="button" disabled aria-label="이전 곡">⏮ 이전곡</button>
+            <button id="worshipPlayPauseBtn" class="primary worship-control-btn worship-play-btn" type="button" disabled aria-label="재생">▶ 재생</button>
+            <button id="worshipNextBtn" class="ghost worship-control-btn" type="button" disabled aria-label="다음 곡">다음곡 ⏭</button>
+          </div>
+
+          <div class="worship-options">
+            <label class="worship-volume-label" for="worshipVolume">
+              <span>🔊 볼륨</span>
+              <input id="worshipVolume" type="range" min="0" max="100" value="70" step="1" disabled />
+              <strong id="worshipVolumeValue">70%</strong>
+            </label>
+            <label class="check-row worship-auto-next"><input id="worshipAutoNext" type="checkbox" checked /> 곡이 끝나면 자동으로 다음 곡 재생</label>
+          </div>
+        </div>
+
+        <div class="worship-playlist-wrap">
+          <div class="section-head compact">
+            <h3>이번 주 찬양 목록</h3>
+            <span id="worshipTrackCount" class="pill">0곡</span>
+          </div>
+          <div id="worshipPlaylist" class="worship-playlist"></div>
+          <p id="worshipStatus" class="status"></p>
+        </div>
+      </section>
+
       <section id="board" class="panel card hidden">
         <span class="eyebrow">자유롭게 남겨 주세요</span>
         <h2>익명 건의 · 문의 게시판</h2>
@@ -382,7 +436,7 @@
           <div>
             <span class="eyebrow">관리자 전용</span>
             <h2>주의울림 관리자</h2>
-            <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 감사기도 · 새친구 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
+            <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 감사기도 · 찬양 · 새친구 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
           </div>
           <div class="admin-head-actions">
             <a class="ghost admin-student-link" href="./" target="_blank" rel="noopener">학생 화면 보기 ↗</a>
@@ -404,6 +458,7 @@
             <button class="admin-tab" type="button" data-admin-tab="notice">📢 공지사항</button>
             <button class="admin-tab" type="button" data-admin-tab="prayer">🙏 기도제목</button>
             <button class="admin-tab" type="button" data-admin-tab="gratitude">🔥 감사기도</button>
+            <button class="admin-tab" type="button" data-admin-tab="worship">🎵 찬양 관리</button>
             <button class="admin-tab" type="button" data-admin-tab="board">💬 익명게시판</button>
             <button class="admin-tab" type="button" data-admin-tab="newfriend">👋 새친구</button>
             <button class="admin-tab" type="button" data-admin-tab="records">📊 학생 제출</button>
@@ -553,6 +608,59 @@
                   <p class="muted">작성 내용을 주일별로 확인하고 필요한 기록은 개별 삭제할 수 있습니다.</p>
                 </div>
                 <div id="adminGratitudeGroups" class="weekly-record-groups"></div>
+              </div>
+            </section>
+
+            <section class="subcard admin-editor-card admin-span-2 worship-admin-card" data-admin-panel="worship">
+              <div class="admin-editor-head">
+                <div>
+                  <h3>🎵 주일 찬양 관리</h3>
+                  <p class="muted admin-mode-label">찬양 제목을 YouTube에서 검색하고 썸네일을 확인한 뒤 이번 주 플레이리스트에 바로 추가할 수 있습니다.</p>
+                </div>
+                <button id="refreshWorshipAdminBtn" class="ghost compact-btn" type="button">목록 새로고침</button>
+              </div>
+
+              <div class="youtube-key-card">
+                <div>
+                  <strong>YouTube Data API 키</strong>
+                  <p class="muted">최초 1회 저장하면 관리자 검색에서 사용합니다. Google Cloud에서 발급한 키는 GitHub Pages 주소로 HTTP 리퍼러 제한을 권장합니다.</p>
+                </div>
+                <div class="youtube-key-row">
+                  <input id="youtubeApiKeyInput" type="password" autocomplete="off" placeholder="YouTube Data API v3 키 입력" />
+                  <button id="saveYoutubeApiKeyBtn" class="ghost" type="button">API 키 저장</button>
+                </div>
+                <p id="youtubeApiKeyStatus" class="status"></p>
+              </div>
+
+              <div class="worship-admin-grid">
+                <div class="worship-search-panel">
+                  <label>주일 선택
+                    <input id="worshipSundayPicker" type="date" />
+                  </label>
+                  <form id="youtubeSearchForm" class="youtube-search-form">
+                    <label>찬양 제목 검색
+                      <div class="youtube-search-row">
+                        <input id="youtubeSearchInput" type="search" maxlength="120" placeholder="예: 입례 WELOVE, 주가 일하시네" />
+                        <button id="youtubeSearchBtn" class="primary" type="submit">YouTube 검색</button>
+                      </div>
+                    </label>
+                  </form>
+                  <p class="muted small-note">검색 버튼을 눌렀을 때만 YouTube API를 호출합니다. 임베드 가능한 동영상만 검색합니다.</p>
+                  <p id="youtubeSearchStatus" class="status"></p>
+                  <div id="youtubeSearchResults" class="youtube-search-results"></div>
+                </div>
+
+                <div class="worship-admin-playlist-panel">
+                  <div class="section-head compact">
+                    <div>
+                      <h4>선택한 주일 플레이리스트</h4>
+                      <p id="adminWorshipWeekLabel" class="muted">주일을 선택해 주세요.</p>
+                    </div>
+                    <span id="adminWorshipCount" class="pill">0곡</span>
+                  </div>
+                  <div id="adminWorshipPlaylist" class="admin-worship-playlist"></div>
+                  <p id="worshipAdminStatus" class="status"></p>
+                </div>
               </div>
             </section>
 
