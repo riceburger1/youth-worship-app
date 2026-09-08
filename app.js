@@ -2988,7 +2988,9 @@ async function directSaveNotice(payload) {
 }
 
 async function saveNotice(payload) {
-  const rpc = await db.rpc("youth_admin_save_notice", {
+  // V43: 기존 공지 수정은 전용 RPC를 우선 사용합니다.
+  // 예전 youth_admin_save_notice 함수가 남아 있어도 더 이상 호출하지 않습니다.
+  const rpc = await db.rpc("youth_admin_upsert_notice_v43", {
     p_notice_id: adminNoticeId || null,
     p_title: payload.title,
     p_event_date: payload.event_date,
@@ -2996,11 +2998,31 @@ async function saveNotice(payload) {
     p_banner: payload.banner,
     p_published: payload.published
   });
-  if (!rpc.error) return {id:String(rpc.data)};
-  if (["PGRST202","42883"].includes(rpc.error.code) || String(rpc.error.message || "").includes("youth_admin_save_notice")) {
+  if (!rpc.error && rpc.data) return {id:String(rpc.data)};
+  if (rpc.error && isMissingRpc(rpc.error, "youth_admin_upsert_notice_v43")) {
     return directSaveNotice(payload);
   }
-  return {error:rpc.error};
+  return {error:rpc.error || {code:"PGRST116", message:"공지 저장 결과를 확인하지 못했습니다."}};
+}
+
+function normalizeNoticeCompare(value) {
+  return String(value ?? "").replace(/\r\n?/g,"\n").replace(/[ \t]+$/gm,"").trim();
+}
+
+async function verifySavedNotice(noticeId, expected) {
+  const { data, error } = await db.from("notices")
+    .select("id,title,event_date,body,banner,published")
+    .eq("id", noticeId)
+    .maybeSingle();
+  if (error) return {error};
+  if (!data) return {error:{code:"PGRST116",message:"저장한 공지사항을 다시 찾지 못했습니다."}};
+  const same =
+    normalizeNoticeCompare(data.title) === normalizeNoticeCompare(expected.title) &&
+    String(data.event_date || "") === String(expected.event_date || "") &&
+    normalizeNoticeCompare(data.body) === normalizeNoticeCompare(expected.body) &&
+    Boolean(data.banner) === Boolean(expected.banner) &&
+    Boolean(data.published) === Boolean(expected.published);
+  return same ? {data} : {error:{code:"NOTICE_VERIFY",message:"저장 요청 후 DB 값이 일치하지 않습니다. 다시 한 번 저장해 주세요."}};
 }
 
 $("#noticeAdminForm").addEventListener("submit", async e => {
@@ -3025,9 +3047,16 @@ $("#noticeAdminForm").addEventListener("submit", async e => {
     return;
   }
   adminNoticeId = String(result.id);
-  await loadNotices();
-  await loadAdminNoticeOptions(adminNoticeId);
-  status.textContent = wasEditing ? "공지사항이 수정되었습니다." : "공지사항이 등록되었습니다.";
+  const verify = await verifySavedNotice(adminNoticeId, payload);
+  if (verify.error) {
+    status.textContent = dbErrorMessage(verify.error, "공지 저장 여부를 확인하지 못했습니다.");
+    await loadAdminNoticeOptions(adminNoticeId);
+    return;
+  }
+  await Promise.all([loadNotices(), loadAdminNoticeOptions(adminNoticeId)]);
+  status.textContent = wasEditing
+    ? "공지사항 수정이 저장되었습니다. 선택한 공지를 그대로 유지합니다."
+    : "공지사항이 등록되었습니다.";
 });
 
 async function directDeleteNotice(noticeId) {
