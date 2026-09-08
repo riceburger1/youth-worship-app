@@ -880,3 +880,35 @@ main > #weatherSection{
 .notice-body{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;line-height:1.7}
 .latest-notice-date{display:block;margin-bottom:6px;opacity:.86}
 .latest-notice-body{margin-top:2px}
+
+/* ============================================================
+   V41 · 학생 찬양 관리자 전용 모드
+   ============================================================ */
+.role-hidden{display:none!important}
+.worship-signup-form{margin-top:14px;padding-top:16px;border-top:1px solid var(--line,#e5e7eb)}
+.signup-intro{grid-column:1/-1;margin-bottom:4px}
+.signup-intro strong{display:block;font-size:1rem;margin-bottom:4px}
+.signup-intro p{margin:0}
+#adminRoleBadge{white-space:nowrap}
+.worship-manager-admin-card{margin:0 0 16px;padding:16px;border:1px solid rgba(124,92,255,.2);border-radius:18px;background:rgba(124,92,255,.045)}
+.worship-manager-approve-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;margin-top:12px}
+.worship-manager-approve-row input{min-width:0}
+.worship-manager-list{display:grid;gap:8px;margin-top:12px}
+.worship-manager-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid var(--line,#e5e7eb);border-radius:14px;background:var(--card,#fff)}
+.worship-manager-row>div{min-width:0;display:grid;gap:2px}
+.worship-manager-row strong{overflow-wrap:anywhere}
+.worship-manager-row small{color:var(--muted,#6b7280)}
+.worship-manager-only-note{margin:0 0 16px;padding:14px 16px;border-radius:16px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.18)}
+.worship-manager-only-note strong{display:block;margin-bottom:4px}
+.worship-manager-only-note p{margin:0;color:var(--muted,#6b7280);font-size:.92rem;line-height:1.5}
+body.worship-manager-mode .admin-tabs{grid-template-columns:1fr;max-width:420px}
+body.worship-manager-mode .admin-section-info{border-color:rgba(16,185,129,.2)}
+body.worship-manager-mode .worship-admin-card{grid-column:1/-1}
+
+@media (max-width:640px){
+  .worship-manager-approve-row{grid-template-columns:1fr}
+  .worship-manager-approve-row .primary{width:100%}
+  .worship-manager-row{align-items:flex-start;flex-direction:column}
+  .worship-manager-row button{width:100%}
+  #adminRoleBadge{font-size:.74rem;padding:5px 8px}
+}

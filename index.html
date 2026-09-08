@@ -424,15 +424,31 @@
 <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 감사기도 · 찬양 · 새친구 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
 </div>
 <div class="admin-head-actions">
+<span class="pill hidden" id="adminRoleBadge">관리자</span>
 <a class="ghost admin-student-link" href="./" rel="noopener" target="_blank">학생 화면 보기 ↗</a>
 <button class="ghost hidden" id="adminLogoutBtn" type="button">로그아웃</button>
 </div>
 </div>
 <form class="admin-login" id="adminLoginForm">
-<label>관리자 이메일<input autocomplete="username" id="adminEmail" required="" type="email"/></label>
+<label>관리자 / 찬양 관리자 이메일<input autocomplete="username" id="adminEmail" required="" type="email"/></label>
 <label>비밀번호<input autocomplete="current-password" id="adminPassword" required="" type="password"/></label>
-<button class="primary" type="submit">관리자 로그인</button>
+<button class="primary" type="submit">로그인</button>
+<button class="ghost" id="toggleWorshipSignupBtn" type="button">학생 찬양 관리자 계정 만들기</button>
 <p class="status" id="adminLoginStatus"></p>
+</form>
+<form class="admin-login worship-signup-form hidden" id="worshipSignupForm">
+<div class="signup-intro">
+<strong>🎵 학생 찬양 관리자 계정 만들기</strong>
+<p class="muted">학생이 사용할 이메일과 비밀번호로 계정을 만든 뒤, 전체 관리자가 찬양 관리 탭에서 승인하면 사용할 수 있습니다.</p>
+</div>
+<label>이메일<input autocomplete="email" id="worshipSignupEmail" required="" type="email"/></label>
+<label>비밀번호<input autocomplete="new-password" id="worshipSignupPassword" minlength="6" required="" type="password"/></label>
+<label>비밀번호 확인<input autocomplete="new-password" id="worshipSignupPasswordConfirm" minlength="6" required="" type="password"/></label>
+<div class="admin-action-row">
+<button class="primary" type="submit">계정 만들기</button>
+<button class="ghost" id="cancelWorshipSignupBtn" type="button">취소</button>
+</div>
+<p class="status" id="worshipSignupStatus"></p>
 </form>
 <div class="hidden" id="adminWorkspace">
 <nav aria-label="관리자 메뉴" class="admin-tabs" id="adminTabs">
@@ -592,7 +608,26 @@
 </div>
 <button class="ghost compact-btn" id="refreshWorshipAdminBtn" type="button">목록 새로고침</button>
 </div>
-<div class="youtube-key-card">
+<section class="worship-manager-admin-card" id="worshipManagerAdminCard">
+<div class="admin-editor-head">
+<div>
+<h4>👥 학생 찬양 관리자</h4>
+<p class="muted">학생이 먼저 ‘학생 찬양 관리자 계정 만들기’로 가입한 뒤 이메일을 입력해 승인하세요. 승인된 학생은 찬양 목록만 관리할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshWorshipManagersBtn" type="button">목록 새로고침</button>
+</div>
+<div class="worship-manager-approve-row">
+<input id="worshipManagerEmail" type="email" autocomplete="off" placeholder="학생 이메일 입력"/>
+<button class="primary" id="approveWorshipManagerBtn" type="button">찬양 관리자 승인</button>
+</div>
+<p class="status" id="worshipManagerStatus"></p>
+<div class="worship-manager-list" id="worshipManagerList"></div>
+</section>
+<div class="worship-manager-only-note hidden" id="worshipManagerOnlyNote">
+<strong>🎵 찬양 관리자 모드</strong>
+<p>이 계정은 주일별 찬양 검색·등록·순서 변경·삭제만 할 수 있습니다. 다른 학생 기록과 관리자 메뉴에는 접근할 수 없습니다.</p>
+</div>
+<div class="youtube-key-card" id="youtubeKeyAdminCard">
 <div>
 <strong>YouTube Data API 키</strong>
 <p class="muted">최초 1회 저장하면 관리자 검색에서 사용합니다. Google Cloud에서 발급한 키는 GitHub Pages 주소로 HTTP 리퍼러 제한을 권장합니다.</p>

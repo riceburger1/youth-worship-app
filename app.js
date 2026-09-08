@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v40-notice-linebreak-preserve";
+const APP_VERSION = "v41-student-worship-manager";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -220,7 +220,7 @@ async function checkSupabaseConnection({reloadData=false} = {}) {
 
     if (reloadData) {
       await Promise.all([loadWeekly(), loadNotices(), loadBoard(), loadPublicEventCalendar(), loadGratitudeLeaders(), loadStudentWorshipPlaylist()]);
-      if (isAdmin) {
+      if (isAdmin || isWorshipManager()) {
         await refreshActiveAdminTab(activeAdminTab);
       }
     }
@@ -242,6 +242,7 @@ let studyViewWeekly = null;
 let questions = [];
 let deferredPrompt = null;
 let isAdmin = false;
+let adminRole = null;
 let gratitudeCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let gratitudeEditingDate = null;
 let adminWordId = null;
@@ -286,6 +287,11 @@ let worshipPlayerApiPromise = null;
 let youtubeApiKey = "";
 let adminWorshipRows = [];
 let youtubeSearchRows = [];
+let worshipManagerRows = [];
+
+function isFullAdmin() { return adminRole === "admin"; }
+function isWorshipManager() { return adminRole === "worship_manager"; }
+function canManageWorship() { return isFullAdmin() || isWorshipManager(); }
 
 function profile() {
   return { grade: $("#grade")?.value || "", name: clean($("#studentName")?.value || "") };
@@ -2163,7 +2169,7 @@ $("#worshipAutoNext")?.addEventListener("change", e => localStorage.setItem(WORS
 if ($("#worshipAutoNext")) $("#worshipAutoNext").checked = getWorshipAutoNext();
 
 async function loadYoutubeApiKey() {
-  if (!isAdmin) return "";
+  if (!canManageWorship()) return "";
   const {data,error} = await db.from("youth_app_settings").select("setting_value").eq("setting_key","youtube_api_key").maybeSingle();
   if (error) {
     if ($("#youtubeApiKeyStatus")) $("#youtubeApiKeyStatus").textContent = dbErrorMessage(error, "YouTube API 키 설정을 불러오지 못했습니다.");
@@ -2175,7 +2181,7 @@ async function loadYoutubeApiKey() {
   return youtubeApiKey;
 }
 async function saveYoutubeApiKey() {
-  if (!isAdmin) return;
+  if (!isFullAdmin()) return;
   const input = $("#youtubeApiKeyInput");
   const key = String(input?.value || "").trim();
   const status = $("#youtubeApiKeyStatus");
@@ -2199,12 +2205,12 @@ function renderYoutubeSearchResults() {
     </article>`).join("");
 }
 async function searchYoutubeVideos() {
-  if (!isAdmin) return;
+  if (!canManageWorship()) return;
   const query = clean($("#youtubeSearchInput")?.value || "");
   const status = $("#youtubeSearchStatus");
   if (!query) { if (status) status.textContent = "검색할 찬양 제목을 입력해 주세요."; return; }
   if (!youtubeApiKey) await loadYoutubeApiKey();
-  if (!youtubeApiKey) { if (status) status.textContent = "먼저 YouTube Data API 키를 저장해 주세요."; return; }
+  if (!youtubeApiKey) { if (status) status.textContent = isWorshipManager() ? "YouTube 검색 설정이 없습니다. 전체 관리자에게 API 키 등록을 요청해 주세요." : "먼저 YouTube Data API 키를 저장해 주세요."; return; }
   if (status) status.textContent = `“${query}” 검색 중입니다…`;
   $("#youtubeSearchBtn").disabled = true;
   try {
@@ -2228,7 +2234,7 @@ async function searchYoutubeVideos() {
   } finally { $("#youtubeSearchBtn").disabled = false; }
 }
 async function loadAdminWorshipPlaylist(sunday = $("#worshipSundayPicker")?.value || currentWorshipSunday()) {
-  if (!isAdmin || !$("#adminWorshipPlaylist")) return;
+  if (!canManageWorship() || !$("#adminWorshipPlaylist")) return;
   const normalizedSunday = sundayForISO(sunday || currentWorshipSunday());
   if ($("#worshipSundayPicker")) $("#worshipSundayPicker").value = normalizedSunday;
   if ($("#adminWorshipWeekLabel")) $("#adminWorshipWeekLabel").textContent = `${fmtDate(normalizedSunday)} 주일`;
@@ -2252,12 +2258,15 @@ async function loadAdminWorshipPlaylist(sunday = $("#worshipSundayPicker")?.valu
   if (status) status.textContent = `선택한 주일에 ${adminWorshipRows.length}곡이 등록되어 있습니다.`;
 }
 async function loadAdminWorship() {
-  if (!isAdmin) return;
+  if (!canManageWorship()) return;
   if ($("#worshipSundayPicker") && !$("#worshipSundayPicker").value) $("#worshipSundayPicker").value = currentWorshipSunday();
   renderYoutubeSearchResults();
-  await Promise.all([loadYoutubeApiKey(), loadAdminWorshipPlaylist()]);
+  const jobs = [loadYoutubeApiKey(), loadAdminWorshipPlaylist()];
+  if (isFullAdmin()) jobs.push(loadWorshipManagers());
+  await Promise.all(jobs);
 }
 async function addYoutubeSearchResult(index) {
+  if (!canManageWorship()) return;
   const row = youtubeSearchRows[index];
   const sunday = sundayForISO($("#worshipSundayPicker")?.value || currentWorshipSunday());
   const status = $("#youtubeSearchStatus");
@@ -2274,6 +2283,7 @@ async function addYoutubeSearchResult(index) {
   await loadAdminWorshipPlaylist(sunday);
 }
 async function moveAdminWorship(id, direction) {
+  if (!canManageWorship()) return;
   const index = adminWorshipRows.findIndex(row=>String(row.id)===String(id));
   const otherIndex = direction === "up" ? index-1 : index+1;
   if (index < 0 || otherIndex < 0 || otherIndex >= adminWorshipRows.length) return;
@@ -2290,6 +2300,7 @@ async function moveAdminWorship(id, direction) {
   await loadAdminWorshipPlaylist();
 }
 async function deleteAdminWorship(id) {
+  if (!canManageWorship()) return;
   const row = adminWorshipRows.find(item=>String(item.id)===String(id));
   if (!row || !confirm(`“${row.title}”을 이번 주 찬양에서 삭제할까요?`)) return;
   const {data,error} = await db.from("worship_playlist_items").delete().eq("id",id).select("id");
@@ -2298,7 +2309,75 @@ async function deleteAdminWorship(id) {
   $("#worshipAdminStatus").textContent = "찬양이 삭제되었습니다.";
 }
 
+function renderWorshipManagers() {
+  const box = $("#worshipManagerList");
+  if (!box) return;
+  if (!isFullAdmin()) { box.innerHTML = ""; return; }
+  if (!worshipManagerRows.length) {
+    box.innerHTML = '<p class="muted">현재 승인된 학생 찬양 관리자가 없습니다.</p>';
+    return;
+  }
+  box.innerHTML = worshipManagerRows.map(row => `
+    <article class="worship-manager-row">
+      <div>
+        <strong>${escapeHtml(row.email || "이메일 없음")}</strong>
+        <small>찬양 관리자</small>
+      </div>
+      <button class="ghost danger-outline compact-btn" type="button" data-revoke-worship-manager="${escapeHtml(String(row.user_id))}" data-manager-email="${escapeHtml(row.email || "")}">권한 해제</button>
+    </article>`).join("");
+}
+
+async function loadWorshipManagers() {
+  if (!isFullAdmin() || !$("#worshipManagerList")) return;
+  const status = $("#worshipManagerStatus");
+  if (status) status.textContent = "찬양 관리자 목록을 불러오는 중입니다…";
+  const {data,error} = await db.rpc("youth_admin_list_worship_managers_v41");
+  if (error) {
+    worshipManagerRows = [];
+    renderWorshipManagers();
+    if (status) status.textContent = dbErrorMessage(error, "찬양 관리자 목록을 불러오지 못했습니다. V41 SQL을 먼저 실행해 주세요.");
+    return;
+  }
+  worshipManagerRows = data || [];
+  renderWorshipManagers();
+  if (status) status.textContent = `승인된 학생 찬양 관리자 ${worshipManagerRows.length}명`;
+}
+
+async function approveWorshipManager() {
+  if (!isFullAdmin()) return;
+  const email = clean($("#worshipManagerEmail")?.value || "").toLowerCase();
+  const status = $("#worshipManagerStatus");
+  if (!email || !email.includes("@")) { if (status) status.textContent = "승인할 학생 이메일을 정확히 입력해 주세요."; return; }
+  const btn = $("#approveWorshipManagerBtn");
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = "찬양 관리자 권한을 승인하는 중입니다…";
+  const {data,error} = await db.rpc("youth_admin_set_worship_manager_v41", {p_email:email, p_enabled:true});
+  if (btn) btn.disabled = false;
+  if (error) { if (status) status.textContent = dbErrorMessage(error, "찬양 관리자 승인에 실패했습니다."); return; }
+  if (!data?.ok) { if (status) status.textContent = data?.message || "해당 이메일의 계정을 찾지 못했습니다."; return; }
+  if ($("#worshipManagerEmail")) $("#worshipManagerEmail").value = "";
+  if (status) status.textContent = `${email} 계정을 찬양 관리자로 승인했습니다.`;
+  await loadWorshipManagers();
+}
+
+async function revokeWorshipManager(userId, email="") {
+  if (!isFullAdmin()) return;
+  if (!confirm(`${email || "이 계정"}의 찬양 관리자 권한을 해제할까요?`)) return;
+  const status = $("#worshipManagerStatus");
+  const {data,error} = await db.rpc("youth_admin_set_worship_manager_v41", {p_email:email, p_enabled:false});
+  if (error) { if (status) status.textContent = dbErrorMessage(error, "찬양 관리자 권한 해제에 실패했습니다."); return; }
+  if (!data?.ok) { if (status) status.textContent = data?.message || "권한을 해제하지 못했습니다."; return; }
+  if (status) status.textContent = `${email || "선택한 계정"}의 찬양 관리자 권한을 해제했습니다.`;
+  await loadWorshipManagers();
+}
+
 $("#saveYoutubeApiKeyBtn")?.addEventListener("click", saveYoutubeApiKey);
+$("#approveWorshipManagerBtn")?.addEventListener("click", () => void approveWorshipManager());
+$("#refreshWorshipManagersBtn")?.addEventListener("click", () => void loadWorshipManagers());
+$("#worshipManagerList")?.addEventListener("click", e => {
+  const btn = e.target.closest("[data-revoke-worship-manager]");
+  if (btn) void revokeWorshipManager(btn.dataset.revokeWorshipManager, btn.dataset.managerEmail || "");
+});
 $("#youtubeSearchForm")?.addEventListener("submit", e => { e.preventDefault(); void searchYoutubeVideos(); });
 $("#youtubeSearchResults")?.addEventListener("click", e => {
   const btn = e.target.closest("[data-youtube-add-index]");
@@ -2331,7 +2410,12 @@ const ADMIN_TAB_META = {
 };
 
 async function refreshActiveAdminTab(tab=activeAdminTab) {
-  if (!isAdmin) return;
+  if (isWorshipManager()) {
+    if (tab !== "worship") return;
+    await loadAdminWorship();
+    return;
+  }
+  if (!isFullAdmin()) return;
   if (tab === "word") await Promise.all([loadAdminWordOptions(adminWordId), loadAdminWordSubmissions()]);
   else if (tab === "study") await Promise.all([loadAdminStudyOptions(adminStudyId), loadAdminStudySubmissions()]);
   else if (tab === "notice") await loadAdminNoticeOptions(adminNoticeId);
@@ -2345,22 +2429,27 @@ async function refreshActiveAdminTab(tab=activeAdminTab) {
 }
 
 function setAdminTab(tab, {reload=true}={}) {
-  if (!ADMIN_TAB_META[tab]) tab = "word";
+  if (isWorshipManager()) tab = "worship";
+  if (!ADMIN_TAB_META[tab]) tab = isWorshipManager() ? "worship" : "word";
   activeAdminTab = tab;
   sessionStorage.setItem("주의울림-admin-tab-v17", tab);
   $$(".admin-tab").forEach(btn => {
-    const active = btn.dataset.adminTab === tab;
+    const allowed = !isWorshipManager() || btn.dataset.adminTab === "worship";
+    btn.classList.toggle("role-hidden", !allowed);
+    const active = allowed && btn.dataset.adminTab === tab;
     btn.classList.toggle("active", active);
     btn.setAttribute("aria-selected", active ? "true" : "false");
   });
   $$('[data-admin-panel]').forEach(panel => {
-    panel.classList.toggle("admin-panel-active", panel.dataset.adminPanel === tab);
+    const allowed = !isWorshipManager() || panel.dataset.adminPanel === "worship";
+    panel.classList.toggle("role-hidden", !allowed);
+    panel.classList.toggle("admin-panel-active", allowed && panel.dataset.adminPanel === tab);
   });
   const meta = ADMIN_TAB_META[tab];
-  if ($("#adminSectionTitle")) $("#adminSectionTitle").textContent = meta.title;
-  if ($("#adminSectionDescription")) $("#adminSectionDescription").textContent = meta.description;
-  if ($("#adminSectionBadge")) $("#adminSectionBadge").textContent = meta.badge;
-  if (reload && isAdmin) refreshActiveAdminTab(tab).catch(err => console.error("관리자 탭 새로고침 실패", err));
+  if ($("#adminSectionTitle")) $("#adminSectionTitle").textContent = isWorshipManager() ? "찬양 관리" : meta.title;
+  if ($("#adminSectionDescription")) $("#adminSectionDescription").textContent = isWorshipManager() ? "주일별 찬양을 검색·등록하고 순서를 바꾸거나 삭제할 수 있습니다." : meta.description;
+  if ($("#adminSectionBadge")) $("#adminSectionBadge").textContent = isWorshipManager() ? "학생 찬양 관리자" : meta.badge;
+  if (reload && (isFullAdmin() || isWorshipManager())) refreshActiveAdminTab(tab).catch(err => console.error("관리자 탭 새로고침 실패", err));
 }
 
 $("#adminTabs")?.addEventListener("click", e => {
@@ -2380,7 +2469,7 @@ function applyAdminWindowMode() {
   if (!ADMIN_WINDOW) return;
   document.body.classList.add("admin-window");
   document.title = "주의울림 관리자 | 양정중앙교회 청소년부";
-  $(".brand .subtitle").textContent = "관리자 콘텐츠 · 제출 기록 관리";
+  $(".brand .subtitle").textContent = "관리자 로그인";
   $("#adminPanel").classList.remove("hidden");
   setAdminTab(activeAdminTab, {reload:false});
 }
@@ -2394,28 +2483,85 @@ $("#adminLoginForm").addEventListener("submit", async e => {
   await verifyAdmin(data.user);
 });
 
+function setWorshipSignupOpen(open) {
+  $("#worshipSignupForm")?.classList.toggle("hidden", !open);
+  $("#adminLoginForm")?.classList.toggle("hidden", open);
+  if (open) $("#worshipSignupEmail")?.focus();
+}
+$("#toggleWorshipSignupBtn")?.addEventListener("click", () => setWorshipSignupOpen(true));
+$("#cancelWorshipSignupBtn")?.addEventListener("click", () => setWorshipSignupOpen(false));
+$("#worshipSignupForm")?.addEventListener("submit", async e => {
+  e.preventDefault();
+  const email = clean($("#worshipSignupEmail")?.value || "").toLowerCase();
+  const password = String($("#worshipSignupPassword")?.value || "");
+  const confirmPassword = String($("#worshipSignupPasswordConfirm")?.value || "");
+  const status = $("#worshipSignupStatus");
+  if (!email || !email.includes("@")) { if (status) status.textContent = "사용할 이메일을 정확히 입력해 주세요."; return; }
+  if (password.length < 6) { if (status) status.textContent = "비밀번호는 6자 이상으로 입력해 주세요."; return; }
+  if (password !== confirmPassword) { if (status) status.textContent = "비밀번호 확인이 일치하지 않습니다."; return; }
+  if (status) status.textContent = "계정을 만드는 중입니다…";
+  const {data,error} = await db.auth.signUp({email,password});
+  if (error) { if (status) status.textContent = dbErrorMessage(error, "계정을 만들지 못했습니다."); return; }
+  if (data?.session) await db.auth.signOut();
+  $("#worshipSignupPassword").value = "";
+  $("#worshipSignupPasswordConfirm").value = "";
+  if (status) status.textContent = data?.session
+    ? "계정을 만들었습니다. 전체 관리자에게 이 이메일을 알려 찬양 관리자 승인을 받은 뒤 로그인해 주세요."
+    : "계정을 만들었습니다. 이메일 인증 안내가 왔다면 먼저 인증한 뒤, 전체 관리자에게 찬양 관리자 승인을 요청해 주세요.";
+});
+
 async function verifyAdmin(user) {
-  if (!user) return setAdminState(false);
-  const { data, error } = await db.from("admin_users").select("user_id").eq("user_id",user.id).maybeSingle();
-  if (error || !data) {
+  if (!user) return setAdminState(null);
+  const { data, error } = await db.from("admin_users").select("user_id, role").eq("user_id",user.id).maybeSingle();
+  const role = data?.role || null;
+  if (error || !data || !["admin","worship_manager"].includes(role)) {
     await db.auth.signOut();
-    $("#adminLoginStatus").textContent = error ? dbErrorMessage(error, "관리자 권한 확인에 실패했습니다.") : "관리자 권한이 없는 계정입니다.";
-    return setAdminState(false);
+    $("#adminLoginStatus").textContent = error
+      ? dbErrorMessage(error, "관리자 권한 확인에 실패했습니다. V41 SQL이 적용되었는지 확인해 주세요.")
+      : "아직 승인된 관리자 권한이 없습니다. 찬양 관리자 계정을 만든 경우 전체 관리자에게 승인을 요청해 주세요.";
+    return setAdminState(null);
   }
   $("#adminLoginStatus").textContent = "";
-  setAdminState(true);
-  $("#wordAdminStatus").textContent = "말씀 관리 준비 완료 · v17";
-  $("#studyAdminStatus").textContent = "성경공부 관리 준비 완료 · v17";
-  setAdminTab(activeAdminTab, {reload:false});
+  setAdminState(role);
+  if (isFullAdmin()) {
+    $("#wordAdminStatus").textContent = "말씀 관리 준비 완료";
+    $("#studyAdminStatus").textContent = "성경공부 관리 준비 완료";
+    setAdminTab(activeAdminTab === "worship" ? "worship" : activeAdminTab, {reload:false});
+  } else {
+    activeAdminTab = "worship";
+    setAdminTab("worship", {reload:false});
+  }
   await refreshActiveAdminTab(activeAdminTab);
 }
-function setAdminState(value) {
-  isAdmin = value;
-  $("#adminLoginForm").classList.toggle("hidden", value);
-  $("#adminWorkspace").classList.toggle("hidden", !value);
-  $("#adminLogoutBtn").classList.toggle("hidden", !value);
+function setAdminState(role) {
+  adminRole = role || null;
+  isAdmin = adminRole === "admin";
+  const loggedIn = Boolean(adminRole);
+  const worshipOnly = adminRole === "worship_manager";
+  $("#adminLoginForm")?.classList.toggle("hidden", loggedIn);
+  $("#worshipSignupForm")?.classList.add("hidden");
+  $("#adminWorkspace")?.classList.toggle("hidden", !loggedIn);
+  $("#adminLogoutBtn")?.classList.toggle("hidden", !loggedIn);
+  document.body.classList.toggle("worship-manager-mode", worshipOnly);
+  if ($("#adminRoleBadge")) {
+    $("#adminRoleBadge").classList.toggle("hidden", !loggedIn);
+    $("#adminRoleBadge").textContent = worshipOnly ? "🎵 찬양 관리자" : "전체 관리자";
+  }
+  if ($("#worshipManagerAdminCard")) $("#worshipManagerAdminCard").classList.toggle("hidden", !isFullAdmin());
+  if ($("#youtubeKeyAdminCard")) $("#youtubeKeyAdminCard").classList.toggle("hidden", worshipOnly);
+  if ($("#worshipManagerOnlyNote")) $("#worshipManagerOnlyNote").classList.toggle("hidden", !worshipOnly);
+  if (ADMIN_WINDOW) {
+    const pageTitle = $("#adminPanel .admin-page-head h2");
+    const pageDesc = $("#adminPanel .admin-page-desc");
+    if (pageTitle) pageTitle.textContent = worshipOnly ? "주의울림 찬양 관리자" : "주의울림 관리자";
+    if (pageDesc) pageDesc.textContent = worshipOnly
+      ? "주일별 찬양 플레이리스트만 관리할 수 있는 학생 관리자 모드입니다."
+      : "말씀 · 성경공부 · 기도제목 · 감사기도 · 찬양 · 새친구 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.";
+    $(".brand .subtitle").textContent = worshipOnly ? "학생 찬양 관리자 모드" : (loggedIn ? "관리자 콘텐츠 · 제출 기록 관리" : "관리자 로그인");
+    document.title = worshipOnly ? "주의울림 찬양 관리자 | 양정중앙교회 청소년부" : "주의울림 관리자 | 양정중앙교회 청소년부";
+  }
 }
-$("#adminLogoutBtn").addEventListener("click", async () => { await db.auth.signOut(); setAdminState(false); });
+$("#adminLogoutBtn").addEventListener("click", async () => { await db.auth.signOut(); setAdminState(null); });
 $("#refreshAdminBtn").addEventListener("click", async () => {
   await refreshActiveAdminTab(activeAdminTab);
 });
