@@ -67,6 +67,44 @@
 
     <section id="bannerArea" class="banner-wrap"></section>
 
+    <section id="weatherSection" class="weather-section" aria-labelledby="weatherTitle">
+      <div class="weather-shell">
+        <div class="weather-head">
+          <div>
+            <span class="eyebrow">오늘의 날씨</span>
+            <h2 id="weatherTitle">☀️ 예배 가는 길 날씨</h2>
+            <p id="weatherLocation" class="muted">부산 기준 날씨를 불러오는 중입니다.</p>
+          </div>
+          <button id="weatherUseLocationBtn" class="ghost compact-btn" type="button">📍 내 위치</button>
+        </div>
+        <div id="weatherSummary" class="weather-summary" aria-label="오늘과 내일 날씨">
+          <button id="weatherTodayCard" class="weather-day-card" type="button" aria-expanded="false" aria-controls="weeklyWeatherPanel">
+            <span class="weather-day-label">오늘</span>
+            <span id="weatherTodayIcon" class="weather-icon" aria-hidden="true">⏳</span>
+            <strong id="weatherTodayText">불러오는 중</strong>
+            <span id="weatherTodayTemp" class="weather-temp">--° / --°</span>
+            <small id="weatherTodayRain">강수 --%</small>
+          </button>
+          <button id="weatherTomorrowCard" class="weather-day-card" type="button" aria-expanded="false" aria-controls="weeklyWeatherPanel">
+            <span class="weather-day-label">내일</span>
+            <span id="weatherTomorrowIcon" class="weather-icon" aria-hidden="true">⏳</span>
+            <strong id="weatherTomorrowText">불러오는 중</strong>
+            <span id="weatherTomorrowTemp" class="weather-temp">--° / --°</span>
+            <small id="weatherTomorrowRain">강수 --%</small>
+          </button>
+        </div>
+        <p id="weatherHint" class="weather-hint">오늘 또는 내일 날씨를 누르면 주간날씨를 볼 수 있습니다.</p>
+        <div id="weeklyWeatherPanel" class="weekly-weather-panel hidden" aria-hidden="true">
+          <div class="weather-week-head">
+            <strong>7일 주간날씨</strong>
+            <button id="closeWeeklyWeatherBtn" class="ghost compact-btn" type="button">닫기</button>
+          </div>
+          <div id="weeklyWeatherList" class="weekly-weather-list"></div>
+          <p id="weatherStatus" class="status"></p>
+        </div>
+      </div>
+    </section>
+
     <main>
       <nav class="tabs" aria-label="메뉴">
         <button class="tab active" data-tab="word">말씀쓰기</button>
@@ -157,12 +195,12 @@
           <div class="gratitude-leader-head">
             <div>
               <span class="eyebrow">감사기도 챌린지 현황</span>
-              <h3 id="gratitudeLeaderTitle">🔥 지금 이어가고 있는 학생</h3>
+              <h3 id="gratitudeLeaderTitle">🔥 감사기도 챌린지 TOP 3</h3>
             </div>
             <button id="refreshGratitudeLeaderBtn" class="ghost compact-btn" type="button">새로고침</button>
           </div>
           <div id="gratitudeLeaderList" class="gratitude-leader-list"></div>
-          <p id="gratitudeLeaderStatus" class="status">챌린지 현황을 불러오는 중입니다.</p>
+          <p id="gratitudeLeaderStatus" class="status">현재 연속기록 TOP 3를 불러오는 중입니다.</p>
         </section>
 
         <div class="challenge-stats">

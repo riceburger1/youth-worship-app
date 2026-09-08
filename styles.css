@@ -562,3 +562,43 @@ body.admin-window #gratitudeLeaderTop{display:none!important}
 }
 .gratitude-date-public-wrap h4{margin:0;font-size:1rem}
 .gratitude-date-public-wrap .gratitude-public-list{margin-top:10px}
+
+/* V32: weather + gratitude TOP3 */
+.weather-section{max-width:980px;margin:0 auto;padding:0 20px 4px}
+.weather-shell{background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 8px 24px rgba(31,77,63,.06)}
+.weather-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.weather-head h2{margin:2px 0 4px;font-size:1.15rem}
+.weather-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.weather-day-card{appearance:none;border:1px solid var(--line);background:#fff;border-radius:16px;padding:14px;display:grid;grid-template-columns:auto 1fr auto;grid-template-areas:"label icon temp" "text icon rain";align-items:center;gap:4px 10px;text-align:left;color:var(--ink);cursor:pointer;min-width:0}
+.weather-day-card:hover,.weather-day-card:focus-visible{border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,77,63,.08);outline:none}
+.weather-day-label{grid-area:label;font-size:.8rem;font-weight:900;color:var(--accent)}
+.weather-icon{grid-area:icon;font-size:2rem;line-height:1;justify-self:center}
+.weather-day-card strong{grid-area:text;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.weather-temp{grid-area:temp;font-weight:900;white-space:nowrap}
+.weather-day-card small{grid-area:rain;color:var(--muted);justify-self:end;white-space:nowrap}
+.weather-hint{margin:9px 2px 0;color:var(--muted);font-size:.82rem}
+.weekly-weather-panel{margin-top:12px;border-top:1px dashed var(--line);padding-top:12px}
+.weather-week-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.weekly-weather-list{display:grid;grid-template-columns:repeat(7,minmax(92px,1fr));gap:8px;overflow-x:auto;padding-bottom:4px}
+.weather-week-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 8px;min-width:92px;text-align:center}
+.weather-week-card.today{border-color:var(--accent);box-shadow:0 0 0 2px rgba(31,77,63,.07)}
+.weather-week-card b{display:block;font-size:.85rem;margin-bottom:6px}
+.weather-week-icon{display:block;font-size:1.55rem;margin:4px 0}
+.weather-week-card strong{display:block;font-size:.9rem}
+.weather-week-card small{display:block;color:var(--muted);margin-top:4px;font-size:.74rem}
+body.admin-window #weatherSection{display:none!important}
+@media(max-width:640px){
+  .weather-section{padding-left:14px;padding-right:14px}
+  .weather-shell{padding:13px}
+  .weather-summary{grid-template-columns:1fr 1fr;gap:7px}
+  .weather-day-card{grid-template-columns:1fr auto;grid-template-areas:"label icon" "text icon" "temp rain";padding:11px;gap:3px 7px}
+  .weather-icon{font-size:1.75rem}
+  .weather-day-card small{justify-self:end}
+}
+@media(max-width:420px){
+  .weather-head{align-items:center}
+  .weather-head h2{font-size:1.02rem}
+  .weather-day-card{min-height:116px}
+  .weather-temp{font-size:.88rem}
+  .weather-day-card small{font-size:.72rem}
+}

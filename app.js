@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v31-study-window-gratitude-date-feed";
+const APP_VERSION = "v32-gratitude-permission-top3-weather";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -42,6 +42,135 @@ function isMissingRpc(error, functionName = "") {
   return ["PGRST202", "42883"].includes(error.code) || (functionName && message.includes(functionName));
 }
 
+function weatherCodeInfo(code) {
+  const c = Number(code);
+  if (c === 0) return {icon:"☀️", text:"맑음"};
+  if (c === 1) return {icon:"🌤️", text:"대체로 맑음"};
+  if (c === 2) return {icon:"⛅", text:"구름 조금"};
+  if (c === 3) return {icon:"☁️", text:"흐림"};
+  if ([45,48].includes(c)) return {icon:"🌫️", text:"안개"};
+  if ([51,53,55,56,57].includes(c)) return {icon:"🌦️", text:"이슬비"};
+  if ([61,63,65,66,67].includes(c)) return {icon:"🌧️", text:"비"};
+  if ([71,73,75,77,85,86].includes(c)) return {icon:"🌨️", text:"눈"};
+  if ([80,81,82].includes(c)) return {icon:"🌦️", text:"소나기"};
+  if ([95,96,99].includes(c)) return {icon:"⛈️", text:"뇌우"};
+  return {icon:"🌡️", text:"날씨"};
+}
+function weatherDayLabel(iso, index) {
+  if (index === 0) return "오늘";
+  if (index === 1) return "내일";
+  const [y,m,d] = String(iso).split("-").map(Number);
+  const day = new Date(y,m-1,d);
+  return `${["일","월","화","수","목","금","토"][day.getDay()]}요일`;
+}
+function roundWeatherTemp(value) {
+  return Number.isFinite(Number(value)) ? Math.round(Number(value)) : "--";
+}
+function readWeatherCache() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY) || "null");
+    if (!cached?.savedAt || Date.now() - cached.savedAt > 30 * 60 * 1000) return null;
+    return cached;
+  } catch { return null; }
+}
+function writeWeatherCache(payload) {
+  try { localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify({...payload, savedAt:Date.now()})); } catch {}
+}
+function renderWeather(data, label = "부산") {
+  const daily = data?.daily || {};
+  const times = daily.time || [];
+  weatherRows = times.map((date,index) => ({
+    date,
+    code:daily.weather_code?.[index],
+    max:daily.temperature_2m_max?.[index],
+    min:daily.temperature_2m_min?.[index],
+    rain:daily.precipitation_probability_max?.[index]
+  }));
+  weatherLocationLabel = label;
+  const loc = $("#weatherLocation");
+  if (loc) loc.textContent = `${label} 기준 · 30분 간격으로 새로 확인합니다.`;
+  const today = weatherRows[0];
+  const tomorrow = weatherRows[1];
+  const currentTemp = roundWeatherTemp(data?.current?.temperature_2m);
+  const fill = (prefix,row,isToday=false) => {
+    if (!row) return;
+    const info = weatherCodeInfo(row.code);
+    $(`#weather${prefix}Icon`).textContent = info.icon;
+    $(`#weather${prefix}Text`).textContent = isToday && currentTemp !== "--" ? `${info.text} · 현재 ${currentTemp}°` : info.text;
+    $(`#weather${prefix}Temp`).textContent = `${roundWeatherTemp(row.max)}° / ${roundWeatherTemp(row.min)}°`;
+    $(`#weather${prefix}Rain`).textContent = `강수 ${Number.isFinite(Number(row.rain)) ? Math.round(Number(row.rain)) : "--"}%`;
+  };
+  fill("Today", today, true);
+  fill("Tomorrow", tomorrow, false);
+  const weekly = $("#weeklyWeatherList");
+  if (weekly) weekly.innerHTML = weatherRows.slice(0,7).map((row,index) => {
+    const info = weatherCodeInfo(row.code);
+    return `<article class="weather-week-card ${index===0?"today":""}">
+      <b>${escapeHtml(weatherDayLabel(row.date,index))}</b>
+      <span class="weather-week-icon" aria-hidden="true">${info.icon}</span>
+      <strong>${escapeHtml(info.text)}</strong>
+      <small>${roundWeatherTemp(row.max)}° / ${roundWeatherTemp(row.min)}°</small>
+      <small>강수 ${Number.isFinite(Number(row.rain)) ? Math.round(Number(row.rain)) : "--"}%</small>
+    </article>`;
+  }).join("");
+  if ($("#weatherStatus")) $("#weatherStatus").textContent = `${label}의 7일 예보입니다.`;
+}
+async function fetchWeather(lat, lon, label) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const params = new URLSearchParams({
+      latitude:String(lat), longitude:String(lon), timezone:"auto", forecast_days:"7",
+      current:"temperature_2m,apparent_temperature,weather_code",
+      daily:"weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+    });
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, {signal:controller.signal});
+    if (!response.ok) throw new Error(`날씨 서버 응답 오류 ${response.status}`);
+    const data = await response.json();
+    writeWeatherCache({data,label,lat,lon});
+    renderWeather(data,label);
+    return true;
+  } finally { clearTimeout(timer); }
+}
+async function loadWeather({useLocation=false} = {}) {
+  if (ADMIN_WINDOW || !$("#weatherSection")) return;
+  const status = $("#weatherStatus");
+  const locationText = $("#weatherLocation");
+  if (!useLocation) {
+    const cache = readWeatherCache();
+    if (cache?.data) {
+      renderWeather(cache.data, cache.label || "부산");
+      return;
+    }
+  }
+  let target = WEATHER_FALLBACK;
+  if (useLocation && navigator.geolocation) {
+    if (locationText) locationText.textContent = "현재 위치를 확인하는 중입니다…";
+    try {
+      const pos = await new Promise((resolve,reject) => navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:false,timeout:7000,maximumAge:10*60*1000}));
+      target = {lat:pos.coords.latitude, lon:pos.coords.longitude, label:"현재 위치"};
+    } catch (error) {
+      if (status) status.textContent = "위치 권한을 사용할 수 없어 부산 기준 날씨를 표시합니다.";
+      target = WEATHER_FALLBACK;
+    }
+  }
+  try {
+    if (locationText) locationText.textContent = `${target.label} 날씨를 불러오는 중입니다…`;
+    await fetchWeather(target.lat, target.lon, target.label);
+  } catch (error) {
+    console.warn("Weather load failed:", error);
+    if (locationText) locationText.textContent = "날씨를 불러오지 못했습니다.";
+    if (status) status.textContent = "날씨 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  }
+}
+function setWeeklyWeatherOpen(open) {
+  const panel = $("#weeklyWeatherPanel");
+  if (!panel) return;
+  panel.classList.toggle("hidden", !open);
+  panel.setAttribute("aria-hidden", open ? "false" : "true");
+  [$("#weatherTodayCard"), $("#weatherTomorrowCard")].forEach(card => card?.setAttribute("aria-expanded", open ? "true" : "false"));
+  if (open) requestAnimationFrame(() => panel.scrollIntoView({behavior:"smooth",block:"nearest"}));
+}
 
 async function checkSupabaseConnection({reloadData=false} = {}) {
   const bar = $("#supabaseConnection");
@@ -125,6 +254,11 @@ let gratitudeSyncTimer = null;
 let wordModeTimer = null;
 let studyModeTimer = null;
 let gratitudePublicSelectedDate = null;
+
+const WEATHER_CACHE_KEY = "주의울림-weather-v32";
+const WEATHER_FALLBACK = { lat:35.1796, lon:129.0756, label:"부산" };
+let weatherRows = [];
+let weatherLocationLabel = WEATHER_FALLBACK.label;
 
 function profile() {
   return { grade: $("#grade")?.value || "", name: clean($("#studentName")?.value || "") };
@@ -349,14 +483,14 @@ async function syncGratitudeRecordsFromServer({quiet=true} = {}) {
   if (!profileReady(p)) return false;
   const localRows = getLocalGratitude(p);
   const token = getGratitudeEditToken(p);
-  const { data, error } = await db.rpc("youth_gratitude_sync_v29", {
+  const { data, error } = await db.rpc("youth_gratitude_sync_v32", {
     p_grade:p.grade,
     p_student_name:p.name,
     p_edit_token:token,
     p_local_records:localRows.map(row => ({date:row.date, text:row.text || ""}))
   });
   if (error) {
-    if (!isMissingRpc(error, "youth_gratitude_sync_v29") && !quiet && $("#gratitudeStatus")) {
+    if (!isMissingRpc(error, "youth_gratitude_sync_v32") && !quiet && $("#gratitudeStatus")) {
       $("#gratitudeStatus").textContent = dbErrorMessage(error, "감사기도 기록 동기화에 실패했습니다.");
     }
     return false;
@@ -544,19 +678,19 @@ async function loadGratitudeLeaders() {
   if (ADMIN_WINDOW || !$("#gratitudeLeaderList")) return;
   const list = $("#gratitudeLeaderList");
   const status = $("#gratitudeLeaderStatus");
-  if (status) status.textContent = "챌린지 현황을 불러오는 중입니다…";
-  const { data, error } = await db.rpc("youth_gratitude_leaderboard_v27");
+  if (status) status.textContent = "현재 연속기록 TOP 3를 불러오는 중입니다…";
+  const { data, error } = await db.rpc("youth_gratitude_top3_v32");
   if (error) {
     list.innerHTML = "";
-    if (status) status.textContent = isMissingRpc(error, "youth_gratitude_leaderboard_v27")
-      ? "감사기도 챌린지 현황 기능을 사용하려면 V27 SQL을 먼저 실행해 주세요."
-      : dbErrorMessage(error, "감사기도 챌린지 현황을 불러오지 못했습니다.");
+    if (status) status.textContent = isMissingRpc(error, "youth_gratitude_top3_v32")
+      ? "감사기도 TOP 3 기능을 사용하려면 V32 SQL을 먼저 실행해 주세요."
+      : dbErrorMessage(error, "감사기도 TOP 3를 불러오지 못했습니다.");
     return;
   }
-  const rows = (data || []).filter(row => Number(row.current_streak || 0) > 0);
+  const rows = (data || []).filter(row => Number(row.current_streak || 0) > 0).slice(0,3);
   if (!rows.length) {
-    list.innerHTML = '<div class="gratitude-leader-empty">아직 연속 챌린지를 이어가는 학생이 없습니다. 오늘 첫 기록을 시작해 보세요! 🔥</div>';
-    if (status) status.textContent = "감사기도를 오늘 또는 어제까지 이어온 학생이 여기에 표시됩니다.";
+    list.innerHTML = '<div class="gratitude-leader-empty">아직 연속 챌린지를 이어가는 기록이 없습니다. 오늘 첫 기록을 시작해 보세요! 🔥</div>';
+    if (status) status.textContent = "연속 기록이 생기면 TOP 3만 공개됩니다.";
     return;
   }
   list.innerHTML = rows.map((row,index)=>`
@@ -565,7 +699,7 @@ async function loadGratitudeLeaders() {
       <div><b>${escapeHtml(row.grade)} ${escapeHtml(row.student_name)}</b><small>현재 연속</small></div>
       <strong>🔥 ${Number(row.current_streak || 0)}일</strong>
     </article>`).join("");
-  if (status) status.textContent = `${rows.length}명이 감사기도 챌린지를 이어가고 있습니다.`;
+  if (status) status.textContent = `감사기도 챌린지 연속기록 TOP ${rows.length}입니다.`;
 }
 
 async function fetchPublicGratitudeByDate(date, limit=200) {
@@ -626,6 +760,15 @@ async function loadPublicGratitudeByDate(date) {
 }
 
 $("#refreshGratitudePublicBtn")?.addEventListener("click", loadPublicGratitudeFeed);
+$("#weatherTodayCard")?.addEventListener("click", () => setWeeklyWeatherOpen($("#weeklyWeatherPanel")?.classList.contains("hidden")));
+$("#weatherTomorrowCard")?.addEventListener("click", () => setWeeklyWeatherOpen($("#weeklyWeatherPanel")?.classList.contains("hidden")));
+$("#closeWeeklyWeatherBtn")?.addEventListener("click", () => setWeeklyWeatherOpen(false));
+$("#weatherUseLocationBtn")?.addEventListener("click", async () => {
+  const btn = $("#weatherUseLocationBtn");
+  if (btn) { btn.disabled = true; btn.textContent = "위치 확인 중…"; }
+  await loadWeather({useLocation:true});
+  if (btn) { btn.disabled = false; btn.textContent = "📍 내 위치"; }
+});
 
 function renderGratitudeChallenge() {
   const p = profile();
@@ -1007,7 +1150,7 @@ $("#gratitudeForm").addEventListener("submit", async e => {
   status.textContent = gratitudeEditingDate ? "감사기도를 수정하고 있습니다…" : "감사기도를 기록하고 있습니다…";
 
   const editToken = getGratitudeEditToken(p);
-  let result = await db.rpc("youth_gratitude_save_v27", {
+  let result = await db.rpc("youth_gratitude_save_v32", {
     p_grade:p.grade,
     p_student_name:p.name,
     p_prayer_date:targetDate,
@@ -1016,7 +1159,7 @@ $("#gratitudeForm").addEventListener("submit", async e => {
     p_original_text:existingLocal?.text || null
   });
 
-  if (result.error && isMissingRpc(result.error, "youth_gratitude_save_v27") && !gratitudeEditingDate) {
+  if (result.error && isMissingRpc(result.error, "youth_gratitude_save_v32") && !gratitudeEditingDate) {
     // V27 SQL 적용 전에도 신규 기록 자체는 기존 INSERT 정책으로 저장할 수 있도록 보조합니다.
     result = await db.from("gratitude_prayers").insert({
       grade:p.grade, student_name:p.name, prayer_date:today, gratitude_text:text
@@ -1025,9 +1168,29 @@ $("#gratitudeForm").addEventListener("submit", async e => {
 
   if (result.error) {
     submitBtn.disabled = false;
-    status.textContent = isMissingRpc(result.error, "youth_gratitude_save_v27")
-      ? "감사기도 수정 기능을 사용하려면 Supabase에서 V27 SQL을 먼저 실행해 주세요."
+    status.textContent = isMissingRpc(result.error, "youth_gratitude_save_v32")
+      ? "감사기도 저장 기능을 사용하려면 Supabase에서 V32 SQL을 먼저 실행해 주세요."
       : dbErrorMessage(result.error, gratitudeEditingDate ? "감사기도 수정에 실패했습니다." : "감사기도 저장에 실패했습니다.");
+    return;
+  }
+
+  const saveAction = Array.isArray(result.data) ? result.data[0]?.save_action : result.data?.save_action;
+  if (saveAction === "already_recorded") {
+    const existing = await fetchPublicGratitudeByDate(targetDate, 200);
+    const serverRow = (existing.data || []).find(row => row.grade === p.grade && clean(row.student_name) === p.name);
+    if (serverRow) {
+      localRows = [{
+        date:targetDate,
+        text:serverRow.gratitude_text || text,
+        createdAt:serverRow.created_at || new Date().toISOString(),
+        updatedAt:serverRow.updated_at || serverRow.created_at || new Date().toISOString()
+      }, ...localRows.filter(x=>x.date!==targetDate)];
+      setLocalGratitude(p, localRows);
+    }
+    resetGratitudeEditor();
+    renderGratitudeChallenge();
+    await Promise.all([loadGratitudeLeaders(), loadPublicGratitudeFeed()]);
+    status.textContent = "오늘 감사기도는 이미 서버에 등록되어 있어 기존 기록을 불러왔습니다. 다른 기기에서 작성한 기록은 덮어쓰지 않도록 보호됩니다.";
     return;
   }
 
@@ -2657,4 +2820,5 @@ const { data:{session} } = await db.auth.getSession();
 if(session?.user) await verifyAdmin(session.user);
 
 renderGratitudeChallenge();
+void loadWeather();
 await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar(),loadGratitudeLeaders(),loadPublicGratitudeFeed(),loadNewFriendPublicList()]);
