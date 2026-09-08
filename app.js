@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v38-student-menu-notice-home";
+const APP_VERSION = "v39-sunday-word-study-history";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -236,6 +236,9 @@ async function checkSupabaseConnection({reloadData=false} = {}) {
 }
 
 let weekly = null;
+let weeklyRows = [];
+let wordViewWeekly = null;
+let studyViewWeekly = null;
 let questions = [];
 let deferredPrompt = null;
 let isAdmin = false;
@@ -255,6 +258,8 @@ let selectedAdminEventId = null;
 let activeAdminTab = sessionStorage.getItem("주의울림-admin-tab-v17") || "word";
 
 const PROFILE_STORAGE_KEY = "주의울림-profile-v2";
+const WORD_SUNDAY_KEY = "주의울림-word-selected-week-v39";
+const STUDY_SUNDAY_KEY = "주의울림-study-selected-week-v39";
 const GRATITUDE_PREFIX = "주의울림-gratitude-v2:";
 const GRATITUDE_EDIT_TOKEN_PREFIX = "주의울림-gratitude-edit-token-v27:";
 const GRATITUDE_SYNC_SIGNAL_KEY = "주의울림-gratitude-sync-signal-v29";
@@ -398,9 +403,12 @@ function addDaysISO(iso, days) {
   return localISODate(date);
 }
 
-function wordRegistrationState(content = weekly) {
+function wordRegistrationState(content = wordViewWeekly || weekly) {
   if (!content?.week_start) return { canRegister:false, sunday:null, openAt:null, closeAt:null, phase:"practice", label:"주일 날짜를 확인할 수 없어 연습모드로 동작합니다." };
-  const sunday = addDaysISO(String(content.week_start).slice(0,10), 6);
+  const sunday = weeklySundayISO(content);
+  if (!isCurrentWeeklyContent(content)) {
+    return { canRegister:false, sunday, openAt:null, closeAt:null, phase:"history", label:`${fmtDate(sunday)} 주일 말씀을 조회하고 있습니다. 지난 주일 기록은 출석으로 등록할 수 없습니다.` };
+  }
   const openAt = new Date(`${sunday}T10:30:00+09:00`);
   const closeAt = new Date(`${sunday}T13:00:00+09:00`);
   const now = Date.now();
@@ -413,9 +421,12 @@ function wordRegistrationState(content = weekly) {
   return { canRegister, sunday, openAt, closeAt, phase, label };
 }
 
-function studyRegistrationState(content = weekly) {
+function studyRegistrationState(content = studyViewWeekly || weekly) {
   if (!content?.week_start) return { canWrite:false, sunday:null, openAt:null, closeAt:null, phase:"closed", label:"주일 날짜를 확인할 수 없어 성경공부 작성이 잠겨 있습니다." };
-  const sunday = addDaysISO(String(content.week_start).slice(0,10), 6);
+  const sunday = weeklySundayISO(content);
+  if (!isCurrentWeeklyContent(content)) {
+    return { canWrite:false, sunday, openAt:null, closeAt:null, phase:"history", label:`${fmtDate(sunday)} 주일 성경공부를 조회하고 있습니다. 지난 주일 답안은 새로 제출할 수 없습니다.` };
+  }
   const openAt = new Date(`${sunday}T10:30:00+09:00`);
   const closeAt = new Date(`${sunday}T13:00:00+09:00`);
   const now = Date.now();
@@ -429,7 +440,7 @@ function studyRegistrationState(content = weekly) {
 }
 
 function updateStudyModeUI({updateStatus=false} = {}) {
-  const state = studyRegistrationState();
+  const state = studyRegistrationState(studyViewWeekly || weekly);
   const notice = $("#studyModeNotice");
   const badge = $("#studyModeBadge");
   const text = $("#studyModeText");
@@ -437,7 +448,7 @@ function updateStudyModeUI({updateStatus=false} = {}) {
     notice.classList.toggle("practice", !state.canWrite);
     notice.classList.toggle("open", state.canWrite);
   }
-  if (badge) badge.textContent = state.canWrite ? "작성 가능" : "작성시간 아님";
+  if (badge) badge.textContent = state.phase === "history" ? "지난 주일 조회" : (state.canWrite ? "작성 가능" : "작성시간 아님");
   if (text) text.textContent = state.label;
   $$('[data-answer]').forEach(field => { field.disabled = !state.canWrite; });
   updateStudyAnswerState();
@@ -455,7 +466,8 @@ function startStudyModeClock() {
 }
 
 function isVerseExact() {
-  return Boolean(weekly?.verse_text) && normalize($("#verseInput")?.value || "") === normalize(weekly.verse_text);
+  const content = wordViewWeekly || weekly;
+  return Boolean(content?.verse_text) && normalize($("#verseInput")?.value || "") === normalize(content.verse_text);
 }
 
 function updateWordModeUI({updateStatus=false} = {}) {
@@ -464,17 +476,21 @@ function updateWordModeUI({updateStatus=false} = {}) {
   const text = $("#wordModeText");
   const btn = $("#completeWordBtn");
   if (!notice || !badge || !text || !btn) return;
-  const state = wordRegistrationState();
+  const state = wordRegistrationState(wordViewWeekly || weekly);
   notice.classList.toggle("practice", !state.canRegister);
   notice.classList.toggle("open", state.canRegister);
-  badge.textContent = state.canRegister ? "출석 인정시간" : "연습모드";
+  badge.textContent = state.phase === "history" ? "지난 주일 조회" : (state.canRegister ? "출석 인정시간" : "연습모드");
   text.textContent = state.label;
-  btn.textContent = state.canRegister ? "말씀쓰기 완료 및 출석" : "연습 완료 확인";
-  btn.disabled = !isVerseExact();
-  if (updateStatus && weekly) {
-    $("#wordStatus").textContent = state.canRegister
-      ? "말씀을 직접 입력해 주세요. 정확히 완성하면 출석을 등록할 수 있습니다."
-      : "지금은 연습모드입니다. 말씀을 직접 따라 써 보세요. 출석 인정시간은 주일 오전 10:30~오후 1:00입니다.";
+  btn.textContent = state.phase === "history" ? "지난 말씀 조회 중" : (state.canRegister ? "말씀쓰기 완료 및 출석" : "연습 완료 확인");
+  btn.disabled = state.phase === "history" || !isVerseExact();
+  const input = $("#verseInput");
+  if (input) input.disabled = state.phase === "history";
+  if (updateStatus && (wordViewWeekly || weekly)) {
+    $("#wordStatus").textContent = state.phase === "history"
+      ? "지난 주일 말씀을 조회하고 있습니다. 출석 등록은 이번 주 말씀에서만 가능합니다."
+      : (state.canRegister
+        ? "말씀을 직접 입력해 주세요. 정확히 완성하면 출석을 등록할 수 있습니다."
+        : "지금은 연습모드입니다. 말씀을 직접 따라 써 보세요. 출석 인정시간은 주일 오전 10:30~오후 1:00입니다.");
   }
 }
 
@@ -917,22 +933,112 @@ if ("serviceWorker" in navigator) window.addEventListener("load", async () => {
   } catch (err) { console.warn("Service worker update failed:", err); }
 });
 
-async function loadWeekly() {
-  const { data, error } = await db.from("weekly_contents")
-    .select("*").eq("published", true).order("week_start", {ascending:false}).limit(1).maybeSingle();
-  if (error || !data) {
+function weeklySundayISO(content) {
+  if (!content?.week_start) return null;
+  return addDaysISO(String(content.week_start).slice(0,10), 6);
+}
+
+function isCurrentWeeklyContent(content) {
+  return Boolean(content?.id && weekly?.id && String(content.id) === String(weekly.id));
+}
+
+function weeklyStudentOptionLabel(content) {
+  const sunday = weeklySundayISO(content);
+  const prefix = sunday ? `${fmtDate(sunday)} 주일` : "주일 미정";
+  const current = isCurrentWeeklyContent(content) ? " · 이번 주" : "";
+  const ref = clean(content?.verse_reference || "");
+  return `${prefix}${current}${ref ? ` · ${ref}` : ""}`;
+}
+
+function findStoredWeekly(storageKey) {
+  const saved = localStorage.getItem(storageKey);
+  if (!saved) return null;
+  return weeklyRows.find(row => String(row.id) === String(saved)) || null;
+}
+
+function populateStudentWeeklySelectors() {
+  const makeOptions = selectedId => weeklyRows.map(row =>
+    `<option value="${escapeHtml(String(row.id))}" ${String(row.id)===String(selectedId||"")?"selected":""}>${escapeHtml(weeklyStudentOptionLabel(row))}</option>`
+  ).join("");
+  const wordSelect = $("#wordSundaySelect");
+  const studySelect = $("#studySundaySelect");
+  if (wordSelect) wordSelect.innerHTML = weeklyRows.length ? makeOptions(wordViewWeekly?.id) : '<option value="">등록된 주일이 없습니다.</option>';
+  if (studySelect) studySelect.innerHTML = weeklyRows.length ? makeOptions(studyViewWeekly?.id) : '<option value="">등록된 주일이 없습니다.</option>';
+}
+
+function resetWordProgress() {
+  const input = $("#verseInput");
+  if (input) input.value = "";
+  if ($("#progressText")) $("#progressText").textContent = "0%";
+  if ($("#progressBar")) $("#progressBar").style.width = "0%";
+}
+
+function renderWordWeekly(content, {reset=true} = {}) {
+  wordViewWeekly = content || null;
+  if (!content) {
     $("#verseReference").textContent = "등록된 말씀이 없습니다.";
-    $("#verseText").textContent = "관리자가 이번 주 말씀을 등록하면 표시됩니다.";
-    $("#wordStatus").textContent = error ? "말씀을 불러오지 못했습니다." : "아직 등록된 말씀이 없습니다.";
+    $("#verseText").textContent = "관리자가 말씀을 등록하면 표시됩니다.";
+    $("#wordStatus").textContent = "아직 등록된 말씀이 없습니다.";
+    if ($("#verseInput")) $("#verseInput").disabled = true;
+    if ($("#completeWordBtn")) $("#completeWordBtn").disabled = true;
     return;
   }
-  weekly = data;
-  $("#verseReference").textContent = data.verse_reference;
-  $("#verseText").textContent = data.verse_text;
-  $("#studyTitle").textContent = data.study_title;
+  localStorage.setItem(WORD_SUNDAY_KEY, String(content.id));
+  $("#verseReference").textContent = content.verse_reference || "말씀";
+  $("#verseText").textContent = content.verse_text || "등록된 본문이 없습니다.";
+  const sunday = weeklySundayISO(content);
+  if ($("#wordSelectedSundayLabel")) {
+    $("#wordSelectedSundayLabel").textContent = `${sunday ? fmtDate(sunday)+" 주일" : "주일 미정"}${isCurrentWeeklyContent(content) ? " · 이번 주" : " · 지난 말씀 조회"}`;
+  }
+  if (reset) resetWordProgress();
+  const input = $("#verseInput");
+  if (input) input.disabled = !isCurrentWeeklyContent(content);
   updateWordModeUI({updateStatus:true});
+}
+
+async function renderStudyWeekly(content) {
+  studyViewWeekly = content || null;
+  if (!content) {
+    $("#studyTitle").textContent = "성경공부";
+    $("#studyQuestions").innerHTML = '<p class="muted">등록된 성경공부가 없습니다.</p>';
+    $("#studyStatus").textContent = "아직 등록된 성경공부가 없습니다.";
+    if ($("#studySubmitBtn")) $("#studySubmitBtn").disabled = true;
+    return;
+  }
+  localStorage.setItem(STUDY_SUNDAY_KEY, String(content.id));
+  $("#studyTitle").textContent = content.study_title || "성경공부";
+  const sunday = weeklySundayISO(content);
+  if ($("#studySelectedSundayLabel")) {
+    $("#studySelectedSundayLabel").textContent = `${sunday ? fmtDate(sunday)+" 주일" : "주일 미정"}${isCurrentWeeklyContent(content) ? " · 이번 주" : " · 지난 성경공부 조회"}`;
+  }
+  await loadQuestions(content);
+}
+
+async function loadWeekly() {
+  const { data, error } = await db.from("weekly_contents")
+    .select("*").eq("published", true).order("week_start", {ascending:false}).limit(100);
+  if (error || !data?.length) {
+    weeklyRows = [];
+    weekly = null;
+    wordViewWeekly = null;
+    studyViewWeekly = null;
+    populateStudentWeeklySelectors();
+    renderWordWeekly(null);
+    await renderStudyWeekly(null);
+    if (error) {
+      $("#wordStatus").textContent = "말씀을 불러오지 못했습니다.";
+      $("#studyStatus").textContent = "성경공부를 불러오지 못했습니다.";
+    }
+    return;
+  }
+  weeklyRows = data;
+  weekly = data[0];
+  wordViewWeekly = findStoredWeekly(WORD_SUNDAY_KEY) || weekly;
+  studyViewWeekly = findStoredWeekly(STUDY_SUNDAY_KEY) || weekly;
+  populateStudentWeeklySelectors();
+  renderWordWeekly(wordViewWeekly);
+  await renderStudyWeekly(studyViewWeekly);
   startWordModeClock();
-  await loadQuestions();
   startStudyModeClock();
 }
 
@@ -958,18 +1064,33 @@ function updateStudyAnswerState() {
   return ready;
 }
 
-async function loadQuestions() {
-  if (!weekly) return;
-  const { data } = await db.from("study_questions").select("*")
-    .eq("weekly_content_id", weekly.id).order("question_order");
+async function loadQuestions(content = studyViewWeekly || weekly) {
+  if (!content) return;
+  const { data, error } = await db.from("study_questions").select("*")
+    .eq("weekly_content_id", content.id).order("question_order");
   questions = data || [];
-  $("#studyQuestions").innerHTML = questions.map((q,i)=>`
+  if (error) {
+    $("#studyQuestions").innerHTML = '<p class="muted">성경공부 질문을 불러오지 못했습니다.</p>';
+    $("#studyStatus").textContent = dbErrorMessage(error, "성경공부 질문을 불러오지 못했습니다.");
+    return;
+  }
+  $("#studyQuestions").innerHTML = questions.length ? questions.map((q,i)=>`
     <label class="field-label">${i+1}. ${escapeHtml(q.question_text)}
       <textarea data-answer="${i}" rows="4" minlength="10" maxlength="2000" required placeholder="내 생각을 10자 이상 적어 주세요."></textarea>
       <small class="study-answer-count" data-answer-count="${i}">0자 · 최소 10자</small>
-    </label>`).join("");
+    </label>`).join("") : '<p class="muted">이 주일에는 등록된 성경공부 질문이 없습니다.</p>';
   updateStudyModeUI({updateStatus:true});
 }
+
+$("#wordSundaySelect")?.addEventListener("change", e => {
+  const row = weeklyRows.find(item => String(item.id) === String(e.target.value));
+  if (row) renderWordWeekly(row);
+});
+
+$("#studySundaySelect")?.addEventListener("change", async e => {
+  const row = weeklyRows.find(item => String(item.id) === String(e.target.value));
+  if (row) await renderStudyWeekly(row);
+});
 
 $("#studyQuestions")?.addEventListener("input", e => {
   if (e.target.closest("[data-answer]")) updateStudyAnswerState();
@@ -989,9 +1110,10 @@ verseInput.addEventListener("beforeinput", e => {
   }
 });
 verseInput.addEventListener("input", () => {
-  if (!weekly) return;
+  const content = wordViewWeekly || weekly;
+  if (!content || !isCurrentWeeklyContent(content)) return;
   const input = normalize(verseInput.value);
-  const target = normalize(weekly.verse_text);
+  const target = normalize(content.verse_text);
   let matched = 0;
   const max = Math.min(input.length, target.length);
   while (matched < max && input[matched] === target[matched]) matched++;
@@ -999,7 +1121,7 @@ verseInput.addEventListener("input", () => {
   $("#progressText").textContent = pct + "%";
   $("#progressBar").style.width = Math.min(100,pct) + "%";
   const exact = input === target && target.length > 0;
-  const mode = wordRegistrationState();
+  const mode = wordRegistrationState(content);
   $("#completeWordBtn").disabled = !exact;
   $("#completeWordBtn").textContent = mode.canRegister ? "말씀쓰기 완료 및 출석" : "연습 완료 확인";
   if (exact) {
@@ -1036,10 +1158,15 @@ async function submitAttendance(p) {
 
 $("#completeWordBtn").addEventListener("click", async () => {
   const status = $("#wordStatus");
-  if (!weekly) return;
-  if (normalize(verseInput.value) !== normalize(weekly.verse_text)) return;
+  const content = wordViewWeekly || weekly;
+  if (!content) return;
+  if (!isCurrentWeeklyContent(content)) {
+    status.textContent = "지난 주일 말씀은 조회만 가능합니다. 이번 주 말씀을 선택해 주세요.";
+    return;
+  }
+  if (normalize(verseInput.value) !== normalize(content.verse_text)) return;
 
-  const mode = wordRegistrationState();
+  const mode = wordRegistrationState(content);
   if (!mode.canRegister) {
     status.textContent = `연습 완료! 지금은 연습모드라 출석은 저장되지 않습니다. 출석 인정시간은 ${fmtDate(mode.sunday)} 주일 오전 10:30 ~ 오후 1:00입니다.`;
     return;
@@ -1070,8 +1197,13 @@ $("#completeWordBtn").addEventListener("click", async () => {
 $("#studyForm").addEventListener("submit", async e => {
   e.preventDefault();
   const status = $("#studyStatus");
-  if (!weekly) return;
-  const studyMode = studyRegistrationState();
+  const content = studyViewWeekly || weekly;
+  if (!content) return;
+  if (!isCurrentWeeklyContent(content)) {
+    status.textContent = "지난 주일 성경공부는 조회만 가능합니다. 이번 주 성경공부를 선택해 주세요.";
+    return;
+  }
+  const studyMode = studyRegistrationState(content);
   if (!studyMode.canWrite) {
     status.textContent = `${studyMode.label} 이 시간 밖에는 작성·제출할 수 없습니다.`;
     updateStudyModeUI();
@@ -1103,7 +1235,7 @@ $("#studyForm").addEventListener("submit", async e => {
   status.textContent = "성경공부 답안을 저장하고 있습니다…";
 
   const { error } = await db.from("study_submissions").insert({
-    weekly_content_id: weekly.id,
+    weekly_content_id: content.id,
     grade: p.grade,
     student_name: p.name,
     answers

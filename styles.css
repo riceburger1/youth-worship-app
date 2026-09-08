@@ -828,3 +828,50 @@ main > #weatherSection{
   .tabs.student-menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px;}
   .tabs.student-menu-grid .tab{padding:9px 7px;font-size:.9rem;}
 }
+
+
+/* ===== V39: 학생 말씀쓰기·성경공부 주일별 조회 ===== */
+.student-sunday-picker{
+  margin:12px 0 14px;
+  padding:12px 13px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--soft,#f7faf8);
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:8px 12px;
+  align-items:center;
+}
+.student-sunday-picker label{
+  margin:0;
+  font-size:.82rem;
+  font-weight:900;
+  white-space:nowrap;
+  color:var(--muted);
+}
+.student-sunday-picker select{
+  min-width:0;
+  width:100%;
+  margin:0;
+}
+.student-sunday-picker small{
+  grid-column:1 / -1;
+  color:var(--muted);
+  font-weight:750;
+  line-height:1.45;
+}
+#word textarea:disabled,
+#study textarea:disabled{
+  opacity:.82;
+  background:#f6f8f7;
+  cursor:not-allowed;
+}
+@media(max-width:640px){
+  .student-sunday-picker{
+    grid-template-columns:1fr;
+    gap:6px;
+    padding:10px 11px;
+  }
+  .student-sunday-picker label{font-size:.77rem;}
+  .student-sunday-picker small{grid-column:1; font-size:.76rem;}
+}
