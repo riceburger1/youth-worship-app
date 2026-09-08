@@ -1,4 +1,4 @@
-const CACHE = "주의울림-v45-no-email-confirm-title-only";
+const CACHE = "주의울림-v46-sunday-calendar-latest";
 const CORE_ASSETS = [
   "./",
   "./index.html",

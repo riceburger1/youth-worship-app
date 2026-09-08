@@ -83,12 +83,27 @@
 <span class="pill" id="progressText">0%</span>
 </div>
 <p class="profile-link-note" data-profile-display="">오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
-<div class="student-sunday-picker">
-  <label for="wordSundaySelect">주일별 말씀 선택</label>
-  <select id="wordSundaySelect" aria-label="확인할 말씀 주일 선택">
-    <option value="">주일 목록을 불러오는 중입니다.</option>
-  </select>
-  <small id="wordSelectedSundayLabel">이번 주 말씀을 불러오는 중입니다.</small>
+<div class="student-sunday-picker calendar-sunday-picker">
+  <div class="student-sunday-picker-head">
+    <div>
+      <strong>주일별 말씀</strong>
+      <small id="wordSelectedSundayLabel">최신 말씀을 불러오는 중입니다.</small>
+    </div>
+    <button class="ghost sunday-calendar-toggle" id="wordSundayCalendarToggle" type="button"
+            aria-expanded="false" aria-controls="wordSundayCalendarPanel">📅 달력 열기</button>
+  </div>
+  <div class="student-sunday-calendar hidden" id="wordSundayCalendarPanel" aria-hidden="true">
+    <div class="student-sunday-calendar-nav">
+      <button class="ghost compact-btn" id="wordSundayCalendarPrev" type="button" aria-label="이전 달">‹</button>
+      <strong id="wordSundayCalendarMonth">-</strong>
+      <button class="ghost compact-btn" id="wordSundayCalendarNext" type="button" aria-label="다음 달">›</button>
+    </div>
+    <div class="student-sunday-weekdays" aria-hidden="true">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="student-sunday-calendar-grid" id="wordSundayCalendarGrid"></div>
+    <p class="student-sunday-calendar-help">말씀이 등록된 주일만 선택할 수 있습니다.</p>
+  </div>
 </div>
 <div aria-live="polite" class="word-mode-notice practice" id="wordModeNotice">
 <strong id="wordModeBadge">연습모드</strong>
@@ -109,12 +124,27 @@
 <span class="eyebrow">주일별 성경공부</span>
 <h2 id="studyTitle">성경공부</h2>
 <p class="profile-link-note" data-profile-display="">오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
-<div class="student-sunday-picker">
-  <label for="studySundaySelect">주일별 성경공부 선택</label>
-  <select id="studySundaySelect" aria-label="확인할 성경공부 주일 선택">
-    <option value="">주일 목록을 불러오는 중입니다.</option>
-  </select>
-  <small id="studySelectedSundayLabel">이번 주 성경공부를 불러오는 중입니다.</small>
+<div class="student-sunday-picker calendar-sunday-picker">
+  <div class="student-sunday-picker-head">
+    <div>
+      <strong>주일별 성경공부</strong>
+      <small id="studySelectedSundayLabel">최신 성경공부를 불러오는 중입니다.</small>
+    </div>
+    <button class="ghost sunday-calendar-toggle" id="studySundayCalendarToggle" type="button"
+            aria-expanded="false" aria-controls="studySundayCalendarPanel">📅 달력 열기</button>
+  </div>
+  <div class="student-sunday-calendar hidden" id="studySundayCalendarPanel" aria-hidden="true">
+    <div class="student-sunday-calendar-nav">
+      <button class="ghost compact-btn" id="studySundayCalendarPrev" type="button" aria-label="이전 달">‹</button>
+      <strong id="studySundayCalendarMonth">-</strong>
+      <button class="ghost compact-btn" id="studySundayCalendarNext" type="button" aria-label="다음 달">›</button>
+    </div>
+    <div class="student-sunday-weekdays" aria-hidden="true">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="student-sunday-calendar-grid" id="studySundayCalendarGrid"></div>
+    <p class="student-sunday-calendar-help">성경공부가 등록된 주일만 선택할 수 있습니다.</p>
+  </div>
 </div>
 <div aria-live="polite" class="word-mode-notice practice" id="studyModeNotice">
 <strong id="studyModeBadge">작성시간 아님</strong>

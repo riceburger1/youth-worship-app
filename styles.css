@@ -992,3 +992,153 @@ body.worship-manager-mode .worship-admin-card{grid-column:1/-1}
 .latest-notice-title-only{padding:13px 16px;min-height:0;display:flex;align-items:center}
 .latest-notice-title-only b{display:block;width:100%;font-size:1rem;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:640px){.latest-notice-title-only{padding:11px 13px}.latest-notice-title-only b{font-size:.94rem}}
+
+
+/* ============================================================
+   V46 · 말씀쓰기/성경공부 주일 선택 달력
+   ============================================================ */
+.calendar-sunday-picker{
+  display:block;
+  padding:12px 13px;
+}
+.student-sunday-picker-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.student-sunday-picker-head > div{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.student-sunday-picker-head strong{
+  font-size:.9rem;
+  font-weight:900;
+  color:var(--text);
+}
+.student-sunday-picker-head small{
+  display:block;
+  color:var(--muted);
+  font-weight:750;
+  line-height:1.4;
+}
+.sunday-calendar-toggle{
+  flex:0 0 auto;
+  width:auto!important;
+  min-width:0!important;
+  padding:7px 10px!important;
+  font-size:.8rem!important;
+  white-space:nowrap;
+}
+.student-sunday-calendar{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid var(--line);
+}
+.student-sunday-calendar-nav{
+  display:grid;
+  grid-template-columns:38px 1fr 38px;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
+}
+.student-sunday-calendar-nav strong{
+  text-align:center;
+  font-size:.96rem;
+}
+.student-sunday-calendar-nav .compact-btn{
+  width:36px!important;
+  min-width:36px!important;
+  height:34px;
+  padding:0!important;
+  font-size:1.35rem!important;
+  line-height:1;
+}
+.student-sunday-weekdays,
+.student-sunday-calendar-grid{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:5px;
+}
+.student-sunday-weekdays{
+  margin-bottom:5px;
+}
+.student-sunday-weekdays span{
+  text-align:center;
+  font-size:.72rem;
+  font-weight:850;
+  color:var(--muted);
+}
+.student-sunday-weekdays span:first-child{color:#c75151}
+.student-sunday-calendar-grid{
+  grid-auto-rows:minmax(42px,auto);
+}
+.student-sunday-day{
+  min-width:0;
+  border:1px solid transparent;
+  border-radius:10px;
+  background:transparent;
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:1px;
+  font:inherit;
+  position:relative;
+  padding:4px 2px;
+}
+.student-sunday-day.outside{opacity:.36}
+.student-sunday-day.empty{color:var(--muted);opacity:.38}
+button.student-sunday-day.has-content{
+  cursor:pointer;
+  background:var(--card,#fff);
+  border-color:var(--line);
+  font-weight:900;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);
+}
+button.student-sunday-day.has-content:hover{
+  transform:translateY(-1px);
+}
+.student-sunday-day.selected{
+  outline:2px solid var(--accent,#3a8b6b);
+  outline-offset:-2px;
+  background:rgba(58,139,107,.09)!important;
+}
+.student-sunday-day.latest b{
+  font-size:.57rem;
+  line-height:1;
+  padding:2px 4px;
+  border-radius:999px;
+  background:var(--accent,#3a8b6b);
+  color:#fff;
+}
+.student-sunday-day.today::after{
+  content:"";
+  position:absolute;
+  width:4px;height:4px;border-radius:50%;
+  bottom:3px;
+  background:currentColor;
+  opacity:.7;
+}
+.student-sunday-calendar-help{
+  margin:8px 0 0;
+  text-align:center;
+  font-size:.72rem;
+  color:var(--muted);
+}
+@media(max-width:420px){
+  .calendar-sunday-picker{padding:10px}
+  .student-sunday-picker-head{gap:6px}
+  .student-sunday-picker-head strong{font-size:.82rem}
+  .student-sunday-picker-head small{font-size:.72rem}
+  .sunday-calendar-toggle{
+    padding:6px 8px!important;
+    font-size:.72rem!important;
+  }
+  .student-sunday-weekdays,
+  .student-sunday-calendar-grid{gap:3px}
+  .student-sunday-calendar-grid{grid-auto-rows:minmax(38px,auto)}
+  .student-sunday-day{border-radius:8px;font-size:.78rem}
+}

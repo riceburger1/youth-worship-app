@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v45-no-email-confirm-title-only";
+const APP_VERSION = "v46-sunday-calendar-latest";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -272,6 +272,8 @@ let weekly = null;
 let weeklyRows = [];
 let wordViewWeekly = null;
 let studyViewWeekly = null;
+let wordSundayCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let studySundayCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let questions = [];
 let deferredPrompt = null;
 let isAdmin = false;
@@ -434,6 +436,9 @@ function activateStudentTab(tabName) {
     void runStudentLoad("newfriend", loadNewFriendPublicList, 60000);
   } else if (tabName === "board") {
     void runStudentLoad("board", loadBoard, 30000);
+  } else if (tabName === "word" || tabName === "study") {
+    // 말씀/성경공부 탭을 열 때 최신 관리자 입력을 다시 확인하고 항상 최신 주일을 기본 표시합니다.
+    void loadWeekly();
   }
 }
 function requireProfile(statusEl) {
@@ -1009,20 +1014,100 @@ function weeklyStudentOptionLabel(content) {
   return `${prefix}${current}${ref ? ` · ${ref}` : ""}`;
 }
 
-function findStoredWeekly(storageKey) {
-  const saved = localStorage.getItem(storageKey);
-  if (!saved) return null;
-  return weeklyRows.find(row => String(row.id) === String(saved)) || null;
+function latestWeeklyRow() {
+  // 학생 화면은 항상 관리자가 등록해 둔 가장 최신 주일(week_start 기준)을 기본값으로 엽니다.
+  // 과거 주일을 보다가 새로고침하거나 탭을 다시 열어도 최신값으로 돌아옵니다.
+  return weeklyRows[0] || null;
 }
 
-function populateStudentWeeklySelectors() {
-  const makeOptions = selectedId => weeklyRows.map(row =>
-    `<option value="${escapeHtml(String(row.id))}" ${String(row.id)===String(selectedId||"")?"selected":""}>${escapeHtml(weeklyStudentOptionLabel(row))}</option>`
-  ).join("");
-  const wordSelect = $("#wordSundaySelect");
-  const studySelect = $("#studySundaySelect");
-  if (wordSelect) wordSelect.innerHTML = weeklyRows.length ? makeOptions(wordViewWeekly?.id) : '<option value="">등록된 주일이 없습니다.</option>';
-  if (studySelect) studySelect.innerHTML = weeklyRows.length ? makeOptions(studyViewWeekly?.id) : '<option value="">등록된 주일이 없습니다.</option>';
+function dateFromISO(iso) {
+  if (!iso) return null;
+  const [y,m,d] = String(iso).slice(0,10).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m-1, d);
+}
+
+function setSundayCalendarCursor(kind, content) {
+  const sunday = weeklySundayISO(content);
+  const d = dateFromISO(sunday);
+  if (!d) return;
+  const cursor = new Date(d.getFullYear(), d.getMonth(), 1);
+  if (kind === "word") wordSundayCalendarCursor = cursor;
+  else studySundayCalendarCursor = cursor;
+}
+
+function sundayCalendarRowsByDate() {
+  const map = new Map();
+  weeklyRows.forEach(row => {
+    const sunday = weeklySundayISO(row);
+    if (sunday) map.set(sunday, row);
+  });
+  return map;
+}
+
+function renderStudentSundayCalendar(kind) {
+  const isWord = kind === "word";
+  const cursor = isWord ? wordSundayCalendarCursor : studySundayCalendarCursor;
+  const grid = $(isWord ? "#wordSundayCalendarGrid" : "#studySundayCalendarGrid");
+  const monthLabel = $(isWord ? "#wordSundayCalendarMonth" : "#studySundayCalendarMonth");
+  const selected = isWord ? wordViewWeekly : studyViewWeekly;
+  if (!grid || !monthLabel) return;
+
+  monthLabel.textContent = `${cursor.getFullYear()}년 ${cursor.getMonth()+1}월`;
+
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());
+
+  const rowsByDate = sundayCalendarRowsByDate();
+  const latestId = latestWeeklyRow()?.id;
+  const todayISO = localISODate();
+  const cells = [];
+
+  for (let i=0; i<42; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate()+i);
+    const iso = localISODate(d);
+    const row = rowsByDate.get(iso);
+    const inMonth = d.getMonth() === cursor.getMonth();
+    const selectedRow = row && selected && String(row.id) === String(selected.id);
+    const latestRow = row && latestId && String(row.id) === String(latestId);
+    const classes = [
+      "student-sunday-day",
+      inMonth ? "" : "outside",
+      row ? "has-content" : "empty",
+      selectedRow ? "selected" : "",
+      latestRow ? "latest" : "",
+      iso === todayISO ? "today" : ""
+    ].filter(Boolean).join(" ");
+
+    if (row) {
+      const aria = `${fmtDate(iso)} 주일 ${isWord ? "말씀" : "성경공부"} 선택`;
+      cells.push(`<button type="button" class="${classes}" data-${kind}-weekly-id="${escapeHtml(String(row.id))}" aria-label="${escapeHtml(aria)}">
+        <span>${d.getDate()}</span>${latestRow ? '<b>최신</b>' : ''}
+      </button>`);
+    } else {
+      cells.push(`<span class="${classes}" aria-hidden="true"><span>${d.getDate()}</span></span>`);
+    }
+  }
+  grid.innerHTML = cells.join("");
+}
+
+function setStudentSundayCalendarOpen(kind, open) {
+  const isWord = kind === "word";
+  const panel = $(isWord ? "#wordSundayCalendarPanel" : "#studySundayCalendarPanel");
+  const btn = $(isWord ? "#wordSundayCalendarToggle" : "#studySundayCalendarToggle");
+  if (!panel || !btn) return;
+  panel.classList.toggle("hidden", !open);
+  panel.setAttribute("aria-hidden", open ? "false" : "true");
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  btn.textContent = open ? "✕ 달력 닫기" : "📅 달력 열기";
+  if (open) renderStudentSundayCalendar(kind);
+}
+
+function refreshStudentSundayCalendars() {
+  renderStudentSundayCalendar("word");
+  renderStudentSundayCalendar("study");
 }
 
 function resetWordProgress() {
@@ -1042,12 +1127,11 @@ function renderWordWeekly(content, {reset=true} = {}) {
     if ($("#completeWordBtn")) $("#completeWordBtn").disabled = true;
     return;
   }
-  localStorage.setItem(WORD_SUNDAY_KEY, String(content.id));
   $("#verseReference").textContent = content.verse_reference || "말씀";
   $("#verseText").textContent = content.verse_text || "등록된 본문이 없습니다.";
   const sunday = weeklySundayISO(content);
   if ($("#wordSelectedSundayLabel")) {
-    $("#wordSelectedSundayLabel").textContent = `${sunday ? fmtDate(sunday)+" 주일" : "주일 미정"}${isCurrentWeeklyContent(content) ? " · 이번 주" : " · 지난 말씀 조회"}`;
+    $("#wordSelectedSundayLabel").textContent = `${sunday ? fmtDate(sunday)+" 주일" : "주일 미정"}${isCurrentWeeklyContent(content) ? " · 최신 말씀" : " · 지난 말씀 조회"}`;
   }
   if (reset) resetWordProgress();
   const input = $("#verseInput");
@@ -1064,11 +1148,10 @@ async function renderStudyWeekly(content) {
     if ($("#studySubmitBtn")) $("#studySubmitBtn").disabled = true;
     return;
   }
-  localStorage.setItem(STUDY_SUNDAY_KEY, String(content.id));
   $("#studyTitle").textContent = content.study_title || "성경공부";
   const sunday = weeklySundayISO(content);
   if ($("#studySelectedSundayLabel")) {
-    $("#studySelectedSundayLabel").textContent = `${sunday ? fmtDate(sunday)+" 주일" : "주일 미정"}${isCurrentWeeklyContent(content) ? " · 이번 주" : " · 지난 성경공부 조회"}`;
+    $("#studySelectedSundayLabel").textContent = `${sunday ? fmtDate(sunday)+" 주일" : "주일 미정"}${isCurrentWeeklyContent(content) ? " · 최신 성경공부" : " · 지난 성경공부 조회"}`;
   }
   await loadQuestions(content);
 }
@@ -1081,7 +1164,6 @@ async function loadWeekly() {
     weekly = null;
     wordViewWeekly = null;
     studyViewWeekly = null;
-    populateStudentWeeklySelectors();
     renderWordWeekly(null);
     await renderStudyWeekly(null);
     if (error) {
@@ -1091,12 +1173,14 @@ async function loadWeekly() {
     return;
   }
   weeklyRows = data;
-  weekly = data[0];
-  wordViewWeekly = findStoredWeekly(WORD_SUNDAY_KEY) || weekly;
-  studyViewWeekly = findStoredWeekly(STUDY_SUNDAY_KEY) || weekly;
-  populateStudentWeeklySelectors();
+  weekly = latestWeeklyRow();
+  wordViewWeekly = weekly;
+  studyViewWeekly = weekly;
+  setSundayCalendarCursor("word", wordViewWeekly);
+  setSundayCalendarCursor("study", studyViewWeekly);
   renderWordWeekly(wordViewWeekly);
   await renderStudyWeekly(studyViewWeekly);
+  refreshStudentSundayCalendars();
   startWordModeClock();
   startStudyModeClock();
 }
@@ -1141,14 +1225,47 @@ async function loadQuestions(content = studyViewWeekly || weekly) {
   updateStudyModeUI({updateStatus:true});
 }
 
-$("#wordSundaySelect")?.addEventListener("change", e => {
-  const row = weeklyRows.find(item => String(item.id) === String(e.target.value));
-  if (row) renderWordWeekly(row);
+$("#wordSundayCalendarToggle")?.addEventListener("click", () => {
+  const panel = $("#wordSundayCalendarPanel");
+  setStudentSundayCalendarOpen("word", panel?.classList.contains("hidden"));
 });
-
-$("#studySundaySelect")?.addEventListener("change", async e => {
-  const row = weeklyRows.find(item => String(item.id) === String(e.target.value));
-  if (row) await renderStudyWeekly(row);
+$("#studySundayCalendarToggle")?.addEventListener("click", () => {
+  const panel = $("#studySundayCalendarPanel");
+  setStudentSundayCalendarOpen("study", panel?.classList.contains("hidden"));
+});
+$("#wordSundayCalendarPrev")?.addEventListener("click", () => {
+  wordSundayCalendarCursor = new Date(wordSundayCalendarCursor.getFullYear(), wordSundayCalendarCursor.getMonth()-1, 1);
+  renderStudentSundayCalendar("word");
+});
+$("#wordSundayCalendarNext")?.addEventListener("click", () => {
+  wordSundayCalendarCursor = new Date(wordSundayCalendarCursor.getFullYear(), wordSundayCalendarCursor.getMonth()+1, 1);
+  renderStudentSundayCalendar("word");
+});
+$("#studySundayCalendarPrev")?.addEventListener("click", () => {
+  studySundayCalendarCursor = new Date(studySundayCalendarCursor.getFullYear(), studySundayCalendarCursor.getMonth()-1, 1);
+  renderStudentSundayCalendar("study");
+});
+$("#studySundayCalendarNext")?.addEventListener("click", () => {
+  studySundayCalendarCursor = new Date(studySundayCalendarCursor.getFullYear(), studySundayCalendarCursor.getMonth()+1, 1);
+  renderStudentSundayCalendar("study");
+});
+$("#wordSundayCalendarGrid")?.addEventListener("click", e => {
+  const btn = e.target.closest("[data-word-weekly-id]");
+  if (!btn) return;
+  const row = weeklyRows.find(item => String(item.id) === String(btn.dataset.wordWeeklyId));
+  if (!row) return;
+  renderWordWeekly(row);
+  renderStudentSundayCalendar("word");
+  setStudentSundayCalendarOpen("word", false);
+});
+$("#studySundayCalendarGrid")?.addEventListener("click", async e => {
+  const btn = e.target.closest("[data-study-weekly-id]");
+  if (!btn) return;
+  const row = weeklyRows.find(item => String(item.id) === String(btn.dataset.studyWeeklyId));
+  if (!row) return;
+  await renderStudyWeekly(row);
+  renderStudentSundayCalendar("study");
+  setStudentSundayCalendarOpen("study", false);
 });
 
 $("#studyQuestions")?.addEventListener("input", e => {
