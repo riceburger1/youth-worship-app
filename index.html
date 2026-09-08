@@ -295,11 +295,27 @@
 </div>
 <button class="ghost worship-refresh-btn" id="refreshWorshipBtn" type="button" aria-label="찬양 목록 새로고침" title="새로고침">↻</button>
 </div>
-<div class="worship-sunday-picker-wrap">
-<label for="worshipSundaySelect">주일별 찬양 선택</label>
-<select id="worshipSundaySelect" aria-label="찬양을 들을 주일 선택">
-<option value="">주일 목록을 불러오는 중입니다.</option>
-</select>
+<div class="worship-sunday-picker-wrap calendar-sunday-picker">
+  <div class="student-sunday-picker-head">
+    <div>
+      <strong>주일별 찬양</strong>
+      <small id="worshipSelectedSundayLabel">최신 찬양을 불러오는 중입니다.</small>
+    </div>
+    <button class="ghost sunday-calendar-toggle" id="worshipSundayCalendarToggle" type="button"
+            aria-expanded="false" aria-controls="worshipSundayCalendarPanel">📅 달력 열기</button>
+  </div>
+  <div class="student-sunday-calendar hidden" id="worshipSundayCalendarPanel" aria-hidden="true">
+    <div class="student-sunday-calendar-nav">
+      <button class="ghost compact-btn" id="worshipSundayCalendarPrev" type="button" aria-label="이전 달">‹</button>
+      <strong id="worshipSundayCalendarMonth">-</strong>
+      <button class="ghost compact-btn" id="worshipSundayCalendarNext" type="button" aria-label="다음 달">›</button>
+    </div>
+    <div class="student-sunday-weekdays" aria-hidden="true">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="student-sunday-calendar-grid" id="worshipSundayCalendarGrid"></div>
+    <p class="student-sunday-calendar-help">찬양이 등록된 주일만 선택할 수 있습니다.</p>
+  </div>
 </div>
 <div class="worship-player-shell">
 <div class="worship-video-wrap">
@@ -515,12 +531,30 @@
 </div>
 <button class="ghost compact-btn" id="newWordBtn" type="button">새 말씀 작성</button>
 </div>
-<label>지난 말씀 선택
-                <select id="wordPicker">
-<option value="">말씀을 불러오는 중...</option>
-</select>
-</label>
-<label>주 시작일<input id="wordWeekStart" type="date"/></label>
+<div class="admin-date-calendar-wrap">
+  <div class="admin-date-calendar-head">
+    <div>
+      <strong>등록·수정할 주일 선택</strong>
+      <small id="adminWordSelectedDate">주일을 선택해 주세요.</small>
+    </div>
+    <button class="ghost compact-btn admin-calendar-toggle" id="adminWordCalendarToggle" type="button"
+            aria-expanded="true" aria-controls="adminWordCalendarPanel">달력 닫기</button>
+  </div>
+  <div class="admin-date-calendar" id="adminWordCalendarPanel">
+    <div class="student-sunday-calendar-nav">
+      <button class="ghost compact-btn" id="adminWordCalendarPrev" type="button" aria-label="이전 달">‹</button>
+      <strong id="adminWordCalendarMonth">-</strong>
+      <button class="ghost compact-btn" id="adminWordCalendarNext" type="button" aria-label="다음 달">›</button>
+    </div>
+    <div class="student-sunday-weekdays" aria-hidden="true">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="admin-sunday-calendar-grid" id="adminWordCalendarGrid"></div>
+    <p class="student-sunday-calendar-help">주일을 누르면 등록된 말씀은 수정 모드로, 없는 주일은 새 등록 모드로 열립니다.</p>
+  </div>
+</div>
+<select class="hidden" id="wordPicker" aria-hidden="true" tabindex="-1"><option value="__new__">새 말씀</option></select>
+<input id="wordWeekStart" type="hidden"/>
 <label>말씀구절<input id="adminVerseRef" maxlength="120" type="text"/></label>
 <label>말씀본문<textarea id="adminVerseText" maxlength="5000" rows="5"></textarea></label>
 <label class="check-row"><input checked="" id="wordPublished" type="checkbox"/> 학생에게 공개</label>
@@ -549,11 +583,29 @@
 <p class="muted admin-mode-label" id="studyModeLabel">말씀 주차를 선택한 뒤 성경공부를 등록·수정·삭제할 수 있습니다.</p>
 </div>
 </div>
-<label>연결할 말씀 / 지난 성경공부 선택
-                <select id="studyPicker">
-<option value="">말씀을 불러오는 중...</option>
-</select>
-</label>
+<div class="admin-date-calendar-wrap">
+  <div class="admin-date-calendar-head">
+    <div>
+      <strong>성경공부 주일 선택</strong>
+      <small id="adminStudySelectedDate">주일을 선택해 주세요.</small>
+    </div>
+    <button class="ghost compact-btn admin-calendar-toggle" id="adminStudyCalendarToggle" type="button"
+            aria-expanded="true" aria-controls="adminStudyCalendarPanel">달력 닫기</button>
+  </div>
+  <div class="admin-date-calendar" id="adminStudyCalendarPanel">
+    <div class="student-sunday-calendar-nav">
+      <button class="ghost compact-btn" id="adminStudyCalendarPrev" type="button" aria-label="이전 달">‹</button>
+      <strong id="adminStudyCalendarMonth">-</strong>
+      <button class="ghost compact-btn" id="adminStudyCalendarNext" type="button" aria-label="다음 달">›</button>
+    </div>
+    <div class="student-sunday-weekdays" aria-hidden="true">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="admin-sunday-calendar-grid" id="adminStudyCalendarGrid"></div>
+    <p class="student-sunday-calendar-help">말씀이 등록된 주일은 성경공부 등록·수정이 가능합니다. 말씀이 없는 주일은 먼저 말씀 관리에서 등록해 주세요.</p>
+  </div>
+</div>
+<select class="hidden" id="studyPicker" aria-hidden="true" tabindex="-1"><option value="">말씀 선택</option></select>
 <div class="mini-info muted" id="studyWeekInfo">말씀을 선택해 주세요.</div>
 <label>성경공부 제목<input id="adminStudyTitle" maxlength="200" type="text"/></label>
 <label>질문 1<textarea id="adminQ1" maxlength="2000" rows="2"></textarea></label>
@@ -675,9 +727,29 @@
 </div>
 <div class="worship-admin-grid">
 <div class="worship-search-panel">
-<label>주일 선택
-                    <input id="worshipSundayPicker" type="date"/>
-</label>
+<div class="admin-date-calendar-wrap worship-admin-calendar-wrap">
+  <div class="admin-date-calendar-head">
+    <div>
+      <strong>찬양 등록·수정 주일</strong>
+      <small id="adminWorshipSelectedDate">주일을 선택해 주세요.</small>
+    </div>
+    <button class="ghost compact-btn admin-calendar-toggle" id="adminWorshipCalendarToggle" type="button"
+            aria-expanded="true" aria-controls="adminWorshipCalendarPanel">달력 닫기</button>
+  </div>
+  <div class="admin-date-calendar" id="adminWorshipCalendarPanel">
+    <div class="student-sunday-calendar-nav">
+      <button class="ghost compact-btn" id="adminWorshipCalendarPrev" type="button" aria-label="이전 달">‹</button>
+      <strong id="adminWorshipCalendarMonth">-</strong>
+      <button class="ghost compact-btn" id="adminWorshipCalendarNext" type="button" aria-label="다음 달">›</button>
+    </div>
+    <div class="student-sunday-weekdays" aria-hidden="true">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div class="admin-sunday-calendar-grid" id="adminWorshipCalendarGrid"></div>
+    <p class="student-sunday-calendar-help">주일을 누르면 그 날짜의 찬양 목록을 불러옵니다. 등록된 주일에는 ‘찬양’ 표시가 나타납니다.</p>
+  </div>
+</div>
+<input id="worshipSundayPicker" type="hidden"/>
 <form class="youtube-search-form" id="youtubeSearchForm">
 <label>찬양 제목 검색
                       <div class="youtube-search-row">

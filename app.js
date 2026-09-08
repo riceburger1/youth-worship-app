@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v46-sunday-calendar-latest";
+const APP_VERSION = "v47-calendar-admin";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -274,6 +274,16 @@ let wordViewWeekly = null;
 let studyViewWeekly = null;
 let wordSundayCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let studySundayCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let worshipSundayCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let worshipSelectedSunday = null;
+let studentWorshipSundays = [];
+let adminWordCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let adminStudyCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let adminWorshipCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let adminWordSelectedSunday = null;
+let adminStudySelectedSunday = null;
+let adminWorshipSelectedSunday = null;
+let adminWorshipSundays = [];
 let questions = [];
 let deferredPrompt = null;
 let isAdmin = false;
@@ -431,7 +441,7 @@ function activateStudentTab(tabName) {
     renderGratitudeChallenge();
     void runStudentLoad("gratitude", refreshGratitudeStudentFromServer, 30000);
   } else if (tabName === "worship") {
-    void runStudentLoad("worship", () => loadStudentWorshipPlaylist(null,{refreshSundays:true}), 60000);
+    void runStudentLoad("worship", () => loadStudentWorshipPlaylist(null,{refreshSundays:true,preferLatest:true}), 60000);
   } else if (tabName === "newfriend") {
     void runStudentLoad("newfriend", loadNewFriendPublicList, 60000);
   } else if (tabName === "board") {
@@ -1108,6 +1118,53 @@ function setStudentSundayCalendarOpen(kind, open) {
 function refreshStudentSundayCalendars() {
   renderStudentSundayCalendar("word");
   renderStudentSundayCalendar("study");
+}
+
+function weekStartFromSunday(sunday) {
+  return sunday ? addDaysISO(String(sunday).slice(0,10), -6) : null;
+}
+function monthCursorForISO(iso) {
+  const d = dateFromISO(iso);
+  return d ? new Date(d.getFullYear(), d.getMonth(), 1) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+}
+function setCollapsibleCalendar(panelSelector, buttonSelector, open) {
+  const panel = $(panelSelector);
+  const btn = $(buttonSelector);
+  if (!panel || !btn) return;
+  panel.classList.toggle("hidden", !open);
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  btn.textContent = open ? "달력 닫기" : "📅 달력 열기";
+}
+function renderSundayCalendarGrid({cursor, gridSelector, monthSelector, selectedSunday=null, markedSundays=[], markText="", onlyMarked=false, dataAttr}) {
+  const grid = $(gridSelector);
+  const monthLabel = $(monthSelector);
+  if (!grid || !monthLabel) return;
+  monthLabel.textContent = `${cursor.getFullYear()}년 ${cursor.getMonth()+1}월`;
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());
+  const marked = new Set((markedSundays || []).filter(Boolean).map(v=>String(v).slice(0,10)));
+  const today = localISODate();
+  const cells = [];
+  for (let i=0; i<42; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate()+i);
+    const iso = localISODate(d);
+    const inMonth = d.getMonth() === cursor.getMonth();
+    const isSunday = d.getDay() === 0;
+    const isMarked = marked.has(iso);
+    const isSelected = iso === selectedSunday;
+    const classes = ["admin-sunday-day",inMonth?"":"outside",isSunday?"sunday":"weekday",isMarked?"has-record":"",isSelected?"selected":"",iso===today?"today":""].filter(Boolean).join(" ");
+    if (isSunday && (!onlyMarked || isMarked)) {
+      cells.push(`<button class="${classes}" type="button" ${dataAttr}="${escapeHtml(iso)}" aria-label="${escapeHtml(fmtDate(iso)+' 주일 선택')}"><span>${d.getDate()}</span>${isMarked && markText ? `<b>${escapeHtml(markText)}</b>` : ""}</button>`);
+    } else {
+      cells.push(`<span class="${classes}" aria-hidden="true"><span>${d.getDate()}</span></span>`);
+    }
+  }
+  grid.innerHTML = cells.join("");
+}
+function adminWeeklyRowForSunday(sunday) {
+  return adminWeeklyRows.find(row => sundayFromWeekStart(row.week_start) === sunday) || null;
 }
 
 function resetWordProgress() {
@@ -2274,53 +2331,75 @@ function worshipSundayLabel(sunday) {
   const current = currentWorshipSunday();
   return `${fmtDate(sunday)} 주일${sunday === current ? " · 이번 주" : ""}`;
 }
-async function loadStudentWorshipSundayOptions({preserveSelection=true} = {}) {
-  if (ADMIN_WINDOW || !$("#worshipSundaySelect")) return null;
-  const select = $("#worshipSundaySelect");
-  const previous = preserveSelection ? String(select.value || localStorage.getItem(WORSHIP_SUNDAY_KEY) || "") : "";
-  const {data,error} = await db.from("worship_playlist_items")
-    .select("sunday_date")
-    .eq("published", true)
-    .order("sunday_date", {ascending:false})
-    .limit(1000);
+function renderStudentWorshipCalendar() {
+  renderSundayCalendarGrid({
+    cursor:worshipSundayCalendarCursor,
+    gridSelector:"#worshipSundayCalendarGrid",
+    monthSelector:"#worshipSundayCalendarMonth",
+    selectedSunday:worshipSelectedSunday,
+    markedSundays:studentWorshipSundays,
+    markText:"찬양",
+    onlyMarked:true,
+    dataAttr:"data-worship-sunday"
+  });
+}
+function setStudentWorshipCalendarOpen(open) {
+  const panel = $("#worshipSundayCalendarPanel");
+  const btn = $("#worshipSundayCalendarToggle");
+  if (!panel || !btn) return;
+  panel.classList.toggle("hidden", !open);
+  panel.setAttribute("aria-hidden", open ? "false" : "true");
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  btn.textContent = open ? "✕ 달력 닫기" : "📅 달력 열기";
+  if (open) renderStudentWorshipCalendar();
+}
+async function loadStudentWorshipSundayOptions({preserveSelection=true, preferLatest=false} = {}) {
+  if (ADMIN_WINDOW) return null;
+  const previous = preserveSelection ? String(worshipSelectedSunday || "") : "";
+  const {data,error} = await db.from("worship_playlist_items").select("sunday_date").eq("published", true).order("sunday_date", {ascending:false}).limit(1000);
   if (error) {
-    select.innerHTML = '<option value="">주일 목록을 불러오지 못했습니다.</option>';
-    select.disabled = true;
+    studentWorshipSundays = [];
+    if ($("#worshipSelectedSundayLabel")) $("#worshipSelectedSundayLabel").textContent = "찬양 주일 목록을 불러오지 못했습니다.";
+    renderStudentWorshipCalendar();
     return null;
   }
-  const sundays = [...new Set((data || []).map(row => String(row.sunday_date || "").slice(0,10)).filter(Boolean))];
-  if (!sundays.length) {
-    select.innerHTML = '<option value="">등록된 찬양이 없습니다.</option>';
-    select.disabled = true;
+  studentWorshipSundays = [...new Set((data || []).map(row => String(row.sunday_date || "").slice(0,10)).filter(Boolean))];
+  if (!studentWorshipSundays.length) {
+    worshipSelectedSunday = null;
+    if ($("#worshipSelectedSundayLabel")) $("#worshipSelectedSundayLabel").textContent = "등록된 찬양이 없습니다.";
+    renderStudentWorshipCalendar();
     return null;
   }
-  select.disabled = false;
-  select.innerHTML = sundays.map(sunday => `<option value="${escapeHtml(sunday)}">${escapeHtml(worshipSundayLabel(sunday))}</option>`).join("");
-  const current = currentWorshipSunday();
-  const selected = sundays.includes(previous) ? previous : (sundays.includes(current) ? current : sundays[0]);
-  select.value = selected;
-  localStorage.setItem(WORSHIP_SUNDAY_KEY, selected);
+  let selected = null;
+  if (!preferLatest && previous && studentWorshipSundays.includes(previous)) selected = previous;
+  if (!selected) selected = studentWorshipSundays[0];
+  worshipSelectedSunday = selected;
+  worshipSundayCalendarCursor = monthCursorForISO(selected);
+  renderStudentWorshipCalendar();
   return selected;
 }
-async function loadStudentWorshipPlaylist(sundayOverride = null, {refreshSundays=false} = {}) {
+async function loadStudentWorshipPlaylist(sundayOverride = null, {refreshSundays=false, preferLatest=false} = {}) {
   if (ADMIN_WINDOW || !$("#worshipPlaylist")) return;
-  let sunday = String(sundayOverride || $("#worshipSundaySelect")?.value || "").slice(0,10);
-  if (refreshSundays || !sunday) sunday = await loadStudentWorshipSundayOptions({preserveSelection:true}) || currentWorshipSunday();
-  if ($("#worshipSundaySelect") && !$("#worshipSundaySelect").disabled && sunday) $("#worshipSundaySelect").value = sunday;
-  if (sunday) localStorage.setItem(WORSHIP_SUNDAY_KEY, sunday);
+  let sunday = String(sundayOverride || worshipSelectedSunday || "").slice(0,10);
+  if (refreshSundays || !sunday) sunday = await loadStudentWorshipSundayOptions({preserveSelection:!preferLatest, preferLatest}) || currentWorshipSunday();
+  worshipSelectedSunday = sunday;
+  if (sunday) {
+    worshipSundayCalendarCursor = monthCursorForISO(sunday);
+    localStorage.setItem(WORSHIP_SUNDAY_KEY, sunday);
+  }
+  renderStudentWorshipCalendar();
   const isCurrent = sunday === currentWorshipSunday();
   if ($("#worshipPlaylistTitle")) $("#worshipPlaylistTitle").textContent = isCurrent ? "🎵 이번 주 찬양 플레이리스트" : "🎵 주일 찬양 플레이리스트";
   if ($("#worshipWeekLabel")) $("#worshipWeekLabel").textContent = worshipSundayLabel(sunday);
+  if ($("#worshipSelectedSundayLabel")) $("#worshipSelectedSundayLabel").textContent = `${worshipSundayLabel(sunday)}${studentWorshipSundays[0] === sunday ? " · 최신" : ""}`;
   const status = $("#worshipStatus");
   if (status) status.textContent = "선택한 주일 찬양을 불러오는 중입니다…";
-  const {data,error} = await db.from("worship_playlist_items")
-    .select("id,sunday_date,title,video_id,thumbnail_url,channel_title,sort_order")
-    .eq("sunday_date", sunday).eq("published", true).order("sort_order",{ascending:true}).order("created_at",{ascending:true});
+  const {data,error} = await db.from("worship_playlist_items").select("id,sunday_date,title,video_id,thumbnail_url,channel_title,sort_order").eq("sunday_date", sunday).eq("published", true).order("sort_order",{ascending:true}).order("created_at",{ascending:true});
   if (error) {
     worshipRows = [];
     renderWorshipPlaylist();
     resetYouTubePlayerSurface("찬양 목록을 불러오지 못했습니다");
-    if (status) status.textContent = dbErrorMessage(error, "선택한 주일 찬양을 불러오지 못했습니다. V33 SQL 적용 여부를 확인해 주세요.");
+    if (status) status.textContent = dbErrorMessage(error, "선택한 주일 찬양을 불러오지 못했습니다.");
     return;
   }
   worshipRows = data || [];
@@ -2337,13 +2416,28 @@ async function loadStudentWorshipPlaylist(sundayOverride = null, {refreshSundays
   await buildWorshipPlayer();
   if (status) status.textContent = `${fmtDate(sunday)} 주일 찬양 ${worshipRows.length}곡을 불러왔습니다.`;
 }
+$("#worshipSundayCalendarToggle")?.addEventListener("click", () => {
+  setStudentWorshipCalendarOpen($("#worshipSundayCalendarPanel")?.classList.contains("hidden"));
+});
+$("#worshipSundayCalendarPrev")?.addEventListener("click", () => {
+  worshipSundayCalendarCursor = new Date(worshipSundayCalendarCursor.getFullYear(), worshipSundayCalendarCursor.getMonth()-1, 1);
+  renderStudentWorshipCalendar();
+});
+$("#worshipSundayCalendarNext")?.addEventListener("click", () => {
+  worshipSundayCalendarCursor = new Date(worshipSundayCalendarCursor.getFullYear(), worshipSundayCalendarCursor.getMonth()+1, 1);
+  renderStudentWorshipCalendar();
+});
+$("#worshipSundayCalendarGrid")?.addEventListener("click", e => {
+  const btn = e.target.closest("[data-worship-sunday]");
+  if (!btn) return;
+  void loadStudentWorshipPlaylist(btn.dataset.worshipSunday).then(() => setStudentWorshipCalendarOpen(false));
+});
 
 $("#worshipPlaylist")?.addEventListener("click", e => {
   const card = e.target.closest("[data-worship-index]");
   if (card) void playWorshipIndex(Number(card.dataset.worshipIndex), true);
 });
-$("#refreshWorshipBtn")?.addEventListener("click", () => loadStudentWorshipPlaylist(null,{refreshSundays:true}));
-$("#worshipSundaySelect")?.addEventListener("change", e => loadStudentWorshipPlaylist(e.target.value));
+$("#refreshWorshipBtn")?.addEventListener("click", () => loadStudentWorshipPlaylist(worshipSelectedSunday,{refreshSundays:true,preferLatest:false}));
 $("#worshipPlayPauseBtn")?.addEventListener("click", () => {
   if (!worshipPlayerReady || !worshipPlayer || !window.YT) return;
   if (worshipPlayer.getPlayerState() === window.YT.PlayerState.PLAYING) worshipPlayer.pauseVideo();
@@ -2419,11 +2513,27 @@ async function searchYoutubeVideos() {
     if (status) status.textContent = `YouTube 검색에 실패했습니다. ${error.message || "API 키와 할당량을 확인해 주세요."}`;
   } finally { $("#youtubeSearchBtn").disabled = false; }
 }
-async function loadAdminWorshipPlaylist(sunday = $("#worshipSundayPicker")?.value || currentWorshipSunday()) {
+function renderAdminWorshipCalendar() {
+  renderSundayCalendarGrid({
+    cursor:adminWorshipCalendarCursor, gridSelector:"#adminWorshipCalendarGrid", monthSelector:"#adminWorshipCalendarMonth",
+    selectedSunday:adminWorshipSelectedSunday, markedSundays:adminWorshipSundays, markText:"찬양", onlyMarked:false, dataAttr:"data-admin-worship-sunday"
+  });
+}
+async function loadAdminWorshipSundayDates() {
+  if (!canManageWorship()) return;
+  const {data,error} = await db.from("worship_playlist_items").select("sunday_date").order("sunday_date",{ascending:false}).limit(1500);
+  if (error) { adminWorshipSundays = []; return; }
+  adminWorshipSundays = [...new Set((data||[]).map(r=>String(r.sunday_date||"").slice(0,10)).filter(Boolean))];
+}
+async function loadAdminWorshipPlaylist(sunday = adminWorshipSelectedSunday || $("#worshipSundayPicker")?.value || currentWorshipSunday()) {
   if (!canManageWorship() || !$("#adminWorshipPlaylist")) return;
   const normalizedSunday = sundayForISO(sunday || currentWorshipSunday());
+  adminWorshipSelectedSunday = normalizedSunday;
+  adminWorshipCalendarCursor = monthCursorForISO(normalizedSunday);
   if ($("#worshipSundayPicker")) $("#worshipSundayPicker").value = normalizedSunday;
   if ($("#adminWorshipWeekLabel")) $("#adminWorshipWeekLabel").textContent = `${fmtDate(normalizedSunday)} 주일`;
+  if ($("#adminWorshipSelectedDate")) $("#adminWorshipSelectedDate").textContent = `${fmtDate(normalizedSunday)} 주일`;
+  renderAdminWorshipCalendar();
   const status = $("#worshipAdminStatus");
   if (status) status.textContent = "주일 찬양 목록을 불러오는 중입니다…";
   const {data,error} = await db.from("worship_playlist_items").select("*").eq("sunday_date",normalizedSunday).order("sort_order",{ascending:true}).order("created_at",{ascending:true});
@@ -2443,18 +2553,28 @@ async function loadAdminWorshipPlaylist(sunday = $("#worshipSundayPicker")?.valu
     </article>`).join("") : '<p class="muted">이 주일에 등록된 찬양이 없습니다. 왼쪽에서 검색해 추가해 주세요.</p>';
   if (status) status.textContent = `선택한 주일에 ${adminWorshipRows.length}곡이 등록되어 있습니다.`;
 }
+async function selectAdminWorshipSunday(sunday) {
+  adminWorshipSelectedSunday = sundayForISO(sunday) || currentWorshipSunday();
+  adminWorshipCalendarCursor = monthCursorForISO(adminWorshipSelectedSunday);
+  await loadAdminWorshipPlaylist(adminWorshipSelectedSunday);
+  renderAdminWorshipCalendar();
+}
 async function loadAdminWorship() {
   if (!canManageWorship()) return;
-  if ($("#worshipSundayPicker") && !$("#worshipSundayPicker").value) $("#worshipSundayPicker").value = currentWorshipSunday();
+  if (!adminWorshipSelectedSunday) adminWorshipSelectedSunday = currentWorshipSunday();
+  if ($("#worshipSundayPicker")) $("#worshipSundayPicker").value = adminWorshipSelectedSunday;
   renderYoutubeSearchResults();
-  const jobs = [loadYoutubeApiKey(), loadAdminWorshipPlaylist()];
+  await loadAdminWorshipSundayDates();
+  renderAdminWorshipCalendar();
+  const jobs = [loadYoutubeApiKey(), loadAdminWorshipPlaylist(adminWorshipSelectedSunday)];
   if (isFullAdmin()) jobs.push(loadWorshipManagers());
   await Promise.all(jobs);
 }
+
 async function addYoutubeSearchResult(index) {
   if (!canManageWorship()) return;
   const row = youtubeSearchRows[index];
-  const sunday = sundayForISO($("#worshipSundayPicker")?.value || currentWorshipSunday());
+  const sunday = sundayForISO(adminWorshipSelectedSunday || $("#worshipSundayPicker")?.value || currentWorshipSunday());
   const status = $("#youtubeSearchStatus");
   if (!row) return;
   const maxOrder = adminWorshipRows.reduce((m,r)=>Math.max(m,Number(r.sort_order)||0),0);
@@ -2466,7 +2586,9 @@ async function addYoutubeSearchResult(index) {
     return;
   }
   if (status) status.textContent = `“${row.title}”을 ${fmtDate(sunday)} 주일 찬양에 추가했습니다.`;
+  await loadAdminWorshipSundayDates();
   await loadAdminWorshipPlaylist(sunday);
+  renderAdminWorshipCalendar();
 }
 async function moveAdminWorship(id, direction) {
   if (!canManageWorship()) return;
@@ -2491,7 +2613,9 @@ async function deleteAdminWorship(id) {
   if (!row || !confirm(`“${row.title}”을 이번 주 찬양에서 삭제할까요?`)) return;
   const {data,error} = await db.from("worship_playlist_items").delete().eq("id",id).select("id");
   if (error || !data?.length) { $("#worshipAdminStatus").textContent = error ? dbErrorMessage(error,"찬양 삭제에 실패했습니다.") : "삭제할 찬양을 찾지 못했습니다."; return; }
+  await loadAdminWorshipSundayDates();
   await loadAdminWorshipPlaylist();
+  renderAdminWorshipCalendar();
   $("#worshipAdminStatus").textContent = "찬양이 삭제되었습니다.";
 }
 
@@ -2583,9 +2707,17 @@ $("#youtubeSearchResults")?.addEventListener("click", e => {
 });
 $("#worshipSundayPicker")?.addEventListener("change", e => {
   const sunday = sundayForISO(e.target.value || currentWorshipSunday());
+  adminWorshipSelectedSunday = sunday;
   e.target.value = sunday;
   void loadAdminWorshipPlaylist(sunday);
 });
+$("#adminWorshipCalendarToggle")?.addEventListener("click", () => {
+  setCollapsibleCalendar("#adminWorshipCalendarPanel","#adminWorshipCalendarToggle",$("#adminWorshipCalendarPanel")?.classList.contains("hidden"));
+  if (!$("#adminWorshipCalendarPanel")?.classList.contains("hidden")) renderAdminWorshipCalendar();
+});
+$("#adminWorshipCalendarPrev")?.addEventListener("click", () => { adminWorshipCalendarCursor = new Date(adminWorshipCalendarCursor.getFullYear(),adminWorshipCalendarCursor.getMonth()-1,1); renderAdminWorshipCalendar(); });
+$("#adminWorshipCalendarNext")?.addEventListener("click", () => { adminWorshipCalendarCursor = new Date(adminWorshipCalendarCursor.getFullYear(),adminWorshipCalendarCursor.getMonth()+1,1); renderAdminWorshipCalendar(); });
+$("#adminWorshipCalendarGrid")?.addEventListener("click", e => { const btn = e.target.closest("[data-admin-worship-sunday]"); if (btn) void selectAdminWorshipSunday(btn.dataset.adminWorshipSunday); });
 $("#refreshWorshipAdminBtn")?.addEventListener("click", () => loadAdminWorship());
 $("#adminWorshipPlaylist")?.addEventListener("click", e => {
   const move = e.target.closest("[data-worship-move]");
@@ -2817,56 +2949,74 @@ async function refreshAdminWeeklyRows() {
 // ============================================================
 // 말씀 관리 - 성경공부와 분리
 // ============================================================
-function resetWordEditor() {
+function renderAdminWordCalendar() {
+  renderSundayCalendarGrid({
+    cursor:adminWordCalendarCursor, gridSelector:"#adminWordCalendarGrid", monthSelector:"#adminWordCalendarMonth",
+    selectedSunday:adminWordSelectedSunday, markedSundays:adminWeeklyRows.map(r=>sundayFromWeekStart(r.week_start)).filter(Boolean),
+    markText:"말씀", onlyMarked:false, dataAttr:"data-admin-word-sunday"
+  });
+}
+function resetWordEditorForSunday(sunday = currentWorshipSunday()) {
   adminWordId = null;
+  adminWordSelectedSunday = sundayForISO(sunday) || currentWorshipSunday();
+  adminWordCalendarCursor = monthCursorForISO(adminWordSelectedSunday);
   if ($("#wordPicker")) $("#wordPicker").value = "__new__";
-  $("#wordWeekStart").value = currentMondayISO();
+  $("#wordWeekStart").value = weekStartFromSunday(adminWordSelectedSunday);
   $("#adminVerseRef").value = "";
   $("#adminVerseText").value = "";
   $("#wordPublished").checked = true;
-  $("#wordModeLabel").textContent = "새 말씀 등록 모드입니다.";
+  $("#wordModeLabel").textContent = `${fmtDate(adminWordSelectedSunday)} 주일 · 새 말씀 등록 모드입니다.`;
+  $("#adminWordSelectedDate").textContent = `${fmtDate(adminWordSelectedSunday)} 주일 · 새 말씀`;
   $("#wordSaveBtn").textContent = "말씀 등록";
   $("#deleteWordBtn").disabled = true;
-  $("#wordAdminStatus").textContent = "새 말씀을 입력해 주세요.";
+  $("#wordAdminStatus").textContent = "선택한 주일의 새 말씀을 입력해 주세요.";
+  renderAdminWordCalendar();
 }
-
+function resetWordEditor() { resetWordEditorForSunday(adminWordSelectedSunday || currentWorshipSunday()); }
+async function selectAdminWordSunday(sunday) {
+  adminWordSelectedSunday = sundayForISO(sunday) || currentWorshipSunday();
+  adminWordCalendarCursor = monthCursorForISO(adminWordSelectedSunday);
+  const row = adminWeeklyRowForSunday(adminWordSelectedSunday);
+  if (row) loadAdminWordEditor(row.id); else resetWordEditorForSunday(adminWordSelectedSunday);
+  renderAdminWordCalendar();
+}
 async function loadAdminWordOptions(preferredId = null) {
   if (!isAdmin) return;
   const result = await refreshAdminWeeklyRows();
-  if (result.error) {
-    $("#wordAdminStatus").textContent = dbErrorMessage(result.error, "지난 말씀 목록을 불러오지 못했습니다.");
-    return;
-  }
+  if (result.error) { $("#wordAdminStatus").textContent = dbErrorMessage(result.error, "지난 말씀 목록을 불러오지 못했습니다."); return; }
   $("#wordPicker").innerHTML = '<option value="__new__">＋ 새 말씀 등록</option>' + adminWeeklyRows.map(r =>
-    `<option value="${escapeHtml(String(r.id))}">${escapeHtml(sundayFromWeekStart(r.week_start) || r.week_start || "날짜 없음")} 주일 · ${escapeHtml(r.verse_reference || "말씀 미입력")} · ${r.published ? "공개" : "비공개"}</option>`
-  ).join("");
-  const target = preferredId && adminWeeklyRows.some(r=>String(r.id)===String(preferredId))
-    ? String(preferredId)
-    : "__new__";
-  $("#wordPicker").value = target;
-  if (target === "__new__") resetWordEditor();
-  else loadAdminWordEditor(target);
+    `<option value="${escapeHtml(String(r.id))}">${escapeHtml(sundayFromWeekStart(r.week_start) || r.week_start || "날짜 없음")} 주일 · ${escapeHtml(r.verse_reference || "말씀 미입력")}</option>`).join("");
+  if (preferredId && adminWeeklyRows.some(r=>String(r.id)===String(preferredId))) loadAdminWordEditor(String(preferredId));
+  else await selectAdminWordSunday(adminWordSelectedSunday || currentWorshipSunday());
+  renderAdminWordCalendar();
 }
-
 function loadAdminWordEditor(id) {
   const row = adminWeeklyRows.find(r => String(r.id) === String(id));
-  if (!row) return resetWordEditor();
+  if (!row) return resetWordEditorForSunday(adminWordSelectedSunday || currentWorshipSunday());
   adminWordId = String(row.id);
-  $("#wordWeekStart").value = row.week_start || currentMondayISO();
+  adminWordSelectedSunday = sundayFromWeekStart(row.week_start);
+  adminWordCalendarCursor = monthCursorForISO(adminWordSelectedSunday);
+  $("#wordPicker").value = String(row.id);
+  $("#wordWeekStart").value = row.week_start || weekStartFromSunday(adminWordSelectedSunday);
   $("#adminVerseRef").value = row.verse_reference || "";
   $("#adminVerseText").value = row.verse_text || "";
   $("#wordPublished").checked = Boolean(row.published);
-  $("#wordModeLabel").textContent = `${row.week_start || "날짜 없음"} 말씀을 수정 중입니다.`;
+  $("#wordModeLabel").textContent = `${fmtDate(adminWordSelectedSunday)} 주일 말씀을 수정 중입니다.`;
+  $("#adminWordSelectedDate").textContent = `${fmtDate(adminWordSelectedSunday)} 주일 · 등록된 말씀 수정`;
   $("#wordSaveBtn").textContent = "말씀 수정 저장";
   $("#deleteWordBtn").disabled = false;
   $("#wordAdminStatus").textContent = "기존 말씀을 불러왔습니다. 수정하거나 삭제할 수 있습니다.";
+  renderAdminWordCalendar();
 }
-
-$("#wordPicker").addEventListener("change", e => {
-  if (e.target.value === "__new__") resetWordEditor();
-  else loadAdminWordEditor(e.target.value);
+$("#wordPicker").addEventListener("change", e => { if (e.target.value === "__new__") resetWordEditor(); else loadAdminWordEditor(e.target.value); });
+$("#newWordBtn").addEventListener("click", () => resetWordEditorForSunday(currentWorshipSunday()));
+$("#adminWordCalendarToggle")?.addEventListener("click", () => {
+  setCollapsibleCalendar("#adminWordCalendarPanel","#adminWordCalendarToggle",$("#adminWordCalendarPanel")?.classList.contains("hidden"));
+  if (!$("#adminWordCalendarPanel")?.classList.contains("hidden")) renderAdminWordCalendar();
 });
-$("#newWordBtn").addEventListener("click", resetWordEditor);
+$("#adminWordCalendarPrev")?.addEventListener("click", () => { adminWordCalendarCursor = new Date(adminWordCalendarCursor.getFullYear(),adminWordCalendarCursor.getMonth()-1,1); renderAdminWordCalendar(); });
+$("#adminWordCalendarNext")?.addEventListener("click", () => { adminWordCalendarCursor = new Date(adminWordCalendarCursor.getFullYear(),adminWordCalendarCursor.getMonth()+1,1); renderAdminWordCalendar(); });
+$("#adminWordCalendarGrid")?.addEventListener("click", e => { const btn = e.target.closest("[data-admin-word-sunday]"); if (btn) void selectAdminWordSunday(btn.dataset.adminWordSunday); });
 
 async function directSaveWord(payload) {
   if (adminWordId) {
@@ -2993,6 +3143,13 @@ $("#deleteWordBtn").addEventListener("click", async () => {
 // ============================================================
 // 성경공부 관리 - 말씀과 분리
 // ============================================================
+function renderAdminStudyCalendar() {
+  const studyDates = adminWeeklyRows.filter(r => (r.study_title && r.study_title !== "성경공부")).map(r=>sundayFromWeekStart(r.week_start)).filter(Boolean);
+  renderSundayCalendarGrid({
+    cursor:adminStudyCalendarCursor, gridSelector:"#adminStudyCalendarGrid", monthSelector:"#adminStudyCalendarMonth",
+    selectedSunday:adminStudySelectedSunday, markedSundays:studyDates, markText:"공부", onlyMarked:false, dataAttr:"data-admin-study-sunday"
+  });
+}
 function resetStudyEditor(clearSelection = false) {
   if (clearSelection) adminStudyId = null;
   $("#adminStudyTitle").value = "";
@@ -3001,60 +3158,68 @@ function resetStudyEditor(clearSelection = false) {
   $("#adminQ3").value = "";
   $("#studySaveBtn").textContent = "성경공부 등록";
   $("#deleteStudyBtn").disabled = true;
-  $("#studyAdminStatus").textContent = adminStudyId ? "성경공부 내용을 입력해 주세요." : "성경공부를 연결할 말씀을 선택해 주세요.";
 }
-
+async function selectAdminStudySunday(sunday) {
+  adminStudySelectedSunday = sundayForISO(sunday) || currentWorshipSunday();
+  adminStudyCalendarCursor = monthCursorForISO(adminStudySelectedSunday);
+  const row = adminWeeklyRowForSunday(adminStudySelectedSunday);
+  if (!row) {
+    adminStudyId = null;
+    if ($("#studyPicker")) $("#studyPicker").value = "";
+    resetStudyEditor(true);
+    $("#studyWeekInfo").textContent = `${fmtDate(adminStudySelectedSunday)} 주일 · 등록된 말씀이 없습니다.`;
+    $("#adminStudySelectedDate").textContent = `${fmtDate(adminStudySelectedSunday)} 주일 · 말씀 등록 필요`;
+    $("#studyModeLabel").textContent = "성경공부는 같은 주일의 말씀이 먼저 등록되어 있어야 합니다.";
+    $("#studySaveBtn").disabled = true;
+    $("#studyAdminStatus").textContent = "말씀 관리 탭에서 이 주일의 말씀을 먼저 등록해 주세요.";
+  } else {
+    $("#studySaveBtn").disabled = false;
+    await loadAdminStudyEditor(row.id);
+  }
+  renderAdminStudyCalendar();
+}
 async function loadAdminStudyOptions(preferredId = null) {
   if (!isAdmin) return;
   const result = await refreshAdminWeeklyRows();
-  if (result.error) {
-    $("#studyAdminStatus").textContent = dbErrorMessage(result.error, "말씀 목록을 불러오지 못했습니다.");
-    return;
-  }
+  if (result.error) { $("#studyAdminStatus").textContent = dbErrorMessage(result.error, "말씀 목록을 불러오지 못했습니다."); return; }
   $("#studyPicker").innerHTML = '<option value="">말씀을 선택해 주세요</option>' + adminWeeklyRows.map(r =>
-    `<option value="${escapeHtml(String(r.id))}">${escapeHtml(sundayFromWeekStart(r.week_start) || r.week_start || "날짜 없음")} 주일 · ${escapeHtml(r.verse_reference || "말씀 미입력")} · ${escapeHtml(r.study_title || "성경공부 미등록")}</option>`
-  ).join("");
-  const target = preferredId && adminWeeklyRows.some(r=>String(r.id)===String(preferredId))
-    ? String(preferredId)
-    : "";
-  $("#studyPicker").value = target;
-  if (target) await loadAdminStudyEditor(target);
-  else {
-    $("#studyWeekInfo").textContent = "말씀을 선택해 주세요.";
-    resetStudyEditor(true);
-  }
+    `<option value="${escapeHtml(String(r.id))}">${escapeHtml(sundayFromWeekStart(r.week_start) || r.week_start || "날짜 없음")} 주일 · ${escapeHtml(r.verse_reference || "말씀 미입력")}</option>`).join("");
+  if (preferredId && adminWeeklyRows.some(r=>String(r.id)===String(preferredId))) await loadAdminStudyEditor(String(preferredId));
+  else await selectAdminStudySunday(adminStudySelectedSunday || currentWorshipSunday());
+  renderAdminStudyCalendar();
 }
-
 async function loadAdminStudyEditor(id) {
   const row = adminWeeklyRows.find(r => String(r.id) === String(id));
-  if (!row) return resetStudyEditor(true);
+  if (!row) return selectAdminStudySunday(adminStudySelectedSunday || currentWorshipSunday());
   adminStudyId = String(row.id);
-  $("#studyWeekInfo").textContent = `${sundayFromWeekStart(row.week_start) || row.week_start || "날짜 없음"} 주일 · ${row.verse_reference || "말씀 미입력"}`;
+  adminStudySelectedSunday = sundayFromWeekStart(row.week_start);
+  adminStudyCalendarCursor = monthCursorForISO(adminStudySelectedSunday);
+  $("#studyPicker").value = String(row.id);
+  $("#studyWeekInfo").textContent = `${fmtDate(adminStudySelectedSunday)} 주일 · ${row.verse_reference || "말씀 미입력"}`;
+  $("#adminStudySelectedDate").textContent = `${fmtDate(adminStudySelectedSunday)} 주일`;
   $("#adminStudyTitle").value = row.study_title && row.study_title !== "성경공부" ? row.study_title : "";
   const { data, error } = await db.from("study_questions").select("*").eq("weekly_content_id", row.id).order("question_order");
-  if (error) {
-    $("#studyAdminStatus").textContent = dbErrorMessage(error, "성경공부 문제를 불러오지 못했습니다.");
-    return;
-  }
+  if (error) { $("#studyAdminStatus").textContent = dbErrorMessage(error, "성경공부 문제를 불러오지 못했습니다."); return; }
   const qs = data || [];
   $("#adminQ1").value = qs[0]?.question_text || "";
   $("#adminQ2").value = qs[1]?.question_text || "";
   $("#adminQ3").value = qs[2]?.question_text || "";
   const hasStudy = Boolean(qs.length || ($("#adminStudyTitle").value));
-  $("#studyModeLabel").textContent = hasStudy ? "기존 성경공부를 수정 중입니다." : "이 말씀에는 아직 성경공부가 없습니다. 새로 등록할 수 있습니다.";
+  $("#studyModeLabel").textContent = hasStudy ? "기존 성경공부를 수정 중입니다." : "이 주일에는 아직 성경공부가 없습니다. 새로 등록할 수 있습니다.";
   $("#studySaveBtn").textContent = hasStudy ? "성경공부 수정 저장" : "성경공부 등록";
+  $("#studySaveBtn").disabled = false;
   $("#deleteStudyBtn").disabled = !hasStudy;
   $("#studyAdminStatus").textContent = hasStudy ? "기존 성경공부를 불러왔습니다." : "성경공부 내용을 입력해 주세요.";
+  renderAdminStudyCalendar();
 }
-
-$("#studyPicker").addEventListener("change", async e => {
-  if (!e.target.value) {
-    $("#studyWeekInfo").textContent = "말씀을 선택해 주세요.";
-    resetStudyEditor(true);
-  } else {
-    await loadAdminStudyEditor(e.target.value);
-  }
+$("#studyPicker").addEventListener("change", async e => { if (!e.target.value) await selectAdminStudySunday(adminStudySelectedSunday || currentWorshipSunday()); else await loadAdminStudyEditor(e.target.value); });
+$("#adminStudyCalendarToggle")?.addEventListener("click", () => {
+  setCollapsibleCalendar("#adminStudyCalendarPanel","#adminStudyCalendarToggle",$("#adminStudyCalendarPanel")?.classList.contains("hidden"));
+  if (!$("#adminStudyCalendarPanel")?.classList.contains("hidden")) renderAdminStudyCalendar();
 });
+$("#adminStudyCalendarPrev")?.addEventListener("click", () => { adminStudyCalendarCursor = new Date(adminStudyCalendarCursor.getFullYear(),adminStudyCalendarCursor.getMonth()-1,1); renderAdminStudyCalendar(); });
+$("#adminStudyCalendarNext")?.addEventListener("click", () => { adminStudyCalendarCursor = new Date(adminStudyCalendarCursor.getFullYear(),adminStudyCalendarCursor.getMonth()+1,1); renderAdminStudyCalendar(); });
+$("#adminStudyCalendarGrid")?.addEventListener("click", e => { const btn = e.target.closest("[data-admin-study-sunday]"); if (btn) void selectAdminStudySunday(btn.dataset.adminStudySunday); });
 
 async function directSaveStudy(contentId, title, qs) {
   const up = await db.from("weekly_contents").update({study_title:title}).eq("id",contentId).select("id").maybeSingle();

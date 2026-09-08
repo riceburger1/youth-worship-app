@@ -1,4 +1,4 @@
-const CACHE = "주의울림-v46-sunday-calendar-latest";
+const CACHE = "주의울림-v47-calendar-admin";
 const CORE_ASSETS = [
   "./",
   "./index.html",

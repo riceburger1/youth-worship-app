@@ -1142,3 +1142,40 @@ button.student-sunday-day.has-content:hover{
   .student-sunday-calendar-grid{grid-auto-rows:minmax(38px,auto)}
   .student-sunday-day{border-radius:8px;font-size:.78rem}
 }
+
+
+/* V47 · 학생 찬양 + 관리자 말씀/성경공부/찬양 달력 */
+.worship-sunday-picker-wrap.calendar-sunday-picker{margin:0 0 14px}
+.admin-date-calendar-wrap{
+  border:1px solid var(--line);border-radius:14px;padding:11px 12px;
+  background:var(--soft,#f8faf9);margin-bottom:12px
+}
+.admin-date-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.admin-date-calendar-head>div{display:grid;gap:3px;min-width:0}
+.admin-date-calendar-head strong{font-size:.88rem;font-weight:900}
+.admin-date-calendar-head small{color:var(--muted);font-size:.76rem;font-weight:750}
+.admin-calendar-toggle{width:auto!important;min-width:0!important;white-space:nowrap}
+.admin-date-calendar{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.admin-sunday-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;grid-auto-rows:minmax(43px,auto)}
+.admin-sunday-day{
+  min-width:0;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--text);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;padding:4px 2px;font:inherit
+}
+.admin-sunday-day.outside{opacity:.34}
+.admin-sunday-day.weekday{color:var(--muted);opacity:.42}
+button.admin-sunday-day.sunday{cursor:pointer;background:var(--card,#fff);border-color:var(--line);font-weight:900}
+button.admin-sunday-day.sunday:hover{transform:translateY(-1px)}
+.admin-sunday-day.has-record{background:rgba(58,139,107,.08)!important;border-color:rgba(58,139,107,.32)!important}
+.admin-sunday-day.has-record b{font-size:.56rem;line-height:1;padding:2px 4px;border-radius:999px;color:var(--accent,#3a8b6b);background:rgba(58,139,107,.12)}
+.admin-sunday-day.selected{outline:2px solid var(--accent,#3a8b6b);outline-offset:-2px}
+.admin-sunday-day.today::after{content:"";position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.7}
+.worship-admin-calendar-wrap{margin-bottom:12px}
+@media(max-width:560px){
+  .admin-date-calendar-wrap{padding:10px}
+  .admin-date-calendar-head{align-items:flex-start}
+  .admin-date-calendar-head strong{font-size:.82rem}
+  .admin-date-calendar-head small{font-size:.7rem}
+  .admin-sunday-calendar-grid{gap:3px;grid-auto-rows:minmax(38px,auto)}
+  .admin-sunday-day{font-size:.76rem;border-radius:8px}
+  .admin-sunday-day.has-record b{font-size:.52rem}
+}
