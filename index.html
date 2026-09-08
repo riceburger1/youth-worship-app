@@ -1,783 +1,724 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#1f4d3f" />
-  <meta name="description" content="양정중앙교회 청소년부 주의울림 예배 앱" />
-  <link rel="manifest" href="./manifest.json" />
-  <link rel="icon" href="./icon-192.png" type="image/png" />
-  <link rel="stylesheet" href="./styles.css" />
-  <title>주의울림 | 양정중앙교회 청소년부</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+<meta content="#1f4d3f" name="theme-color"/>
+<meta content="양정중앙교회 청소년부 주의울림 예배 앱" name="description"/>
+<link href="./manifest.json" rel="manifest"/>
+<link href="./icon-192.png" rel="icon" type="image/png"/>
+<link href="./styles.css" rel="stylesheet"/>
+<title>주의울림 | 양정중앙교회 청소년부</title>
 </head>
 <body>
-  <div id="app">
-    <header class="hero">
-      <div class="brand">
-        <span class="church">양정중앙교회 청소년부</span>
-        <strong>주의울림</strong>
-        <span class="subtitle">말씀 · 나눔 · 기도 · 감사</span>
-      </div>
-      <div class="hero-actions">
-        <button id="profileHeaderBtn" class="header-profile-btn" type="button" aria-controls="profile" aria-pressed="false">👤 내 정보</button>
-        <button id="installBtn" class="ghost hidden" type="button">앱 설치</button>
-      </div>
-    </header>
-
-    <section id="profile" class="profile-drawer card hidden profile-card" aria-hidden="true">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">나의 기록 정보</span>
-            <h2>내 정보</h2>
-            <p class="muted">학년(또는 선생님)과 이름을 한 번 입력하면 이 기기에 저장되고, 나의 신앙활동 기록에 자동으로 연결됩니다.</p>
-          </div>
-          <div class="profile-head-actions">
-            <span class="pill">공통 프로필</span>
-            <button id="closeProfileBtn" class="ghost compact-btn" type="button">닫기</button>
-          </div>
-        </div>
-        <div class="identity-grid">
-          <label>학년 / 구분
+<div id="app">
+<header class="hero">
+<div class="brand">
+<span class="church">양정중앙교회 청소년부</span>
+<strong>주의울림</strong>
+<span class="subtitle">말씀 · 나눔 · 기도 · 감사</span>
+</div>
+<div class="hero-actions">
+<button aria-controls="profile" aria-pressed="false" class="header-profile-btn" id="profileHeaderBtn" type="button">👤 내 정보</button>
+<button class="ghost hidden" id="installBtn" type="button">앱 설치</button>
+</div>
+</header>
+<section aria-hidden="true" class="profile-drawer card hidden profile-card" id="profile">
+<div class="section-head">
+<div>
+<span class="eyebrow">나의 기록 정보</span>
+<h2>내 정보</h2>
+<p class="muted">학년(또는 선생님)과 이름을 한 번 입력하면 이 기기에 저장되고, 나의 신앙활동 기록에 자동으로 연결됩니다.</p>
+</div>
+<div class="profile-head-actions">
+<span class="pill">공통 프로필</span>
+<button class="ghost compact-btn" id="closeProfileBtn" type="button">닫기</button>
+</div>
+</div>
+<div class="identity-grid">
+<label>학년 / 구분
             <select id="grade">
-              <option value="">학년 또는 구분 선택</option>
-              <option>중1</option><option>중2</option><option>중3</option>
-              <option>고1</option><option>고2</option><option>고3</option>
-              <option>선생님</option>
-            </select>
-          </label>
-          <label>이름
-            <input id="studentName" type="text" maxlength="30" autocomplete="name" placeholder="이름 입력" />
-          </label>
-        </div>
-        <button id="saveProfileBtn" class="primary profile-save-btn" type="button">내 정보 저장</button>
-        <p id="profileStatus" class="status">학년/구분과 이름을 입력해 주세요.</p>
-
-        <div class="profile-sync-box">
-          <strong>내 정보가 자동으로 연결되는 기록</strong>
-          <div class="profile-sync-grid">
-            <span>📖 말씀쓰기·출석</span>
-            <span>📝 성경공부 답안</span>
-            <span>🙏 기도제목</span>
-            <span>🔥 감사기도</span>
-          </div>
-          <p>위 활동을 제출하면 저장된 학년/구분·이름이 함께 기록되어 관리자 기록에 반영됩니다. 익명게시판은 익명성을 위해 내 정보와 연결하지 않습니다.</p>
-        </div>
-      </section>
-
-
-    <section id="bannerArea" class="banner-wrap"></section>
-
-    <section id="weatherSection" class="weather-section" aria-labelledby="weatherTitle">
-      <div class="weather-shell">
-        <div class="weather-head">
-          <div>
-            <span class="eyebrow">오늘의 날씨</span>
-            <h2 id="weatherTitle">☀️ 예배 가는 길 날씨</h2>
-            <p id="weatherLocation" class="muted">부산 기준 날씨를 불러오는 중입니다.</p>
-          </div>
-          <button id="weatherUseLocationBtn" class="ghost compact-btn" type="button">📍 내 위치</button>
-        </div>
-        <div id="weatherSummary" class="weather-summary" aria-label="오늘과 내일 날씨">
-          <button id="weatherTodayCard" class="weather-day-card" type="button" aria-expanded="false" aria-controls="weeklyWeatherPanel">
-            <span class="weather-day-label">오늘</span>
-            <span id="weatherTodayIcon" class="weather-icon" aria-hidden="true">⏳</span>
-            <strong id="weatherTodayText">불러오는 중</strong>
-            <span id="weatherTodayTemp" class="weather-temp">--° / --°</span>
-            <small id="weatherTodayRain">강수 --%</small>
-          </button>
-          <button id="weatherTomorrowCard" class="weather-day-card" type="button" aria-expanded="false" aria-controls="weeklyWeatherPanel">
-            <span class="weather-day-label">내일</span>
-            <span id="weatherTomorrowIcon" class="weather-icon" aria-hidden="true">⏳</span>
-            <strong id="weatherTomorrowText">불러오는 중</strong>
-            <span id="weatherTomorrowTemp" class="weather-temp">--° / --°</span>
-            <small id="weatherTomorrowRain">강수 --%</small>
-          </button>
-        </div>
-        <p id="weatherHint" class="weather-hint">오늘 또는 내일 날씨를 누르면 주간날씨를 볼 수 있습니다.</p>
-        <div id="weeklyWeatherPanel" class="weekly-weather-panel hidden" aria-hidden="true">
-          <div class="weather-week-head">
-            <strong>7일 주간날씨</strong>
-            <button id="closeWeeklyWeatherBtn" class="ghost compact-btn" type="button">닫기</button>
-          </div>
-          <div id="weeklyWeatherList" class="weekly-weather-list"></div>
-          <p id="weatherStatus" class="status"></p>
-        </div>
-      </div>
-    </section>
-
-    <main>
-      <nav class="tabs" aria-label="메뉴">
-        <button class="tab active" data-tab="word">말씀쓰기</button>
-        <button class="tab" data-tab="study">성경공부</button>
-        <button class="tab" data-tab="prayer">기도제목</button>
-        <button class="tab" data-tab="notice">공지사항</button>
-        <button class="tab" data-tab="gratitude">감사기도</button>
-        <button class="tab" data-tab="worship">찬양</button>
-        <button class="tab" data-tab="board">익명게시판</button>
-        <button class="tab" data-tab="newfriend">새친구</button>
-      </nav>
-
-      <section id="word" class="panel card">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">이번 주 말씀</span>
-            <h2 id="verseReference">불러오는 중...</h2>
-          </div>
-          <span id="progressText" class="pill">0%</span>
-        </div>
-        <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
-        <div id="wordModeNotice" class="word-mode-notice practice" aria-live="polite">
-          <strong id="wordModeBadge">연습모드</strong>
-          <span id="wordModeText">말씀쓰기 출석은 해당 주일 오전 10:30부터 오후 1:00 전까지 인정됩니다. 그 외 시간에는 연습만 가능합니다.</span>
-        </div>
-        <blockquote id="verseText" class="verse">말씀을 불러오는 중입니다.</blockquote>
-        <div class="typing-note">
+<option value="">학년 또는 구분 선택</option>
+<option>중1</option><option>중2</option><option>중3</option>
+<option>고1</option><option>고2</option><option>고3</option>
+<option>선생님</option>
+</select>
+</label>
+<label>이름
+            <input autocomplete="name" id="studentName" maxlength="30" placeholder="이름 입력" type="text"/>
+</label>
+</div>
+<button class="primary profile-save-btn" id="saveProfileBtn" type="button">내 정보 저장</button>
+<p class="status" id="profileStatus">학년/구분과 이름을 입력해 주세요.</p>
+<div class="profile-sync-box">
+<strong>내 정보가 자동으로 연결되는 기록</strong>
+<div class="profile-sync-grid">
+<span>📖 말씀쓰기·출석</span>
+<span>📝 성경공부 답안</span>
+<span>🙏 기도제목</span>
+<span>🔥 감사기도</span>
+</div>
+<p>위 활동을 제출하면 저장된 학년/구분·이름이 함께 기록되어 관리자 기록에 반영됩니다. 익명게시판은 익명성을 위해 내 정보와 연결하지 않습니다.</p>
+</div>
+</section>
+<section class="banner-wrap" id="bannerArea"></section>
+<main>
+<nav aria-label="메뉴" class="tabs">
+<button class="tab active" data-tab="word">말씀쓰기</button>
+<button class="tab" data-tab="study">성경공부</button>
+<button class="tab" data-tab="prayer">기도제목</button>
+<button class="tab" data-tab="notice">공지사항</button>
+<button class="tab" data-tab="gratitude">감사기도</button>
+<button class="tab" data-tab="worship">찬양</button>
+<button class="tab" data-tab="board">익명게시판</button>
+<button class="tab" data-tab="newfriend">새친구</button>
+</nav>
+<section class="panel card" id="word">
+<div class="section-head">
+<div>
+<span class="eyebrow">이번 주 말씀</span>
+<h2 id="verseReference">불러오는 중...</h2>
+</div>
+<span class="pill" id="progressText">0%</span>
+</div>
+<p class="profile-link-note" data-profile-display="">오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
+<div aria-live="polite" class="word-mode-notice practice" id="wordModeNotice">
+<strong id="wordModeBadge">연습모드</strong>
+<span id="wordModeText">말씀쓰기 출석은 해당 주일 오전 10:30부터 오후 1:00 전까지 인정됩니다. 그 외 시간에는 연습만 가능합니다.</span>
+</div>
+<blockquote class="verse" id="verseText">말씀을 불러오는 중입니다.</blockquote>
+<div class="typing-note">
           복사·붙여넣기, 드래그앤드롭 입력은 사용할 수 없습니다. 말씀을 직접 따라 써 주세요.
         </div>
-        <label class="field-label">말씀 따라쓰기
-          <textarea id="verseInput" rows="7"
-            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-            placeholder="위 말씀을 직접 입력하세요."></textarea>
-        </label>
-        <div class="progress"><div id="progressBar"></div></div>
-        <p id="wordStatus" class="status">말씀을 불러오는 중입니다.</p>
-        <button id="completeWordBtn" class="primary" type="button" disabled>말씀쓰기 완료 및 출석</button>
-      </section>
+<label class="field-label">말씀 따라쓰기
+          <textarea autocapitalize="off" autocomplete="off" autocorrect="off" id="verseInput" placeholder="위 말씀을 직접 입력하세요." rows="7" spellcheck="false"></textarea>
+</label>
+<div class="progress"><div id="progressBar"></div></div>
+<p class="status" id="wordStatus">말씀을 불러오는 중입니다.</p>
+<button class="primary" disabled="" id="completeWordBtn" type="button">말씀쓰기 완료 및 출석</button>
+</section>
+<section class="panel card hidden" id="study">
+<span class="eyebrow">이번 주 성경공부</span>
+<h2 id="studyTitle">성경공부</h2>
+<p class="profile-link-note" data-profile-display="">오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
+<div aria-live="polite" class="word-mode-notice practice" id="studyModeNotice">
+<strong id="studyModeBadge">작성시간 아님</strong>
+<span id="studyModeText">성경공부는 해당 주일 오전 10:30부터 오후 1:00 전까지만 작성·제출할 수 있습니다.</span>
+</div>
+<form id="studyForm">
+<div id="studyQuestions"></div>
+<button class="primary" disabled="" id="studySubmitBtn" type="submit">나눔 제출</button>
+<p class="status" id="studyStatus"></p>
+</form>
+</section>
+<section class="panel card hidden" id="prayer">
+<span class="eyebrow">함께 기도해요</span>
+<h2>이번 주 기도제목</h2>
+<p class="profile-link-note" data-profile-display="">오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
+<form id="prayerForm">
+<label class="field-label">기도제목
+            <textarea id="prayerText" maxlength="3000" placeholder="이번 주 기도제목을 적어 주세요." rows="6"></textarea>
+</label>
+<label class="check-row"><input checked="" id="prayerPrivate" type="checkbox"/> 관리자만 확인</label>
+<button class="primary" type="submit">기도제목 제출</button>
+<p class="status" id="prayerStatus"></p>
+</form>
+</section>
+<section class="panel card hidden" id="notice">
+<span class="eyebrow">전체 공지</span>
+<h2>공지사항</h2>
+<p class="muted">최신 공지와 지난 공지를 모두 확인할 수 있습니다.</p>
+<div class="list" id="noticeList"></div>
+</section>
+<section class="panel card hidden" id="gratitude">
+<div class="section-head gratitude-head">
+<div>
+<span class="eyebrow">매일 한 가지 감사</span>
+<h2>감사기도 챌린지</h2>
+<p class="muted">하루에 한 번 감사기도를 남기고 연속 기록을 이어가 보세요.</p>
+</div>
+<div aria-hidden="true" class="gratitude-flame">🔥</div>
+</div>
+<p class="profile-link-note" data-profile-display="">오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
+<section aria-labelledby="gratitudeLeaderTitle" class="gratitude-leader-top gratitude-leader-in-tab" id="gratitudeLeaderTop">
+<div class="gratitude-leader-head">
+<div>
+<span class="eyebrow">감사기도 챌린지 현황</span>
+<h3 id="gratitudeLeaderTitle">🔥 감사기도 챌린지 TOP 3</h3>
+</div>
+<button class="ghost compact-btn" id="refreshGratitudeLeaderBtn" type="button">새로고침</button>
+</div>
+<div class="gratitude-leader-list" id="gratitudeLeaderList"></div>
+<p class="status" id="gratitudeLeaderStatus">현재 연속기록 TOP 3를 불러오는 중입니다.</p>
+</section>
+<div class="challenge-stats">
+<div class="challenge-stat main"><span>현재 연속</span><strong id="gratitudeStreak">0일</strong></div>
+<div class="challenge-stat"><span>최고 연속</span><strong id="gratitudeBest">0일</strong></div>
+<div class="challenge-stat"><span>오늘</span><strong id="gratitudeToday">미기록</strong></div>
+</div>
+<section aria-labelledby="gratitudeCalendarTitle" class="gratitude-calendar-card">
+<div class="calendar-toolbar">
+<div>
+<span class="eyebrow">나의 감사 달력</span>
+<h3 id="gratitudeCalendarTitle">감사 기록 달력</h3>
+</div>
+<div aria-label="감사 달력 월 이동" class="calendar-nav">
+<button aria-label="이전 달" class="calendar-nav-btn" id="gratitudePrevMonth" type="button">‹</button>
+<strong id="gratitudeCalendarMonth">이번 달</strong>
+<button aria-label="다음 달" class="calendar-nav-btn" id="gratitudeNextMonth" type="button">›</button>
+</div>
+</div>
+<div aria-label="달력 표시 안내" class="calendar-legend">
+<span><b>🔥</b> 현재 연속 기록</span>
+<span><b>✅</b> 완료 기록</span>
+</div>
+<div aria-hidden="true" class="calendar-weekdays">
+<span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+</div>
+<div aria-label="감사기도 기록 달력" class="gratitude-calendar" id="gratitudeCalendar" role="grid"></div>
+<div class="calendar-summary">
+<strong id="gratitudeMonthCount">이번 달 0일 기록</strong>
+<span id="gratitudeCalendarHint">날짜를 누르면 그날 공개된 다른 감사기도를 볼 수 있습니다.</span>
+</div>
+<div aria-live="polite" class="gratitude-date-public-wrap">
+<div class="section-head compact">
+<div>
+<span class="eyebrow">달력에서 날짜 선택</span>
+<h4 id="gratitudeDatePublicTitle">날짜별 감사기도</h4>
+</div>
+</div>
+<div class="gratitude-public-list" id="gratitudeDatePublicList"><p class="muted">달력에서 날짜를 선택해 주세요.</p></div>
+<p class="status" id="gratitudeDatePublicStatus"></p>
+</div>
+</section>
+<section aria-labelledby="gratitudeBadgeTitle" class="badge-section">
+<div class="section-head compact">
+<div>
+<span class="eyebrow">연속 달성 배지</span>
+<h3 id="gratitudeBadgeTitle">나의 챌린지 배지</h3>
+</div>
+<span class="pill" id="gratitudeBadgeCount">0/2</span>
+</div>
+<div class="badge-grid" id="gratitudeBadges"></div>
+</section>
+<form class="gratitude-form" id="gratitudeForm">
+<label class="field-label">오늘의 감사기도
+            <textarea id="gratitudeText" maxlength="2000" minlength="10" placeholder="오늘 하나님께 감사한 일, 사람, 순간을 10자 이상 적어 보세요." rows="5"></textarea>
+</label>
+<div class="gratitude-input-meta">
+<span>10자 이상 작성해야 저장할 수 있습니다.</span>
+<strong id="gratitudeCharCount">0자 · 최소 10자</strong>
+</div>
+<div class="gratitude-form-actions">
+<button class="primary" id="gratitudeSubmitBtn" type="submit">오늘 감사기도 기록하기</button>
+<button class="ghost hidden" id="gratitudeEditCancelBtn" type="button">수정 취소</button>
+</div>
+<p class="gratitude-edit-hint hidden" id="gratitudeEditHint"></p>
+<p class="status" id="gratitudeStatus">매일 기록하면 연속일수가 올라갑니다.</p>
+</form>
+<section aria-labelledby="gratitudePublicTitle" class="gratitude-public-wrap">
+<div class="section-head compact">
+<div>
+<span class="eyebrow">오늘 함께 나누는 감사</span>
+<h3 id="gratitudePublicTitle">오늘의 감사기도</h3>
+<p class="muted">오늘 작성한 감사기도를 학년/구분·이름과 함께 공개합니다. 지난 날짜의 감사기도는 위 달력에서 날짜를 눌러 확인할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshGratitudePublicBtn" type="button">새로고침</button>
+</div>
+<div class="gratitude-public-list" id="gratitudePublicList"></div>
+<p class="status" id="gratitudePublicStatus"></p>
+</section>
+<div class="gratitude-history-wrap">
+<div class="section-head compact">
+<h3>나의 최근 기록</h3>
+<span class="pill" id="gratitudeCount">0회</span>
+</div>
+<div class="gratitude-history" id="gratitudeHistory"></div>
+<p class="privacy-note">새로 작성하거나 수정한 감사기도는 작성 당일 ‘오늘의 감사기도’에 공개됩니다. 지난 기록은 달력 날짜를 선택하면 다시 볼 수 있습니다. 이전에 비공개로 작성한 기존 기록은 자동 공개하지 않습니다. 오타 수정은 작성한 기기에서 가능하며, 삭제는 관리자 모드에서만 가능합니다.</p>
+</div>
+</section>
+<section class="panel card hidden" id="worship">
+<div class="section-head worship-head">
+<div>
+<span class="eyebrow">이번 주 예배 찬양</span>
+<h2>🎵 이번 주 찬양 플레이리스트</h2>
+<p class="muted" id="worshipWeekLabel">이번 주 찬양을 불러오는 중입니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshWorshipBtn" type="button">새로고침</button>
+</div>
+<div class="worship-player-shell">
+<div class="worship-video-wrap">
+<div aria-label="YouTube 찬양 플레이어" class="youtube-player-placeholder" id="youtubePlayer">
+<div class="youtube-placeholder-inner">
+<span aria-hidden="true">▶️</span>
+<strong>찬양을 선택해 주세요</strong>
+<small>관리자가 등록한 이번 주 찬양이 여기에 재생됩니다.</small>
+</div>
+</div>
+</div>
+<div class="worship-now-playing">
+<span class="eyebrow">NOW PLAYING</span>
+<h3 id="worshipNowTitle">재생할 찬양을 선택해 주세요.</h3>
+<p class="muted" id="worshipNowChannel"></p>
+</div>
+<div aria-label="찬양 재생 제어" class="worship-controls">
+<button aria-label="이전 곡" class="ghost worship-control-btn" disabled="" id="worshipPrevBtn" type="button">⏮ 이전곡</button>
+<button aria-label="재생" class="primary worship-control-btn worship-play-btn" disabled="" id="worshipPlayPauseBtn" type="button">▶ 재생</button>
+<button aria-label="다음 곡" class="ghost worship-control-btn" disabled="" id="worshipNextBtn" type="button">다음곡 ⏭</button>
+</div>
+<div class="worship-options">
+<label class="worship-volume-label" for="worshipVolume">
+<span>🔊 볼륨</span>
+<input disabled="" id="worshipVolume" max="100" min="0" step="1" type="range" value="70"/>
+<strong id="worshipVolumeValue">70%</strong>
+</label>
+<label class="check-row worship-auto-next"><input checked="" id="worshipAutoNext" type="checkbox"/> 곡이 끝나면 자동으로 다음 곡 재생</label>
+</div>
+</div>
+<div class="worship-playlist-wrap">
+<div class="section-head compact">
+<h3>이번 주 찬양 목록</h3>
+<span class="pill" id="worshipTrackCount">0곡</span>
+</div>
+<div class="worship-playlist" id="worshipPlaylist"></div>
+<p class="status" id="worshipStatus"></p>
+</div>
+</section>
+<section class="panel card hidden" id="board">
+<span class="eyebrow">자유롭게 남겨 주세요</span>
+<h2>익명 건의 · 문의 게시판</h2>
+<form id="boardForm">
+<label class="field-label">내용
+            <textarea id="boardText" maxlength="3000" placeholder="건의사항이나 문의 내용을 적어 주세요." rows="5"></textarea>
+</label>
+<button class="primary" type="submit">익명으로 등록</button>
+<p class="status" id="boardStatus"></p>
+</form>
+<div class="list board-list" id="boardList"></div>
+</section>
+<section class="panel card hidden" id="newfriend">
+<div class="section-head">
+<div>
+<span class="eyebrow">처음 온 친구를 환영해요</span>
+<h2>새친구 등록</h2>
+<p class="muted">학년·이름·학교는 새친구 소개 목록에 공개되고, 연락처·인도자·기타정보는 관리자만 확인합니다.</p>
+</div>
+<span class="pill">WELCOME</span>
+</div>
+<form class="new-friend-form" id="newFriendForm">
+<div class="new-friend-grid">
+<label>학년 *
+              <select id="newFriendGrade" required="">
+<option value="">학년 선택</option>
+<option>중1</option><option>중2</option><option>중3</option>
+<option>고1</option><option>고2</option><option>고3</option>
+</select>
+</label>
+<label>이름 *<input id="newFriendName" maxlength="30" placeholder="이름" required=""/></label>
+<label>학교 *<input id="newFriendSchool" maxlength="100" placeholder="학교명" required=""/></label>
+<label>연락처<input id="newFriendPhone" maxlength="30" placeholder="예: 010-1234-5678" type="tel"/></label>
+<label>인도자<input id="newFriendInviter" maxlength="50" placeholder="함께 데려온 친구/선생님"/></label>
+<label class="new-friend-full">기타정보<textarea id="newFriendOther" maxlength="1000" placeholder="알아두면 좋은 내용이 있으면 적어 주세요." rows="4"></textarea></label>
+</div>
+<div class="privacy-split-note">
+<span>🌐 공개: 학년 · 이름 · 학교</span>
+<span>🔒 관리자만: 연락처 · 인도자 · 기타정보</span>
+</div>
+<button class="primary" type="submit">새친구 등록</button>
+<p class="status" id="newFriendStatus"></p>
+</form>
+<div class="new-friend-public-wrap">
+<div class="section-head compact">
+<h3>우리 새친구</h3>
+<button class="ghost compact-btn" id="refreshNewFriendBtn" type="button">새로고침</button>
+</div>
+<div class="new-friend-public-list" id="newFriendPublicList"></div>
+<p class="status" id="newFriendPublicStatus"></p>
+</div>
+</section>
+<section aria-labelledby="churchCalendarTitle" class="card church-calendar-section" id="churchCalendarSection">
+<div class="section-head calendar-section-head">
+<div>
+<span class="eyebrow">청소년부 일정</span>
+<h2 id="churchCalendarTitle">행사 · 이벤트 달력</h2>
+<p class="muted">날짜를 누르면 등록된 행사와 일정을 확인할 수 있습니다.</p>
+</div>
+<div aria-label="행사 달력 월 이동" class="calendar-nav">
+<button aria-label="이전 달" class="calendar-nav-btn" id="eventPrevMonth" type="button">‹</button>
+<strong id="eventCalendarMonth">이번 달</strong>
+<button aria-label="다음 달" class="calendar-nav-btn" id="eventNextMonth" type="button">›</button>
+</div>
+</div>
+<div aria-hidden="true" class="calendar-weekdays event-weekdays">
+<span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+</div>
+<div aria-label="청소년부 행사 달력" class="event-calendar" id="eventCalendar" role="grid"></div>
+<div class="event-day-details" id="eventDayDetails">
+<p class="muted">날짜를 선택하면 그날의 일정이 표시됩니다.</p>
+</div>
+<p class="status" id="eventCalendarStatus"></p>
+</section>
 
-      <section id="study" class="panel card hidden">
-        <span class="eyebrow">이번 주 성경공부</span>
-        <h2 id="studyTitle">성경공부</h2>
-        <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
-        <div id="studyModeNotice" class="word-mode-notice practice" aria-live="polite">
-          <strong id="studyModeBadge">작성시간 아님</strong>
-          <span id="studyModeText">성경공부는 해당 주일 오전 10:30부터 오후 1:00 전까지만 작성·제출할 수 있습니다.</span>
-        </div>
-        <form id="studyForm">
-          <div id="studyQuestions"></div>
-          <button id="studySubmitBtn" class="primary" type="submit" disabled>나눔 제출</button>
-          <p id="studyStatus" class="status"></p>
-        </form>
-      </section>
-
-      <section id="prayer" class="panel card hidden">
-        <span class="eyebrow">함께 기도해요</span>
-        <h2>이번 주 기도제목</h2>
-        <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
-        <form id="prayerForm">
-          <label class="field-label">기도제목
-            <textarea id="prayerText" rows="6" maxlength="3000" placeholder="이번 주 기도제목을 적어 주세요."></textarea>
-          </label>
-          <label class="check-row"><input id="prayerPrivate" type="checkbox" checked /> 관리자만 확인</label>
-          <button class="primary" type="submit">기도제목 제출</button>
-          <p id="prayerStatus" class="status"></p>
-        </form>
-      </section>
-
-      <section id="notice" class="panel card hidden">
-        <span class="eyebrow">전체 공지</span>
-        <h2>공지사항</h2>
-        <p class="muted">최신 공지와 지난 공지를 모두 확인할 수 있습니다.</p>
-        <div id="noticeList" class="list"></div>
-      </section>
-
-      <section id="gratitude" class="panel card hidden">
-        <div class="section-head gratitude-head">
-          <div>
-            <span class="eyebrow">매일 한 가지 감사</span>
-            <h2>감사기도 챌린지</h2>
-            <p class="muted">하루에 한 번 감사기도를 남기고 연속 기록을 이어가 보세요.</p>
-          </div>
-          <div class="gratitude-flame" aria-hidden="true">🔥</div>
-        </div>
-
-        <p class="profile-link-note" data-profile-display>오른쪽 위 내 정보의 학년/구분·이름이 이 기록에 자동으로 연결됩니다.</p>
-
-        <section id="gratitudeLeaderTop" class="gratitude-leader-top gratitude-leader-in-tab" aria-labelledby="gratitudeLeaderTitle">
-          <div class="gratitude-leader-head">
-            <div>
-              <span class="eyebrow">감사기도 챌린지 현황</span>
-              <h3 id="gratitudeLeaderTitle">🔥 감사기도 챌린지 TOP 3</h3>
-            </div>
-            <button id="refreshGratitudeLeaderBtn" class="ghost compact-btn" type="button">새로고침</button>
-          </div>
-          <div id="gratitudeLeaderList" class="gratitude-leader-list"></div>
-          <p id="gratitudeLeaderStatus" class="status">현재 연속기록 TOP 3를 불러오는 중입니다.</p>
-        </section>
-
-        <div class="challenge-stats">
-          <div class="challenge-stat main"><span>현재 연속</span><strong id="gratitudeStreak">0일</strong></div>
-          <div class="challenge-stat"><span>최고 연속</span><strong id="gratitudeBest">0일</strong></div>
-          <div class="challenge-stat"><span>오늘</span><strong id="gratitudeToday">미기록</strong></div>
-        </div>
-
-        <section class="gratitude-calendar-card" aria-labelledby="gratitudeCalendarTitle">
-          <div class="calendar-toolbar">
-            <div>
-              <span class="eyebrow">나의 감사 달력</span>
-              <h3 id="gratitudeCalendarTitle">감사 기록 달력</h3>
-            </div>
-            <div class="calendar-nav" aria-label="감사 달력 월 이동">
-              <button id="gratitudePrevMonth" class="calendar-nav-btn" type="button" aria-label="이전 달">‹</button>
-              <strong id="gratitudeCalendarMonth">이번 달</strong>
-              <button id="gratitudeNextMonth" class="calendar-nav-btn" type="button" aria-label="다음 달">›</button>
-            </div>
-          </div>
-          <div class="calendar-legend" aria-label="달력 표시 안내">
-            <span><b>🔥</b> 현재 연속 기록</span>
-            <span><b>✅</b> 완료 기록</span>
-          </div>
-          <div class="calendar-weekdays" aria-hidden="true">
-            <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-          </div>
-          <div id="gratitudeCalendar" class="gratitude-calendar" role="grid" aria-label="감사기도 기록 달력"></div>
-          <div class="calendar-summary">
-            <strong id="gratitudeMonthCount">이번 달 0일 기록</strong>
-            <span id="gratitudeCalendarHint">날짜를 누르면 그날 공개된 다른 감사기도를 볼 수 있습니다.</span>
-          </div>
-          <div class="gratitude-date-public-wrap" aria-live="polite">
-            <div class="section-head compact">
-              <div>
-                <span class="eyebrow">달력에서 날짜 선택</span>
-                <h4 id="gratitudeDatePublicTitle">날짜별 감사기도</h4>
-              </div>
-            </div>
-            <div id="gratitudeDatePublicList" class="gratitude-public-list"><p class="muted">달력에서 날짜를 선택해 주세요.</p></div>
-            <p id="gratitudeDatePublicStatus" class="status"></p>
-          </div>
-        </section>
-
-        <section class="badge-section" aria-labelledby="gratitudeBadgeTitle">
-          <div class="section-head compact">
-            <div>
-              <span class="eyebrow">연속 달성 배지</span>
-              <h3 id="gratitudeBadgeTitle">나의 챌린지 배지</h3>
-            </div>
-            <span class="pill" id="gratitudeBadgeCount">0/2</span>
-          </div>
-          <div id="gratitudeBadges" class="badge-grid"></div>
-        </section>
-
-        <form id="gratitudeForm" class="gratitude-form">
-          <label class="field-label">오늘의 감사기도
-            <textarea id="gratitudeText" rows="5" minlength="10" maxlength="2000" placeholder="오늘 하나님께 감사한 일, 사람, 순간을 10자 이상 적어 보세요."></textarea>
-          </label>
-          <div class="gratitude-input-meta">
-            <span>10자 이상 작성해야 저장할 수 있습니다.</span>
-            <strong id="gratitudeCharCount">0자 · 최소 10자</strong>
-          </div>
-          <div class="gratitude-form-actions">
-            <button id="gratitudeSubmitBtn" class="primary" type="submit">오늘 감사기도 기록하기</button>
-            <button id="gratitudeEditCancelBtn" class="ghost hidden" type="button">수정 취소</button>
-          </div>
-          <p id="gratitudeEditHint" class="gratitude-edit-hint hidden"></p>
-          <p id="gratitudeStatus" class="status">매일 기록하면 연속일수가 올라갑니다.</p>
-        </form>
-
-        <section class="gratitude-public-wrap" aria-labelledby="gratitudePublicTitle">
-          <div class="section-head compact">
-            <div>
-              <span class="eyebrow">오늘 함께 나누는 감사</span>
-              <h3 id="gratitudePublicTitle">오늘의 감사기도</h3>
-              <p class="muted">오늘 작성한 감사기도를 학년/구분·이름과 함께 공개합니다. 지난 날짜의 감사기도는 위 달력에서 날짜를 눌러 확인할 수 있습니다.</p>
-            </div>
-            <button id="refreshGratitudePublicBtn" class="ghost compact-btn" type="button">새로고침</button>
-          </div>
-          <div id="gratitudePublicList" class="gratitude-public-list"></div>
-          <p id="gratitudePublicStatus" class="status"></p>
-        </section>
-
-        <div class="gratitude-history-wrap">
-          <div class="section-head compact">
-            <h3>나의 최근 기록</h3>
-            <span class="pill" id="gratitudeCount">0회</span>
-          </div>
-          <div id="gratitudeHistory" class="gratitude-history"></div>
-          <p class="privacy-note">새로 작성하거나 수정한 감사기도는 작성 당일 ‘오늘의 감사기도’에 공개됩니다. 지난 기록은 달력 날짜를 선택하면 다시 볼 수 있습니다. 이전에 비공개로 작성한 기존 기록은 자동 공개하지 않습니다. 오타 수정은 작성한 기기에서 가능하며, 삭제는 관리자 모드에서만 가능합니다.</p>
-        </div>
-      </section>
-
-      <section id="worship" class="panel card hidden">
-        <div class="section-head worship-head">
-          <div>
-            <span class="eyebrow">이번 주 예배 찬양</span>
-            <h2>🎵 이번 주 찬양 플레이리스트</h2>
-            <p id="worshipWeekLabel" class="muted">이번 주 찬양을 불러오는 중입니다.</p>
-          </div>
-          <button id="refreshWorshipBtn" class="ghost compact-btn" type="button">새로고침</button>
-        </div>
-
-        <div class="worship-player-shell">
-          <div class="worship-video-wrap">
-            <div id="youtubePlayer" class="youtube-player-placeholder" aria-label="YouTube 찬양 플레이어">
-              <div class="youtube-placeholder-inner">
-                <span aria-hidden="true">▶️</span>
-                <strong>찬양을 선택해 주세요</strong>
-                <small>관리자가 등록한 이번 주 찬양이 여기에 재생됩니다.</small>
-              </div>
-            </div>
-          </div>
-
-          <div class="worship-now-playing">
-            <span class="eyebrow">NOW PLAYING</span>
-            <h3 id="worshipNowTitle">재생할 찬양을 선택해 주세요.</h3>
-            <p id="worshipNowChannel" class="muted"></p>
-          </div>
-
-          <div class="worship-controls" aria-label="찬양 재생 제어">
-            <button id="worshipPrevBtn" class="ghost worship-control-btn" type="button" disabled aria-label="이전 곡">⏮ 이전곡</button>
-            <button id="worshipPlayPauseBtn" class="primary worship-control-btn worship-play-btn" type="button" disabled aria-label="재생">▶ 재생</button>
-            <button id="worshipNextBtn" class="ghost worship-control-btn" type="button" disabled aria-label="다음 곡">다음곡 ⏭</button>
-          </div>
-
-          <div class="worship-options">
-            <label class="worship-volume-label" for="worshipVolume">
-              <span>🔊 볼륨</span>
-              <input id="worshipVolume" type="range" min="0" max="100" value="70" step="1" disabled />
-              <strong id="worshipVolumeValue">70%</strong>
-            </label>
-            <label class="check-row worship-auto-next"><input id="worshipAutoNext" type="checkbox" checked /> 곡이 끝나면 자동으로 다음 곡 재생</label>
-          </div>
-        </div>
-
-        <div class="worship-playlist-wrap">
-          <div class="section-head compact">
-            <h3>이번 주 찬양 목록</h3>
-            <span id="worshipTrackCount" class="pill">0곡</span>
-          </div>
-          <div id="worshipPlaylist" class="worship-playlist"></div>
-          <p id="worshipStatus" class="status"></p>
-        </div>
-      </section>
-
-      <section id="board" class="panel card hidden">
-        <span class="eyebrow">자유롭게 남겨 주세요</span>
-        <h2>익명 건의 · 문의 게시판</h2>
-        <form id="boardForm">
-          <label class="field-label">내용
-            <textarea id="boardText" rows="5" maxlength="3000" placeholder="건의사항이나 문의 내용을 적어 주세요."></textarea>
-          </label>
-          <button class="primary" type="submit">익명으로 등록</button>
-          <p id="boardStatus" class="status"></p>
-        </form>
-        <div id="boardList" class="list board-list"></div>
-      </section>
-
-      <section id="newfriend" class="panel card hidden">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">처음 온 친구를 환영해요</span>
-            <h2>새친구 등록</h2>
-            <p class="muted">학년·이름·학교는 새친구 소개 목록에 공개되고, 연락처·인도자·기타정보는 관리자만 확인합니다.</p>
-          </div>
-          <span class="pill">WELCOME</span>
-        </div>
-        <form id="newFriendForm" class="new-friend-form">
-          <div class="new-friend-grid">
-            <label>학년 *
-              <select id="newFriendGrade" required>
-                <option value="">학년 선택</option>
-                <option>중1</option><option>중2</option><option>중3</option>
-                <option>고1</option><option>고2</option><option>고3</option>
-              </select>
-            </label>
-            <label>이름 *<input id="newFriendName" maxlength="30" required placeholder="이름" /></label>
-            <label>학교 *<input id="newFriendSchool" maxlength="100" required placeholder="학교명" /></label>
-            <label>연락처<input id="newFriendPhone" type="tel" maxlength="30" placeholder="예: 010-1234-5678" /></label>
-            <label>인도자<input id="newFriendInviter" maxlength="50" placeholder="함께 데려온 친구/선생님" /></label>
-            <label class="new-friend-full">기타정보<textarea id="newFriendOther" rows="4" maxlength="1000" placeholder="알아두면 좋은 내용이 있으면 적어 주세요."></textarea></label>
-          </div>
-          <div class="privacy-split-note">
-            <span>🌐 공개: 학년 · 이름 · 학교</span>
-            <span>🔒 관리자만: 연락처 · 인도자 · 기타정보</span>
-          </div>
-          <button class="primary" type="submit">새친구 등록</button>
-          <p id="newFriendStatus" class="status"></p>
-        </form>
-        <div class="new-friend-public-wrap">
-          <div class="section-head compact">
-            <h3>우리 새친구</h3>
-            <button id="refreshNewFriendBtn" class="ghost compact-btn" type="button">새로고침</button>
-          </div>
-          <div id="newFriendPublicList" class="new-friend-public-list"></div>
-          <p id="newFriendPublicStatus" class="status"></p>
-        </div>
-      </section>
-
-
-      <section id="churchCalendarSection" class="card church-calendar-section" aria-labelledby="churchCalendarTitle">
-        <div class="section-head calendar-section-head">
-          <div>
-            <span class="eyebrow">청소년부 일정</span>
-            <h2 id="churchCalendarTitle">행사 · 이벤트 달력</h2>
-            <p class="muted">날짜를 누르면 등록된 행사와 일정을 확인할 수 있습니다.</p>
-          </div>
-          <div class="calendar-nav" aria-label="행사 달력 월 이동">
-            <button id="eventPrevMonth" class="calendar-nav-btn" type="button" aria-label="이전 달">‹</button>
-            <strong id="eventCalendarMonth">이번 달</strong>
-            <button id="eventNextMonth" class="calendar-nav-btn" type="button" aria-label="다음 달">›</button>
-          </div>
-        </div>
-        <div class="calendar-weekdays event-weekdays" aria-hidden="true">
-          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-        </div>
-        <div id="eventCalendar" class="event-calendar" role="grid" aria-label="청소년부 행사 달력"></div>
-        <div id="eventDayDetails" class="event-day-details">
-          <p class="muted">날짜를 선택하면 그날의 일정이 표시됩니다.</p>
-        </div>
-        <p id="eventCalendarStatus" class="status"></p>
-      </section>
-
-      <section class="card admin-entry">
-        <button id="openAdminBtn" class="ghost" type="button">관리자 화면 새 탭에서 열기 ↗</button>
-      </section>
-
-      <section id="adminPanel" class="card hidden">
-        <div class="section-head admin-page-head">
-          <div>
-            <span class="eyebrow">관리자 전용</span>
-            <h2>주의울림 관리자</h2>
-            <p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 감사기도 · 찬양 · 새친구 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
-          </div>
-          <div class="admin-head-actions">
-            <a class="ghost admin-student-link" href="./" target="_blank" rel="noopener">학생 화면 보기 ↗</a>
-            <button id="adminLogoutBtn" class="ghost hidden" type="button">로그아웃</button>
-          </div>
-        </div>
-
-        <form id="adminLoginForm" class="admin-login">
-          <label>관리자 이메일<input id="adminEmail" type="email" autocomplete="username" required /></label>
-          <label>비밀번호<input id="adminPassword" type="password" autocomplete="current-password" required /></label>
-          <button class="primary" type="submit">관리자 로그인</button>
-          <p id="adminLoginStatus" class="status"></p>
-        </form>
-
-        <div id="adminWorkspace" class="hidden">
-          <nav id="adminTabs" class="admin-tabs" aria-label="관리자 메뉴">
-            <button class="admin-tab active" type="button" data-admin-tab="word">📖 말씀 관리</button>
-            <button class="admin-tab" type="button" data-admin-tab="study">📝 성경공부</button>
-            <button class="admin-tab" type="button" data-admin-tab="notice">📢 공지사항</button>
-            <button class="admin-tab" type="button" data-admin-tab="prayer">🙏 기도제목</button>
-            <button class="admin-tab" type="button" data-admin-tab="gratitude">🔥 감사기도</button>
-            <button class="admin-tab" type="button" data-admin-tab="worship">🎵 찬양 관리</button>
-            <button class="admin-tab" type="button" data-admin-tab="board">💬 익명게시판</button>
-            <button class="admin-tab" type="button" data-admin-tab="newfriend">👋 새친구</button>
-            <button class="admin-tab" type="button" data-admin-tab="records">📊 학생 제출</button>
-            <button class="admin-tab" type="button" data-admin-tab="events">📅 행사 달력</button>
-          </nav>
-
-          <div id="adminSectionInfo" class="admin-section-info" aria-live="polite">
-            <div>
-              <span class="eyebrow">선택한 관리 항목</span>
-              <h3 id="adminSectionTitle">말씀 관리</h3>
-              <p id="adminSectionDescription" class="muted">새 말씀을 등록하거나 지난 말씀을 선택해 수정·삭제할 수 있습니다.</p>
-            </div>
-            <span id="adminSectionBadge" class="pill">말씀</span>
-          </div>
-
-          <div class="admin-grid">
-            <section id="wordAdminCard" class="subcard admin-editor-card admin-panel-active" data-admin-panel="word">
-              <div class="admin-editor-head">
-                <div>
-                  <h3>말씀 관리</h3>
-                  <p id="wordModeLabel" class="muted admin-mode-label">지난 말씀을 선택해 수정·삭제하거나 새 말씀을 등록할 수 있습니다.</p>
-                </div>
-                <button id="newWordBtn" class="ghost compact-btn" type="button">새 말씀 작성</button>
-              </div>
-
-              <label>지난 말씀 선택
+<section class="card admin-entry">
+<button class="ghost" id="openAdminBtn" type="button">관리자 화면 새 탭에서 열기 ↗</button>
+</section>
+<section class="card hidden" id="adminPanel">
+<div class="section-head admin-page-head">
+<div>
+<span class="eyebrow">관리자 전용</span>
+<h2>주의울림 관리자</h2>
+<p class="muted admin-page-desc">말씀 · 성경공부 · 기도제목 · 감사기도 · 찬양 · 새친구 · 공지사항 · 행사 달력 · 학생 제출 기록을 관리합니다.</p>
+</div>
+<div class="admin-head-actions">
+<a class="ghost admin-student-link" href="./" rel="noopener" target="_blank">학생 화면 보기 ↗</a>
+<button class="ghost hidden" id="adminLogoutBtn" type="button">로그아웃</button>
+</div>
+</div>
+<form class="admin-login" id="adminLoginForm">
+<label>관리자 이메일<input autocomplete="username" id="adminEmail" required="" type="email"/></label>
+<label>비밀번호<input autocomplete="current-password" id="adminPassword" required="" type="password"/></label>
+<button class="primary" type="submit">관리자 로그인</button>
+<p class="status" id="adminLoginStatus"></p>
+</form>
+<div class="hidden" id="adminWorkspace">
+<nav aria-label="관리자 메뉴" class="admin-tabs" id="adminTabs">
+<button class="admin-tab active" data-admin-tab="word" type="button">📖 말씀 관리</button>
+<button class="admin-tab" data-admin-tab="study" type="button">📝 성경공부</button>
+<button class="admin-tab" data-admin-tab="notice" type="button">📢 공지사항</button>
+<button class="admin-tab" data-admin-tab="prayer" type="button">🙏 기도제목</button>
+<button class="admin-tab" data-admin-tab="gratitude" type="button">🔥 감사기도</button>
+<button class="admin-tab" data-admin-tab="worship" type="button">🎵 찬양 관리</button>
+<button class="admin-tab" data-admin-tab="board" type="button">💬 익명게시판</button>
+<button class="admin-tab" data-admin-tab="newfriend" type="button">👋 새친구</button>
+<button class="admin-tab" data-admin-tab="records" type="button">📊 학생 제출</button>
+<button class="admin-tab" data-admin-tab="events" type="button">📅 행사 달력</button>
+</nav>
+<div aria-live="polite" class="admin-section-info" id="adminSectionInfo">
+<div>
+<span class="eyebrow">선택한 관리 항목</span>
+<h3 id="adminSectionTitle">말씀 관리</h3>
+<p class="muted" id="adminSectionDescription">새 말씀을 등록하거나 지난 말씀을 선택해 수정·삭제할 수 있습니다.</p>
+</div>
+<span class="pill" id="adminSectionBadge">말씀</span>
+</div>
+<div class="admin-grid">
+<section class="subcard admin-editor-card admin-panel-active" data-admin-panel="word" id="wordAdminCard">
+<div class="admin-editor-head">
+<div>
+<h3>말씀 관리</h3>
+<p class="muted admin-mode-label" id="wordModeLabel">지난 말씀을 선택해 수정·삭제하거나 새 말씀을 등록할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="newWordBtn" type="button">새 말씀 작성</button>
+</div>
+<label>지난 말씀 선택
                 <select id="wordPicker">
-                  <option value="">말씀을 불러오는 중...</option>
-                </select>
-              </label>
-              <label>주 시작일<input id="wordWeekStart" type="date" /></label>
-              <label>말씀구절<input id="adminVerseRef" type="text" maxlength="120" /></label>
-              <label>말씀본문<textarea id="adminVerseText" rows="5" maxlength="5000"></textarea></label>
-              <label class="check-row"><input id="wordPublished" type="checkbox" checked /> 학생에게 공개</label>
-              <div class="admin-action-row">
-                <button id="wordSaveBtn" class="primary" type="button">말씀 등록</button>
-                <button id="deleteWordBtn" class="ghost danger-outline" type="button" disabled>선택한 말씀 삭제</button>
-              </div>
-              <p class="muted small-note">말씀을 삭제하면 같은 주차의 성경공부와 연결된 말씀쓰기 출석·성경공부 제출 기록도 함께 삭제됩니다. 기도제목 내용은 보존됩니다.</p>
-              <p id="wordAdminStatus" class="status"></p>
-              <div class="admin-weekly-submissions">
-                <div class="admin-editor-head compact-section-head">
-                  <div>
-                    <h4>말씀쓰기 · 출석 기록</h4>
-                    <p class="muted">학생의 말씀쓰기 완료 기록을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
-                  </div>
-                  <button id="refreshWordSubmissionsBtn" class="ghost compact-btn" type="button">기록 새로고침</button>
-                </div>
-                <p id="wordSubmissionStatus" class="status"></p>
-                <div id="adminWordSubmissionGroups" class="weekly-record-groups"></div>
-              </div>
-            </section>
-
-            <section id="studyAdminCard" class="subcard admin-editor-card" data-admin-panel="study">
-              <div class="admin-editor-head">
-                <div>
-                  <h3>성경공부 관리</h3>
-                  <p id="studyModeLabel" class="muted admin-mode-label">말씀 주차를 선택한 뒤 성경공부를 등록·수정·삭제할 수 있습니다.</p>
-                </div>
-              </div>
-
-              <label>연결할 말씀 / 지난 성경공부 선택
+<option value="">말씀을 불러오는 중...</option>
+</select>
+</label>
+<label>주 시작일<input id="wordWeekStart" type="date"/></label>
+<label>말씀구절<input id="adminVerseRef" maxlength="120" type="text"/></label>
+<label>말씀본문<textarea id="adminVerseText" maxlength="5000" rows="5"></textarea></label>
+<label class="check-row"><input checked="" id="wordPublished" type="checkbox"/> 학생에게 공개</label>
+<div class="admin-action-row">
+<button class="primary" id="wordSaveBtn" type="button">말씀 등록</button>
+<button class="ghost danger-outline" disabled="" id="deleteWordBtn" type="button">선택한 말씀 삭제</button>
+</div>
+<p class="muted small-note">말씀을 삭제하면 같은 주차의 성경공부와 연결된 말씀쓰기 출석·성경공부 제출 기록도 함께 삭제됩니다. 기도제목 내용은 보존됩니다.</p>
+<p class="status" id="wordAdminStatus"></p>
+<div class="admin-weekly-submissions">
+<div class="admin-editor-head compact-section-head">
+<div>
+<h4>말씀쓰기 · 출석 기록</h4>
+<p class="muted">학생의 말씀쓰기 완료 기록을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshWordSubmissionsBtn" type="button">기록 새로고침</button>
+</div>
+<p class="status" id="wordSubmissionStatus"></p>
+<div class="weekly-record-groups" id="adminWordSubmissionGroups"></div>
+</div>
+</section>
+<section class="subcard admin-editor-card" data-admin-panel="study" id="studyAdminCard">
+<div class="admin-editor-head">
+<div>
+<h3>성경공부 관리</h3>
+<p class="muted admin-mode-label" id="studyModeLabel">말씀 주차를 선택한 뒤 성경공부를 등록·수정·삭제할 수 있습니다.</p>
+</div>
+</div>
+<label>연결할 말씀 / 지난 성경공부 선택
                 <select id="studyPicker">
-                  <option value="">말씀을 불러오는 중...</option>
-                </select>
-              </label>
-              <div id="studyWeekInfo" class="mini-info muted">말씀을 선택해 주세요.</div>
-              <label>성경공부 제목<input id="adminStudyTitle" type="text" maxlength="200" /></label>
-              <label>질문 1<textarea id="adminQ1" rows="2" maxlength="2000"></textarea></label>
-              <label>질문 2<textarea id="adminQ2" rows="2" maxlength="2000"></textarea></label>
-              <label>질문 3 (선택)<textarea id="adminQ3" rows="2" maxlength="2000"></textarea></label>
-              <div class="admin-action-row">
-                <button id="studySaveBtn" class="primary" type="button">성경공부 등록</button>
-                <button id="deleteStudyBtn" class="ghost danger-outline" type="button" disabled>선택한 성경공부 삭제</button>
-              </div>
-              <p id="studyAdminStatus" class="status"></p>
-              <div class="admin-weekly-submissions">
-                <div class="admin-editor-head compact-section-head">
-                  <div>
-                    <h4>성경공부 제출 답안</h4>
-                    <p class="muted">학생 답안을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
-                  </div>
-                  <button id="refreshStudySubmissionsBtn" class="ghost compact-btn" type="button">답안 새로고침</button>
-                </div>
-                <p id="studySubmissionStatus" class="status"></p>
-                <div id="adminStudySubmissionGroups" class="weekly-record-groups"></div>
-              </div>
-            </section>
-
-            <form id="noticeAdminForm" class="subcard admin-editor-card" data-admin-panel="notice">
-              <div class="admin-editor-head">
-                <div>
-                  <h3>공지사항 관리</h3>
-                  <p id="noticeModeLabel" class="muted admin-mode-label">등록된 공지를 선택해 수정하거나 새 공지를 등록할 수 있습니다.</p>
-                </div>
-                <button id="newNoticeBtn" class="ghost compact-btn" type="button">새 공지 작성</button>
-              </div>
-              <label>등록된 공지 선택
+<option value="">말씀을 불러오는 중...</option>
+</select>
+</label>
+<div class="mini-info muted" id="studyWeekInfo">말씀을 선택해 주세요.</div>
+<label>성경공부 제목<input id="adminStudyTitle" maxlength="200" type="text"/></label>
+<label>질문 1<textarea id="adminQ1" maxlength="2000" rows="2"></textarea></label>
+<label>질문 2<textarea id="adminQ2" maxlength="2000" rows="2"></textarea></label>
+<label>질문 3 (선택)<textarea id="adminQ3" maxlength="2000" rows="2"></textarea></label>
+<div class="admin-action-row">
+<button class="primary" id="studySaveBtn" type="button">성경공부 등록</button>
+<button class="ghost danger-outline" disabled="" id="deleteStudyBtn" type="button">선택한 성경공부 삭제</button>
+</div>
+<p class="status" id="studyAdminStatus"></p>
+<div class="admin-weekly-submissions">
+<div class="admin-editor-head compact-section-head">
+<div>
+<h4>성경공부 제출 답안</h4>
+<p class="muted">학생 답안을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshStudySubmissionsBtn" type="button">답안 새로고침</button>
+</div>
+<p class="status" id="studySubmissionStatus"></p>
+<div class="weekly-record-groups" id="adminStudySubmissionGroups"></div>
+</div>
+</section>
+<form class="subcard admin-editor-card" data-admin-panel="notice" id="noticeAdminForm">
+<div class="admin-editor-head">
+<div>
+<h3>공지사항 관리</h3>
+<p class="muted admin-mode-label" id="noticeModeLabel">등록된 공지를 선택해 수정하거나 새 공지를 등록할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="newNoticeBtn" type="button">새 공지 작성</button>
+</div>
+<label>등록된 공지 선택
                 <select id="noticePicker">
-                  <option value="">공지를 불러오는 중...</option>
-                </select>
-              </label>
-              <label>제목<input id="noticeTitle" required maxlength="200" /></label>
-              <label>일정<input id="noticeDate" type="date" /></label>
-              <label>내용<textarea id="noticeBody" rows="4" maxlength="5000" required></textarea></label>
-              <label class="check-row"><input id="noticeBanner" type="checkbox" checked disabled /> 최신 공개 공지 1개는 상단에 자동 표시됩니다.</label>
-              <label class="check-row"><input id="noticePublished" type="checkbox" checked /> 학생에게 공개</label>
-              <div class="admin-action-row">
-                <button id="noticeSubmitBtn" class="primary" type="submit">공지 등록</button>
-                <button id="deleteNoticeBtn" class="ghost danger-outline" type="button" disabled>선택한 공지 삭제</button>
-              </div>
-              <p id="noticeAdminStatus" class="status"></p>
-            </form>
-
-
-            <section class="subcard admin-editor-card prayer-admin-card admin-span-2" data-admin-panel="prayer">
-              <div class="admin-editor-head">
-                <div>
-                  <h3>기도제목 관리</h3>
-                  <p class="muted admin-mode-label">기도제목을 주일별로 모아 확인하고 필요한 기록을 삭제할 수 있습니다.</p>
-                </div>
-                <button id="refreshPrayerAdminBtn" class="ghost compact-btn" type="button">기도제목 새로고침</button>
-              </div>
-              <p id="prayerAdminStatus" class="status"></p>
-              <div id="adminPrayerGroups" class="weekly-record-groups prayer-groups"></div>
-            </section>
-
-            <section class="subcard admin-editor-card admin-span-2" data-admin-panel="gratitude">
-              <div class="admin-editor-head">
-                <div>
-                  <h3>감사기도 챌린지 결과</h3>
-                  <p class="muted admin-mode-label">학생별 현재 연속일·최고 연속일·누적 기록을 확인하고, 감사기도 내용은 주일별로 확인·삭제할 수 있습니다.</p>
-                </div>
-                <button id="refreshGratitudeAdminBtn" class="ghost compact-btn" type="button">결과 새로고침</button>
-              </div>
-              <p id="gratitudeAdminStatus" class="status"></p>
-              <div class="gratitude-admin-result-section">
-                <div class="compact-section-head">
-                  <h4>학생별 챌린지 현황</h4>
-                  <p class="muted">현재 연속일이 긴 학생부터 표시합니다.</p>
-                </div>
-                <div id="adminGratitudeResults" class="gratitude-admin-results"></div>
-              </div>
-              <div class="gratitude-admin-result-section">
-                <div class="compact-section-head">
-                  <h4>주일별 감사기도 기록</h4>
-                  <p class="muted">작성 내용을 주일별로 확인하고 필요한 기록은 개별 삭제할 수 있습니다.</p>
-                </div>
-                <div id="adminGratitudeGroups" class="weekly-record-groups"></div>
-              </div>
-            </section>
-
-            <section class="subcard admin-editor-card admin-span-2 worship-admin-card" data-admin-panel="worship">
-              <div class="admin-editor-head">
-                <div>
-                  <h3>🎵 주일 찬양 관리</h3>
-                  <p class="muted admin-mode-label">찬양 제목을 YouTube에서 검색하고 썸네일을 확인한 뒤 이번 주 플레이리스트에 바로 추가할 수 있습니다.</p>
-                </div>
-                <button id="refreshWorshipAdminBtn" class="ghost compact-btn" type="button">목록 새로고침</button>
-              </div>
-
-              <div class="youtube-key-card">
-                <div>
-                  <strong>YouTube Data API 키</strong>
-                  <p class="muted">최초 1회 저장하면 관리자 검색에서 사용합니다. Google Cloud에서 발급한 키는 GitHub Pages 주소로 HTTP 리퍼러 제한을 권장합니다.</p>
-                </div>
-                <div class="youtube-key-row">
-                  <input id="youtubeApiKeyInput" type="password" autocomplete="off" placeholder="YouTube Data API v3 키 입력" />
-                  <button id="saveYoutubeApiKeyBtn" class="ghost" type="button">API 키 저장</button>
-                </div>
-                <p id="youtubeApiKeyStatus" class="status"></p>
-              </div>
-
-              <div class="worship-admin-grid">
-                <div class="worship-search-panel">
-                  <label>주일 선택
-                    <input id="worshipSundayPicker" type="date" />
-                  </label>
-                  <form id="youtubeSearchForm" class="youtube-search-form">
-                    <label>찬양 제목 검색
+<option value="">공지를 불러오는 중...</option>
+</select>
+</label>
+<label>제목<input id="noticeTitle" maxlength="200" required=""/></label>
+<label>일정<input id="noticeDate" type="date"/></label>
+<label>내용<textarea id="noticeBody" maxlength="5000" required="" rows="4"></textarea></label>
+<label class="check-row"><input checked="" disabled="" id="noticeBanner" type="checkbox"/> 최신 공개 공지 1개는 상단에 자동 표시됩니다.</label>
+<label class="check-row"><input checked="" id="noticePublished" type="checkbox"/> 학생에게 공개</label>
+<div class="admin-action-row">
+<button class="primary" id="noticeSubmitBtn" type="submit">공지 등록</button>
+<button class="ghost danger-outline" disabled="" id="deleteNoticeBtn" type="button">선택한 공지 삭제</button>
+</div>
+<p class="status" id="noticeAdminStatus"></p>
+</form>
+<section class="subcard admin-editor-card prayer-admin-card admin-span-2" data-admin-panel="prayer">
+<div class="admin-editor-head">
+<div>
+<h3>기도제목 관리</h3>
+<p class="muted admin-mode-label">기도제목을 주일별로 모아 확인하고 필요한 기록을 삭제할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshPrayerAdminBtn" type="button">기도제목 새로고침</button>
+</div>
+<p class="status" id="prayerAdminStatus"></p>
+<div class="weekly-record-groups prayer-groups" id="adminPrayerGroups"></div>
+</section>
+<section class="subcard admin-editor-card admin-span-2" data-admin-panel="gratitude">
+<div class="admin-editor-head">
+<div>
+<h3>감사기도 챌린지 결과</h3>
+<p class="muted admin-mode-label">학생별 현재 연속일·최고 연속일·누적 기록을 확인하고, 감사기도 내용은 주일별로 확인·삭제할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshGratitudeAdminBtn" type="button">결과 새로고침</button>
+</div>
+<p class="status" id="gratitudeAdminStatus"></p>
+<div class="gratitude-admin-result-section">
+<div class="compact-section-head">
+<h4>학생별 챌린지 현황</h4>
+<p class="muted">현재 연속일이 긴 학생부터 표시합니다.</p>
+</div>
+<div class="gratitude-admin-results" id="adminGratitudeResults"></div>
+</div>
+<div class="gratitude-admin-result-section">
+<div class="compact-section-head">
+<h4>주일별 감사기도 기록</h4>
+<p class="muted">작성 내용을 주일별로 확인하고 필요한 기록은 개별 삭제할 수 있습니다.</p>
+</div>
+<div class="weekly-record-groups" id="adminGratitudeGroups"></div>
+</div>
+</section>
+<section class="subcard admin-editor-card admin-span-2 worship-admin-card" data-admin-panel="worship">
+<div class="admin-editor-head">
+<div>
+<h3>🎵 주일 찬양 관리</h3>
+<p class="muted admin-mode-label">찬양 제목을 YouTube에서 검색하고 썸네일을 확인한 뒤 이번 주 플레이리스트에 바로 추가할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshWorshipAdminBtn" type="button">목록 새로고침</button>
+</div>
+<div class="youtube-key-card">
+<div>
+<strong>YouTube Data API 키</strong>
+<p class="muted">최초 1회 저장하면 관리자 검색에서 사용합니다. Google Cloud에서 발급한 키는 GitHub Pages 주소로 HTTP 리퍼러 제한을 권장합니다.</p>
+</div>
+<div class="youtube-key-row">
+<input autocomplete="off" id="youtubeApiKeyInput" placeholder="YouTube Data API v3 키 입력" type="password"/>
+<button class="ghost" id="saveYoutubeApiKeyBtn" type="button">API 키 저장</button>
+</div>
+<p class="status" id="youtubeApiKeyStatus"></p>
+</div>
+<div class="worship-admin-grid">
+<div class="worship-search-panel">
+<label>주일 선택
+                    <input id="worshipSundayPicker" type="date"/>
+</label>
+<form class="youtube-search-form" id="youtubeSearchForm">
+<label>찬양 제목 검색
                       <div class="youtube-search-row">
-                        <input id="youtubeSearchInput" type="search" maxlength="120" placeholder="예: 입례 WELOVE, 주가 일하시네" />
-                        <button id="youtubeSearchBtn" class="primary" type="submit">YouTube 검색</button>
-                      </div>
-                    </label>
-                  </form>
-                  <p class="muted small-note">검색 버튼을 눌렀을 때만 YouTube API를 호출합니다. 임베드 가능한 동영상만 검색합니다.</p>
-                  <p id="youtubeSearchStatus" class="status"></p>
-                  <div id="youtubeSearchResults" class="youtube-search-results"></div>
-                </div>
-
-                <div class="worship-admin-playlist-panel">
-                  <div class="section-head compact">
-                    <div>
-                      <h4>선택한 주일 플레이리스트</h4>
-                      <p id="adminWorshipWeekLabel" class="muted">주일을 선택해 주세요.</p>
-                    </div>
-                    <span id="adminWorshipCount" class="pill">0곡</span>
-                  </div>
-                  <div id="adminWorshipPlaylist" class="admin-worship-playlist"></div>
-                  <p id="worshipAdminStatus" class="status"></p>
-                </div>
-              </div>
-            </section>
-
-            <section class="subcard admin-editor-card admin-span-2" data-admin-panel="board">
-              <div class="admin-editor-head">
-                <div>
-                  <h3>익명게시판 관리</h3>
-                  <p class="muted admin-mode-label">익명 게시글을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
-                </div>
-                <button id="refreshBoardAdminBtn" class="ghost compact-btn" type="button">익명글 새로고침</button>
-              </div>
-              <p id="boardAdminStatus" class="status"></p>
-              <div id="adminBoardGroups" class="weekly-record-groups"></div>
-            </section>
-
-            <section class="subcard admin-editor-card admin-span-2" data-admin-panel="newfriend">
-              <div class="admin-editor-head">
-                <div>
-                  <h3>새친구 관리</h3>
-                  <p class="muted admin-mode-label">등록된 새친구의 공개정보와 비공개 연락정보를 함께 확인하고 필요한 기록을 삭제할 수 있습니다.</p>
-                </div>
-                <button id="refreshNewFriendAdminBtn" class="ghost compact-btn" type="button">새친구 새로고침</button>
-              </div>
-              <div class="privacy-split-note admin-privacy-note">
-                <span>🌐 학생 공개: 학년 · 이름 · 학교</span>
-                <span>🔒 관리자 전용: 연락처 · 인도자 · 기타정보</span>
-              </div>
-              <p id="newFriendAdminStatus" class="status"></p>
-              <div id="adminNewFriendGroups" class="weekly-record-groups"></div>
-            </section>
-
-            <div class="subcard" data-admin-panel="records">
-              <h3>현재 주일 제출 현황</h3>
-              <p id="recordWeekLabel" class="muted">이번 주일 기준</p>
-              <div class="stats">
-                <div><span>말씀쓰기</span><strong id="statAttendance">0</strong></div>
-                <div><span>성경공부</span><strong id="statStudy">0</strong></div>
-                <div><span>기도제목</span><strong id="statPrayer">0</strong></div>
-                <div><span>감사기도</span><strong id="statGratitude">0</strong></div>
-                <div><span>익명글</span><strong id="statBoard">0</strong></div>
-              </div>
-              <button id="refreshAdminBtn" class="ghost full" type="button">현황 새로고침</button>
-            </div>
-          </div>
-
-          <div class="subcard records-manager-card" data-admin-panel="records">
-            <div class="admin-editor-head">
-              <div>
-                <h3>주일별 학생 제출 통계</h3>
-                <p class="muted">이 탭에서는 개인정보와 제출 내용 없이 주일별 건수만 집계합니다. 실제 내용과 삭제는 각 항목 탭에서 확인할 수 있습니다.</p>
-              </div>
-            </div>
-            <p id="recordsAdminStatus" class="status"></p>
-            <div id="adminRecords" class="weekly-stat-groups"></div>
-          </div>
-
-
-          <section class="subcard calendar-manager-card" data-admin-panel="events">
-            <div class="admin-editor-head">
-              <div>
-                <h3>행사 · 이벤트 달력 관리</h3>
-                <p class="muted">날짜를 클릭하면 해당 날짜가 포함된 행사 목록이 나타납니다. 행사는 시작일~종료일 기간으로 등록하고 수정·삭제할 수 있습니다.</p>
-              </div>
-              <button id="newEventBtn" class="ghost compact-btn" type="button">새 행사 작성</button>
-            </div>
-
-            <div class="admin-event-layout">
-              <div class="admin-event-calendar-wrap">
-                <div class="calendar-toolbar">
-                  <div class="calendar-nav" aria-label="관리자 행사 달력 월 이동">
-                    <button id="adminEventPrevMonth" class="calendar-nav-btn" type="button" aria-label="이전 달">‹</button>
-                    <strong id="adminEventCalendarMonth">이번 달</strong>
-                    <button id="adminEventNextMonth" class="calendar-nav-btn" type="button" aria-label="다음 달">›</button>
-                  </div>
-                </div>
-                <div class="calendar-weekdays event-weekdays" aria-hidden="true">
-                  <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-                </div>
-                <div id="adminEventCalendar" class="event-calendar admin-event-calendar" role="grid" aria-label="관리자 행사 달력"></div>
-                <div id="adminEventDayList" class="admin-event-day-list">
-                  <p class="muted">달력에서 날짜를 클릭하면 그날의 행사를 바로 수정하거나 삭제할 수 있습니다.</p>
-                </div>
-              </div>
-
-              <form id="eventAdminForm" class="event-admin-form">
-                <div class="selected-date-box">선택 날짜 <strong id="adminSelectedEventDate">날짜를 선택해 주세요.</strong></div>
-                <label>선택한 날짜 관련 행사
+<input id="youtubeSearchInput" maxlength="120" placeholder="예: 입례 WELOVE, 주가 일하시네" type="search"/>
+<button class="primary" id="youtubeSearchBtn" type="submit">YouTube 검색</button>
+</div>
+</label>
+</form>
+<p class="muted small-note">검색 버튼을 눌렀을 때만 YouTube API를 호출합니다. 임베드 가능한 동영상만 검색합니다.</p>
+<p class="status" id="youtubeSearchStatus"></p>
+<div class="youtube-search-results" id="youtubeSearchResults"></div>
+</div>
+<div class="worship-admin-playlist-panel">
+<div class="section-head compact">
+<div>
+<h4>선택한 주일 플레이리스트</h4>
+<p class="muted" id="adminWorshipWeekLabel">주일을 선택해 주세요.</p>
+</div>
+<span class="pill" id="adminWorshipCount">0곡</span>
+</div>
+<div class="admin-worship-playlist" id="adminWorshipPlaylist"></div>
+<p class="status" id="worshipAdminStatus"></p>
+</div>
+</div>
+</section>
+<section class="subcard admin-editor-card admin-span-2" data-admin-panel="board">
+<div class="admin-editor-head">
+<div>
+<h3>익명게시판 관리</h3>
+<p class="muted admin-mode-label">익명 게시글을 주일별로 모아 확인하고 개별 삭제할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshBoardAdminBtn" type="button">익명글 새로고침</button>
+</div>
+<p class="status" id="boardAdminStatus"></p>
+<div class="weekly-record-groups" id="adminBoardGroups"></div>
+</section>
+<section class="subcard admin-editor-card admin-span-2" data-admin-panel="newfriend">
+<div class="admin-editor-head">
+<div>
+<h3>새친구 관리</h3>
+<p class="muted admin-mode-label">등록된 새친구의 공개정보와 비공개 연락정보를 함께 확인하고 필요한 기록을 삭제할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="refreshNewFriendAdminBtn" type="button">새친구 새로고침</button>
+</div>
+<div class="privacy-split-note admin-privacy-note">
+<span>🌐 학생 공개: 학년 · 이름 · 학교</span>
+<span>🔒 관리자 전용: 연락처 · 인도자 · 기타정보</span>
+</div>
+<p class="status" id="newFriendAdminStatus"></p>
+<div class="weekly-record-groups" id="adminNewFriendGroups"></div>
+</section>
+<div class="subcard" data-admin-panel="records">
+<h3>현재 주일 제출 현황</h3>
+<p class="muted" id="recordWeekLabel">이번 주일 기준</p>
+<div class="stats">
+<div><span>말씀쓰기</span><strong id="statAttendance">0</strong></div>
+<div><span>성경공부</span><strong id="statStudy">0</strong></div>
+<div><span>기도제목</span><strong id="statPrayer">0</strong></div>
+<div><span>감사기도</span><strong id="statGratitude">0</strong></div>
+<div><span>익명글</span><strong id="statBoard">0</strong></div>
+</div>
+<button class="ghost full" id="refreshAdminBtn" type="button">현황 새로고침</button>
+</div>
+</div>
+<div class="subcard records-manager-card" data-admin-panel="records">
+<div class="admin-editor-head">
+<div>
+<h3>주일별 학생 제출 통계</h3>
+<p class="muted">이 탭에서는 개인정보와 제출 내용 없이 주일별 건수만 집계합니다. 실제 내용과 삭제는 각 항목 탭에서 확인할 수 있습니다.</p>
+</div>
+</div>
+<p class="status" id="recordsAdminStatus"></p>
+<div class="weekly-stat-groups" id="adminRecords"></div>
+</div>
+<section class="subcard calendar-manager-card" data-admin-panel="events">
+<div class="admin-editor-head">
+<div>
+<h3>행사 · 이벤트 달력 관리</h3>
+<p class="muted">날짜를 클릭하면 해당 날짜가 포함된 행사 목록이 나타납니다. 행사는 시작일~종료일 기간으로 등록하고 수정·삭제할 수 있습니다.</p>
+</div>
+<button class="ghost compact-btn" id="newEventBtn" type="button">새 행사 작성</button>
+</div>
+<div class="admin-event-layout">
+<div class="admin-event-calendar-wrap">
+<div class="calendar-toolbar">
+<div aria-label="관리자 행사 달력 월 이동" class="calendar-nav">
+<button aria-label="이전 달" class="calendar-nav-btn" id="adminEventPrevMonth" type="button">‹</button>
+<strong id="adminEventCalendarMonth">이번 달</strong>
+<button aria-label="다음 달" class="calendar-nav-btn" id="adminEventNextMonth" type="button">›</button>
+</div>
+</div>
+<div aria-hidden="true" class="calendar-weekdays event-weekdays">
+<span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+</div>
+<div aria-label="관리자 행사 달력" class="event-calendar admin-event-calendar" id="adminEventCalendar" role="grid"></div>
+<div class="admin-event-day-list" id="adminEventDayList">
+<p class="muted">달력에서 날짜를 클릭하면 그날의 행사를 바로 수정하거나 삭제할 수 있습니다.</p>
+</div>
+</div>
+<form class="event-admin-form" id="eventAdminForm">
+<div class="selected-date-box">선택 날짜 <strong id="adminSelectedEventDate">날짜를 선택해 주세요.</strong></div>
+<label>선택한 날짜 관련 행사
                   <select id="eventPicker"><option value="__new__">＋ 새 행사 등록</option></select>
-                </label>
-                <label>행사명<input id="eventTitle" maxlength="200" required placeholder="예: 청소년부 예배, 겨울캠프" /></label>
-                <div class="event-period-grid">
-                  <label>시작일<input id="eventStartDate" type="date" required /></label>
-                  <label>종료일<input id="eventEndDate" type="date" required /></label>
-                </div>
-                <label>장소<input id="eventLocation" maxlength="200" placeholder="예: 청소년부실" /></label>
-                <label>내용<textarea id="eventDescription" rows="4" maxlength="3000" placeholder="준비물이나 상세 일정을 적어 주세요."></textarea></label>
-                <label class="check-row"><input id="eventPublished" type="checkbox" checked /> 학생 달력에 공개</label>
-                <div class="admin-action-row">
-                  <button id="eventSaveBtn" class="primary" type="submit">행사 등록</button>
-                  <button id="eventDeleteBtn" class="ghost danger-outline" type="button" disabled>선택한 행사 삭제</button>
-                </div>
-                <p id="eventAdminStatus" class="status"></p>
-              </form>
-            </div>
-          </section>
-        </div>
-      </section>
-    </main>
-
-    <footer>양정중앙교회 청소년부 · 주의울림</footer>
-
-    <div id="supabaseConnection" class="connection-bar connection-footer checking" role="status" aria-live="polite">
-      <span id="supabaseConnectionText">Supabase 연결 확인 중…</span>
-      <button id="retryConnectionBtn" class="connection-retry" type="button" disabled>다시 연결</button>
-    </div>
-  </div>
-
-  <script type="module" src="./app.js"></script>
+</label>
+<label>행사명<input id="eventTitle" maxlength="200" placeholder="예: 청소년부 예배, 겨울캠프" required=""/></label>
+<div class="event-period-grid">
+<label>시작일<input id="eventStartDate" required="" type="date"/></label>
+<label>종료일<input id="eventEndDate" required="" type="date"/></label>
+</div>
+<label>장소<input id="eventLocation" maxlength="200" placeholder="예: 청소년부실"/></label>
+<label>내용<textarea id="eventDescription" maxlength="3000" placeholder="준비물이나 상세 일정을 적어 주세요." rows="4"></textarea></label>
+<label class="check-row"><input checked="" id="eventPublished" type="checkbox"/> 학생 달력에 공개</label>
+<div class="admin-action-row">
+<button class="primary" id="eventSaveBtn" type="submit">행사 등록</button>
+<button class="ghost danger-outline" disabled="" id="eventDeleteBtn" type="button">선택한 행사 삭제</button>
+</div>
+<p class="status" id="eventAdminStatus"></p>
+</form>
+</div>
+</section>
+</div>
+</section>
+<section aria-labelledby="weatherTitle" class="weather-section" id="weatherSection">
+<div class="weather-shell">
+<div class="weather-head">
+<div>
+<span class="eyebrow">오늘의 날씨</span>
+<h2 id="weatherTitle">☀️ 예배 가는 길 날씨</h2>
+</div>
+<button class="ghost compact-btn" id="weatherUseLocationBtn" type="button">📍 내 위치</button>
+</div>
+<div aria-label="오늘과 내일 날씨" class="weather-summary" id="weatherSummary">
+<button aria-controls="weeklyWeatherPanel" aria-expanded="false" class="weather-day-card" id="weatherTodayCard" type="button">
+<span class="weather-day-label">오늘</span>
+<span aria-hidden="true" class="weather-icon" id="weatherTodayIcon">⏳</span>
+<strong id="weatherTodayText">불러오는 중</strong>
+<span class="weather-temp" id="weatherTodayTemp">--° / --°</span>
+<small id="weatherTodayRain">강수 --%</small>
+</button>
+<button aria-controls="weeklyWeatherPanel" aria-expanded="false" class="weather-day-card" id="weatherTomorrowCard" type="button">
+<span class="weather-day-label">내일</span>
+<span aria-hidden="true" class="weather-icon" id="weatherTomorrowIcon">⏳</span>
+<strong id="weatherTomorrowText">불러오는 중</strong>
+<span class="weather-temp" id="weatherTomorrowTemp">--° / --°</span>
+<small id="weatherTomorrowRain">강수 --%</small>
+</button>
+</div>
+<p class="weather-hint" id="weatherHint">오늘 또는 내일 날씨를 누르면 주간날씨를 볼 수 있습니다.</p>
+<div aria-hidden="true" class="weekly-weather-panel hidden" id="weeklyWeatherPanel">
+<div class="weather-week-head">
+<strong>7일 주간날씨</strong>
+<button class="ghost compact-btn" id="closeWeeklyWeatherBtn" type="button">닫기</button>
+</div>
+<div class="weekly-weather-list" id="weeklyWeatherList"></div>
+<p class="status" id="weatherStatus"></p>
+</div>
+</div>
+</section></main>
+<footer>양정중앙교회 청소년부 · 주의울림</footer>
+<div aria-live="polite" class="connection-bar connection-footer checking" id="supabaseConnection" role="status">
+<span id="supabaseConnectionText">Supabase 연결 확인 중…</span>
+<button class="connection-retry" disabled="" id="retryConnectionBtn" type="button">다시 연결</button>
+</div>
+</div>
+<script src="./app.js" type="module"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v33-worship-youtube-player";
+const APP_VERSION = "v35-weather-absolute-bottom";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -21,6 +21,15 @@ const clean = (s) => String(s ?? "").replace(/\s+/g," ").trim();
 const normalize = (s) => clean(s).replace(/\s/g,"");
 const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+
+function placeWeatherAtStudentBottom() {
+  if (ADMIN_WINDOW) return;
+  const weather = $("#weatherSection");
+  const main = document.querySelector("main");
+  if (!weather || !main) return;
+  // 어떤 이전 HTML이 캐시에 남아 있어도 학생 화면에서는 날씨를 항상 마지막 섹션으로 보냅니다.
+  if (main.lastElementChild !== weather) main.appendChild(weather);
+}
 
 function dbErrorMessage(error, fallback = "처리 중 오류가 발생했습니다.") {
   if (!error) return fallback;
@@ -87,9 +96,7 @@ function renderWeather(data, label = "부산") {
     rain:daily.precipitation_probability_max?.[index]
   }));
   weatherLocationLabel = label;
-  const loc = $("#weatherLocation");
-  if (loc) loc.textContent = `${label} 기준 · 30분 간격으로 새로 확인합니다.`;
-  const today = weatherRows[0];
+    const today = weatherRows[0];
   const tomorrow = weatherRows[1];
   const currentTemp = roundWeatherTemp(data?.current?.temperature_2m);
   const fill = (prefix,row,isToday=false) => {
@@ -3189,6 +3196,7 @@ $("#retryConnectionBtn")?.addEventListener("click", async () => {
 });
 
 await checkSupabaseConnection();
+placeWeatherAtStudentBottom();
 
 const { data:{session} } = await db.auth.getSession();
 if(session?.user) await verifyAdmin(session.user);

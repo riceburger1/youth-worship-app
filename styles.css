@@ -644,3 +644,34 @@ body.admin-window #weatherSection{display:none!important}
 @media(max-width:420px){.worship-controls{gap:5px}.worship-control-btn{font-size:.74rem;min-height:42px}.worship-track-card{grid-template-columns:24px 68px minmax(0,1fr) 18px;gap:7px}.worship-track-card img{width:68px}.worship-track-number{width:23px;height:23px;font-size:.7rem}}
 @media(min-width:901px){.tabs{grid-template-columns:repeat(8,minmax(0,1fr))}}
 @media(min-width:961px){.admin-tabs{grid-template-columns:repeat(10,minmax(0,1fr))}}
+
+/* ===== V35: 날씨를 학생 화면 최하단으로 강제 이동 + 모바일 헤더 유지 ===== */
+#weatherSection.weather-section{
+  max-width:none;
+  margin:0;
+  padding:0;
+}
+main > #weatherSection{
+  margin-top:16px;
+}
+
+.weather-head > div{min-width:0;}
+.weather-head h2{white-space:nowrap;}
+#weatherUseLocationBtn{
+  flex:0 0 auto;
+  padding:6px 9px;
+  min-height:32px;
+  font-size:.78rem;
+  line-height:1.05;
+  white-space:nowrap;
+}
+@media(max-width:640px){
+  #weatherSection.weather-section{padding:0;}
+  .weather-head{gap:6px;align-items:center;}
+  .weather-head h2{font-size:.98rem;line-height:1.15;letter-spacing:-.03em;}
+  #weatherUseLocationBtn{padding:5px 7px;min-height:30px;font-size:.72rem;}
+}
+@media(max-width:360px){
+  .weather-head h2{font-size:.91rem;}
+  #weatherUseLocationBtn{padding:4px 6px;font-size:.68rem;}
+}
