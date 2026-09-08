@@ -1,4 +1,4 @@
-const CACHE = "주의울림-v44-auth-optimized";
+const CACHE = "주의울림-v45-no-email-confirm-title-only";
 const CORE_ASSETS = [
   "./",
   "./index.html",

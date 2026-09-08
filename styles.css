@@ -987,3 +987,8 @@ body.worship-manager-mode .worship-admin-card{grid-column:1/-1}
   content-visibility:auto;
   contain-intrinsic-size: 1px 520px;
 }
+
+/* V45: 화면 최상단 공지는 제목만 한 줄로 간단히 표시 */
+.latest-notice-title-only{padding:13px 16px;min-height:0;display:flex;align-items:center}
+.latest-notice-title-only b{display:block;width:100%;font-size:1rem;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:640px){.latest-notice-title-only{padding:11px 13px}.latest-notice-title-only b{font-size:.94rem}}
