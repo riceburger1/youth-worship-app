@@ -140,10 +140,14 @@
 </form>
 </section>
 <section class="panel card" id="notice">
-<span class="eyebrow">전체 공지</span>
+<span class="eyebrow">청소년부 소식</span>
 <h2>공지사항</h2>
-<p class="muted">최신 공지와 지난 공지를 모두 확인할 수 있습니다.</p>
-<div class="list" id="noticeList"></div>
+<p class="muted">최신 공지를 먼저 확인하고, 지난 공지는 아래 목록을 펼쳐 볼 수 있습니다.</p>
+<div class="list" id="noticeLatest"></div>
+<details class="past-notice-details" id="pastNoticeDetails" hidden>
+<summary>지난 공지 보기 <span class="past-notice-count" id="pastNoticeCount">0</span></summary>
+<div class="list past-notice-list" id="noticePastList"></div>
+</details>
 </section>
 <section class="panel card hidden" id="gratitude">
 <div class="section-head gratitude-head">

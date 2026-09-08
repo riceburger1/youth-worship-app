@@ -18,6 +18,7 @@ console.info("주의울림 앱 버전:", APP_VERSION);
 const $ = (q) => document.querySelector(q);
 const $$ = (q) => [...document.querySelectorAll(q)];
 const clean = (s) => String(s ?? "").replace(/\s+/g," ").trim();
+const cleanMultiline = (s) => String(s ?? "").replace(/\r\n?/g,"\n").replace(/[ \t]+$/gm,"").trim();
 const normalize = (s) => clean(s).replace(/\s/g,"");
 const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -1406,12 +1407,14 @@ async function loadNotices() {
   const rows = data || [];
 
   if (error) {
-    $("#noticeList").innerHTML = '<p class="muted">공지사항을 불러오지 못했습니다.</p>';
+    $("#noticeLatest").innerHTML = '<p class="muted">공지사항을 불러오지 못했습니다.</p>';
+    $("#noticePastList").innerHTML = '';
+    $("#pastNoticeDetails").hidden = true;
     $("#bannerArea").innerHTML = '';
     return;
   }
 
-  // 최상단에는 가장 최근 등록된 공개 공지 1개만 노출합니다.
+  // 학생 화면 최상단에는 가장 최근 공개 공지 1개만 노출합니다.
   const latest = rows[0] || null;
   $("#bannerArea").innerHTML = latest ? `
     <article class="banner latest-notice-banner">
@@ -1421,19 +1424,35 @@ async function loadNotices() {
       <div class="notice-body latest-notice-body">${escapeHtml(latest.body)}</div>
     </article>` : '';
 
-  // 공지사항 탭에서는 최신 공지를 포함해 지난 공지 전체를 확인할 수 있습니다.
-  $("#noticeList").innerHTML = rows.length ? rows.map((n,index)=>`
-    <article class="list-item notice-archive-item ${index===0 ? "notice-current" : "notice-past"}">
+  // 공지사항 탭에서도 최신 공지 1개를 먼저 보여주고, 이전 공지는 접힌 목록에서 확인합니다.
+  $("#noticeLatest").innerHTML = latest ? `
+    <article class="list-item notice-current notice-latest-card">
+      <div class="notice-item-head">
+        <div class="meta">${fmtDate(latest.event_date)}</div>
+        <span class="notice-state-badge">최신 공지</span>
+      </div>
+      <h3>${escapeHtml(latest.title)}</h3>
+      <div class="notice-body">${escapeHtml(latest.body)}</div>
+    </article>` : '<p class="muted">등록된 공지사항이 없습니다.</p>';
+
+  const pastRows = rows.slice(1);
+  const details = $("#pastNoticeDetails");
+  const count = $("#pastNoticeCount");
+  if (count) count.textContent = String(pastRows.length);
+  if (details) {
+    details.hidden = pastRows.length === 0;
+    details.open = false;
+  }
+  $("#noticePastList").innerHTML = pastRows.map(n=>`
+    <article class="list-item notice-archive-item notice-past">
       <div class="notice-item-head">
         <div class="meta">${fmtDate(n.event_date)}</div>
-        <span class="notice-state-badge">${index===0 ? "최신" : "지난 공지"}</span>
+        <span class="notice-state-badge">지난 공지</span>
       </div>
       <h3>${escapeHtml(n.title)}</h3>
       <div class="notice-body">${escapeHtml(n.body)}</div>
-    </article>`).join("")
-    : '<p class="muted">등록된 공지사항이 없습니다.</p>';
+    </article>`).join("");
 }
-
 $("#boardForm").addEventListener("submit", async e => {
   e.preventDefault();
   const body = clean($("#boardText").value);
@@ -2991,7 +3010,7 @@ $("#noticeAdminForm").addEventListener("submit", async e => {
   const payload = {
     title: clean($("#noticeTitle").value),
     event_date: $("#noticeDate").value || null,
-    body: clean($("#noticeBody").value),
+    body: cleanMultiline($("#noticeBody").value),
     banner: $("#noticeBanner").checked,
     published: $("#noticePublished").checked
   };
