@@ -675,3 +675,56 @@ main > #weatherSection{
   .weather-head h2{font-size:.91rem;}
   #weatherUseLocationBtn{padding:4px 6px;font-size:.68rem;}
 }
+
+
+/* ===== V36: 행사달력 → 날씨 → 관리자 진입 / 모바일 날씨 폭·헤더 정리 ===== */
+#weatherSection.weather-section{
+  width:100%;
+  max-width:none;
+  margin:0 0 14px;
+  padding:0;
+}
+#weatherSection .weather-shell{
+  width:100%;
+  margin:0;
+  border-radius:20px;
+  padding:20px;
+}
+#weatherUseLocationBtn{
+  width:auto!important;
+  max-width:max-content;
+  min-width:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:6px 9px;
+  white-space:nowrap;
+}
+.weather-location-pin{
+  display:inline-block;
+  font-size:.78em;
+  line-height:1;
+}
+.weather-head > div{min-width:0;flex:1 1 auto;}
+.weather-head h2{white-space:nowrap;word-break:keep-all;}
+
+@media(max-width:640px){
+  #weatherSection .weather-shell{padding:15px;}
+  .weather-head{display:flex;align-items:center;gap:7px;margin-bottom:11px;}
+  .weather-head h2{font-size:.96rem;line-height:1.1;letter-spacing:-.045em;white-space:nowrap;}
+  .weather-head .eyebrow{font-size:.72rem;margin-bottom:2px;}
+  #weatherUseLocationBtn{
+    width:auto!important;
+    flex:0 0 auto;
+    min-height:30px;
+    padding:5px 7px;
+    font-size:.7rem;
+    border-radius:10px;
+  }
+  .weather-location-pin{font-size:.7em;}
+}
+@media(max-width:390px){
+  .weather-head h2{font-size:.9rem;letter-spacing:-.055em;}
+  #weatherUseLocationBtn{padding:4px 6px;font-size:.66rem;gap:3px;}
+}

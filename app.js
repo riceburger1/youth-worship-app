@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v35-weather-absolute-bottom";
+const APP_VERSION = "v36-weather-calendar-admin-order";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -25,10 +25,12 @@ const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;"
 function placeWeatherAtStudentBottom() {
   if (ADMIN_WINDOW) return;
   const weather = $("#weatherSection");
-  const main = document.querySelector("main");
-  if (!weather || !main) return;
-  // 어떤 이전 HTML이 캐시에 남아 있어도 학생 화면에서는 날씨를 항상 마지막 섹션으로 보냅니다.
-  if (main.lastElementChild !== weather) main.appendChild(weather);
+  const calendar = $("#churchCalendarSection");
+  const adminEntry = document.querySelector(".admin-entry");
+  if (!weather || !calendar) return;
+  // 학생 화면 순서를 항상 '행사 달력 → 날씨 → 관리자 화면 열기'로 고정합니다.
+  if (calendar.nextElementSibling !== weather) calendar.insertAdjacentElement("afterend", weather);
+  if (adminEntry && weather.nextElementSibling !== adminEntry) weather.insertAdjacentElement("afterend", adminEntry);
 }
 
 function dbErrorMessage(error, fallback = "처리 중 오류가 발생했습니다.") {

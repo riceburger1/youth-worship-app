@@ -360,6 +360,43 @@
 <p class="status" id="eventCalendarStatus"></p>
 </section>
 
+<section aria-labelledby="weatherTitle" class="weather-section" id="weatherSection">
+<div class="weather-shell">
+<div class="weather-head">
+<div>
+<span class="eyebrow">오늘의 날씨</span>
+<h2 id="weatherTitle">☀️ 예배 가는 길 날씨</h2>
+</div>
+<button class="ghost compact-btn" id="weatherUseLocationBtn" type="button"><span class="weather-location-pin" aria-hidden="true">📍</span><span>내 위치</span></button>
+</div>
+<div aria-label="오늘과 내일 날씨" class="weather-summary" id="weatherSummary">
+<button aria-controls="weeklyWeatherPanel" aria-expanded="false" class="weather-day-card" id="weatherTodayCard" type="button">
+<span class="weather-day-label">오늘</span>
+<span aria-hidden="true" class="weather-icon" id="weatherTodayIcon">⏳</span>
+<strong id="weatherTodayText">불러오는 중</strong>
+<span class="weather-temp" id="weatherTodayTemp">--° / --°</span>
+<small id="weatherTodayRain">강수 --%</small>
+</button>
+<button aria-controls="weeklyWeatherPanel" aria-expanded="false" class="weather-day-card" id="weatherTomorrowCard" type="button">
+<span class="weather-day-label">내일</span>
+<span aria-hidden="true" class="weather-icon" id="weatherTomorrowIcon">⏳</span>
+<strong id="weatherTomorrowText">불러오는 중</strong>
+<span class="weather-temp" id="weatherTomorrowTemp">--° / --°</span>
+<small id="weatherTomorrowRain">강수 --%</small>
+</button>
+</div>
+<p class="weather-hint" id="weatherHint">오늘 또는 내일 날씨를 누르면 주간날씨를 볼 수 있습니다.</p>
+<div aria-hidden="true" class="weekly-weather-panel hidden" id="weeklyWeatherPanel">
+<div class="weather-week-head">
+<strong>7일 주간날씨</strong>
+<button class="ghost compact-btn" id="closeWeeklyWeatherBtn" type="button">닫기</button>
+</div>
+<div class="weekly-weather-list" id="weeklyWeatherList"></div>
+<p class="status" id="weatherStatus"></p>
+</div>
+</div>
+</section>
+
 <section class="card admin-entry">
 <button class="ghost" id="openAdminBtn" type="button">관리자 화면 새 탭에서 열기 ↗</button>
 </section>
@@ -677,42 +714,7 @@
 </section>
 </div>
 </section>
-<section aria-labelledby="weatherTitle" class="weather-section" id="weatherSection">
-<div class="weather-shell">
-<div class="weather-head">
-<div>
-<span class="eyebrow">오늘의 날씨</span>
-<h2 id="weatherTitle">☀️ 예배 가는 길 날씨</h2>
-</div>
-<button class="ghost compact-btn" id="weatherUseLocationBtn" type="button">📍 내 위치</button>
-</div>
-<div aria-label="오늘과 내일 날씨" class="weather-summary" id="weatherSummary">
-<button aria-controls="weeklyWeatherPanel" aria-expanded="false" class="weather-day-card" id="weatherTodayCard" type="button">
-<span class="weather-day-label">오늘</span>
-<span aria-hidden="true" class="weather-icon" id="weatherTodayIcon">⏳</span>
-<strong id="weatherTodayText">불러오는 중</strong>
-<span class="weather-temp" id="weatherTodayTemp">--° / --°</span>
-<small id="weatherTodayRain">강수 --%</small>
-</button>
-<button aria-controls="weeklyWeatherPanel" aria-expanded="false" class="weather-day-card" id="weatherTomorrowCard" type="button">
-<span class="weather-day-label">내일</span>
-<span aria-hidden="true" class="weather-icon" id="weatherTomorrowIcon">⏳</span>
-<strong id="weatherTomorrowText">불러오는 중</strong>
-<span class="weather-temp" id="weatherTomorrowTemp">--° / --°</span>
-<small id="weatherTomorrowRain">강수 --%</small>
-</button>
-</div>
-<p class="weather-hint" id="weatherHint">오늘 또는 내일 날씨를 누르면 주간날씨를 볼 수 있습니다.</p>
-<div aria-hidden="true" class="weekly-weather-panel hidden" id="weeklyWeatherPanel">
-<div class="weather-week-head">
-<strong>7일 주간날씨</strong>
-<button class="ghost compact-btn" id="closeWeeklyWeatherBtn" type="button">닫기</button>
-</div>
-<div class="weekly-weather-list" id="weeklyWeatherList"></div>
-<p class="status" id="weatherStatus"></p>
-</div>
-</div>
-</section></main>
+</main>
 <footer>양정중앙교회 청소년부 · 주의울림</footer>
 <div aria-live="polite" class="connection-bar connection-footer checking" id="supabaseConnection" role="status">
 <span id="supabaseConnectionText">Supabase 연결 확인 중…</span>
