@@ -728,3 +728,88 @@ main > #weatherSection{
   .weather-head h2{font-size:.9rem;letter-spacing:-.055em;}
   #weatherUseLocationBtn{padding:4px 6px;font-size:.66rem;gap:3px;}
 }
+
+
+/* ===== V37: 찬양 볼륨 제거 + 제목 한 줄 + 주일별 플레이리스트 ===== */
+#worship .worship-head{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+}
+#worship .worship-head-copy{
+  min-width:0;
+  flex:1 1 auto;
+}
+#worship #worshipPlaylistTitle{
+  white-space:nowrap;
+  word-break:keep-all;
+  letter-spacing:-.035em;
+}
+#worship .worship-refresh-btn{
+  flex:0 0 auto;
+  width:32px!important;
+  min-width:32px!important;
+  height:32px;
+  min-height:32px;
+  padding:0!important;
+  border-radius:10px;
+  display:grid;
+  place-items:center;
+  font-size:1.05rem;
+  line-height:1;
+}
+.worship-sunday-picker-wrap{
+  margin:12px 0 4px;
+  padding:11px 12px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--soft,#f7faf8);
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+}
+.worship-sunday-picker-wrap label{
+  margin:0;
+  font-size:.82rem;
+  font-weight:900;
+  white-space:nowrap;
+  color:var(--muted);
+}
+.worship-sunday-picker-wrap select{
+  min-width:0;
+  width:100%;
+  margin:0;
+}
+#worship .worship-options{
+  display:flex;
+  justify-content:flex-start;
+  padding:0 16px 16px;
+}
+#worship .worship-volume-label{display:none!important;}
+@media(max-width:640px){
+  #worship .worship-head{gap:5px;}
+  #worship #worshipPlaylistTitle{font-size:.98rem;line-height:1.12;letter-spacing:-.055em;}
+  #worship .worship-head .eyebrow{font-size:.7rem;}
+  #worship .worship-refresh-btn{
+    width:27px!important;
+    min-width:27px!important;
+    height:27px;
+    min-height:27px;
+    border-radius:8px;
+    font-size:.88rem;
+  }
+  .worship-sunday-picker-wrap{
+    grid-template-columns:1fr;
+    gap:5px;
+    padding:9px 10px;
+  }
+  .worship-sunday-picker-wrap label{font-size:.76rem;}
+  #worship .worship-options{padding:0 12px 14px;}
+}
+@media(max-width:390px){
+  #worship #worshipPlaylistTitle{font-size:.9rem;letter-spacing:-.065em;}
+  #worship .worship-refresh-btn{width:25px!important;min-width:25px!important;height:25px;min-height:25px;font-size:.82rem;}
+}
+
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}

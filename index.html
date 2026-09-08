@@ -240,12 +240,18 @@
 </section>
 <section class="panel card hidden" id="worship">
 <div class="section-head worship-head">
-<div>
-<span class="eyebrow">이번 주 예배 찬양</span>
-<h2>🎵 이번 주 찬양 플레이리스트</h2>
-<p class="muted" id="worshipWeekLabel">이번 주 찬양을 불러오는 중입니다.</p>
+<div class="worship-head-copy">
+<span class="eyebrow">예배 찬양</span>
+<h2 id="worshipPlaylistTitle">🎵 이번 주 찬양 플레이리스트</h2>
+<p class="muted" id="worshipWeekLabel">찬양 주일을 불러오는 중입니다.</p>
 </div>
-<button class="ghost compact-btn" id="refreshWorshipBtn" type="button">새로고침</button>
+<button class="ghost worship-refresh-btn" id="refreshWorshipBtn" type="button" aria-label="찬양 목록 새로고침" title="새로고침">↻</button>
+</div>
+<div class="worship-sunday-picker-wrap">
+<label for="worshipSundaySelect">주일별 찬양 선택</label>
+<select id="worshipSundaySelect" aria-label="찬양을 들을 주일 선택">
+<option value="">주일 목록을 불러오는 중입니다.</option>
+</select>
 </div>
 <div class="worship-player-shell">
 <div class="worship-video-wrap">
@@ -268,11 +274,6 @@
 <button aria-label="다음 곡" class="ghost worship-control-btn" disabled="" id="worshipNextBtn" type="button">다음곡 ⏭</button>
 </div>
 <div class="worship-options">
-<label class="worship-volume-label" for="worshipVolume">
-<span>🔊 볼륨</span>
-<input disabled="" id="worshipVolume" max="100" min="0" step="1" type="range" value="70"/>
-<strong id="worshipVolumeValue">70%</strong>
-</label>
 <label class="check-row worship-auto-next"><input checked="" id="worshipAutoNext" type="checkbox"/> 곡이 끝나면 자동으로 다음 곡 재생</label>
 </div>
 </div>
@@ -366,6 +367,7 @@
 <div>
 <span class="eyebrow">오늘의 날씨</span>
 <h2 id="weatherTitle">☀️ 예배 가는 길 날씨</h2>
+<span class="visually-hidden" id="weatherLocation">부산</span>
 </div>
 <button class="ghost compact-btn" id="weatherUseLocationBtn" type="button"><span class="weather-location-pin" aria-hidden="true">📍</span><span>내 위치</span></button>
 </div>
