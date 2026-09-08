@@ -875,3 +875,8 @@ main > #weatherSection{
   .student-sunday-picker label{font-size:.77rem;}
   .student-sunday-picker small{grid-column:1; font-size:.76rem;}
 }
+
+/* V40: 관리자에서 입력한 공지사항 줄바꿈/빈 줄을 학생 화면에서도 그대로 보존 */
+.notice-body{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;line-height:1.7}
+.latest-notice-date{display:block;margin-bottom:6px;opacity:.86}
+.latest-notice-body{margin-top:2px}

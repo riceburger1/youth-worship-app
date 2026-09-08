@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v39-sunday-word-study-history";
+const APP_VERSION = "v40-notice-linebreak-preserve";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -1411,7 +1411,8 @@ async function loadNotices() {
     <article class="banner latest-notice-banner">
       <div class="latest-notice-label">최신 공지</div>
       <b>${escapeHtml(latest.title)}</b>
-      <small>${fmtDate(latest.event_date)} · ${escapeHtml(latest.body)}</small>
+      <small class="latest-notice-date">${fmtDate(latest.event_date)}</small>
+      <div class="notice-body latest-notice-body">${escapeHtml(latest.body)}</div>
     </article>` : '';
 
   // 공지사항 탭에서는 최신 공지를 포함해 지난 공지 전체를 확인할 수 있습니다.
@@ -1422,7 +1423,7 @@ async function loadNotices() {
         <span class="notice-state-badge">${index===0 ? "최신" : "지난 공지"}</span>
       </div>
       <h3>${escapeHtml(n.title)}</h3>
-      <div>${escapeHtml(n.body).replace(/\n/g,"<br>")}</div>
+      <div class="notice-body">${escapeHtml(n.body)}</div>
     </article>`).join("")
     : '<p class="muted">등록된 공지사항이 없습니다.</p>';
 }
