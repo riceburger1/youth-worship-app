@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v37-worship-sunday-no-volume";
+const APP_VERSION = "v38-student-menu-notice-home";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -341,6 +341,16 @@ function setProfilePanel(open, {scroll=false, focus=false} = {}) {
     target?.focus({preventScroll:true});
   });
 }
+function setStudentUtilityVisibility(tabName) {
+  if (ADMIN_WINDOW) return;
+  const show = tabName === "notice";
+  const calendar = $("#churchCalendarSection");
+  const weather = $("#weatherSection");
+  calendar?.classList.toggle("hidden", !show);
+  weather?.classList.toggle("hidden", !show);
+  if (!show) setWeeklyWeatherOpen(false);
+}
+
 function activateStudentTab(tabName) {
   if (tabName === "profile") {
     setProfilePanel(true, {scroll:true, focus:true});
@@ -352,6 +362,7 @@ function activateStudentTab(tabName) {
   $$(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.tab === tabName));
   $$("main .panel").forEach(panel => panel.classList.add("hidden"));
   target.classList.remove("hidden");
+  setStudentUtilityVisibility(tabName);
   if (tabName === "gratitude") {
     renderGratitudeChallenge();
     void refreshGratitudeStudentFromServer();
@@ -840,6 +851,7 @@ $("#studentName").addEventListener("change", () => {
 $("#saveProfileBtn").addEventListener("click", () => persistProfile({feedback:true}));
 
 $$(".tab").forEach(btn => btn.addEventListener("click", () => activateStudentTab(btn.dataset.tab)));
+if (!ADMIN_WINDOW) setStudentUtilityVisibility(document.querySelector(".tab.active")?.dataset.tab || "notice");
 $("#profileHeaderBtn")?.addEventListener("click", () => {
   const isOpen = !$("#profile")?.classList.contains("hidden");
   setProfilePanel(!isOpen, {scroll:!isOpen, focus:!isOpen});
