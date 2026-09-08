@@ -452,6 +452,8 @@
 <button class="primary" type="submit">계정 만들기</button>
 <button class="ghost" id="cancelWorshipSignupBtn" type="button">취소</button>
 </div>
+<button class="ghost compact-btn hidden auth-resend-btn" id="resendWorshipSignupBtn" type="button">인증메일 다시 보내기</button>
+<p class="auth-help">이메일 인증을 사용하는 경우 인증 후에도 <b>전체 관리자의 찬양 관리자 승인</b>이 있어야 로그인할 수 있습니다.</p>
 <p class="status" id="worshipSignupStatus"></p>
 </form>
 <div class="hidden" id="adminWorkspace">
@@ -616,7 +618,7 @@
 <div class="admin-editor-head">
 <div>
 <h4>👥 학생 찬양 관리자</h4>
-<p class="muted">학생이 먼저 ‘학생 찬양 관리자 계정 만들기’로 가입한 뒤 이메일을 입력해 승인하세요. 승인된 학생은 찬양 목록만 관리할 수 있습니다.</p>
+<p class="muted">학생이 먼저 계정을 만들고 이메일 인증을 완료한 뒤 승인하세요. 승인된 학생은 찬양 목록만 관리할 수 있습니다.</p>
 </div>
 <button class="ghost compact-btn" id="refreshWorshipManagersBtn" type="button">목록 새로고침</button>
 </div>

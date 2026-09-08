@@ -11,7 +11,7 @@ try {
 const SUPABASE_URL = "https://jdnxmkkyusktfiavfdwb.supabase.co";
 const SUPABASE_KEY = "sb_publishable_swA-gv1uwixyiN-qZUYLzQ_J6oqxGiI";
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
-const APP_VERSION = "v41-student-worship-manager";
+const APP_VERSION = "v44-auth-optimized";
 const ADMIN_WINDOW = new URLSearchParams(window.location.search).get("admin") === "1";
 console.info("주의울림 앱 버전:", APP_VERSION);
 
@@ -47,6 +47,40 @@ function dbErrorMessage(error, fallback = "처리 중 오류가 발생했습니�
   return `${fallback}${code}${extra ? ` · ${extra}` : ""}`;
 }
 
+function authErrorMessage(error, fallback = "인증 처리 중 오류가 발생했습니다.") {
+  if (!error) return fallback;
+  console.error("Supabase Auth error:", error);
+  const message = String(error.message || "").trim();
+  const lower = message.toLowerCase();
+  const status = Number(error.status || 0);
+  if (status === 429 || lower.includes("rate limit") || lower.includes("too many requests")) {
+    return "요청이 너무 많습니다. 약 1분 후 다시 시도해 주세요.";
+  }
+  if (lower.includes("email address not authorized")) {
+    return "인증 메일을 보낼 수 없는 주소입니다. Supabase 기본 메일 서버를 사용하는 경우 프로젝트 팀 이메일만 전송될 수 있습니다. 전체 관리자에게 알려 주세요.";
+  }
+  if (lower.includes("email not confirmed") || lower.includes("email_not_confirmed")) {
+    return "이메일 인증이 아직 완료되지 않았습니다. 받은편지함의 인증 메일을 확인해 주세요.";
+  }
+  if (lower.includes("invalid login credentials")) {
+    return "이메일 또는 비밀번호가 맞지 않습니다. 이메일 인증을 완료했는지도 확인해 주세요.";
+  }
+  if (lower.includes("user already registered") || lower.includes("already registered")) {
+    return "이미 가입된 이메일입니다. 계정 만들기 대신 로그인해 주세요.";
+  }
+  if (lower.includes("password")) {
+    return `비밀번호 설정을 확인해 주세요.${message ? ` · ${message}` : ""}`;
+  }
+  return `${fallback}${message ? ` · ${message}` : ""}`;
+}
+
+function buildAdminAuthRedirectUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("admin", "1");
+  url.searchParams.set("auth", "confirmed");
+  url.hash = "";
+  return url.toString();
+}
 
 function isMissingRpc(error, functionName = "") {
   if (!error) return false;
@@ -220,7 +254,12 @@ async function checkSupabaseConnection({reloadData=false} = {}) {
     retry.disabled = false;
 
     if (reloadData) {
-      await Promise.all([loadWeekly(), loadNotices(), loadBoard(), loadPublicEventCalendar(), loadGratitudeLeaders(), loadStudentWorshipPlaylist()]);
+      await Promise.all([loadWeekly(), loadNotices(), loadPublicEventCalendar()]);
+      const activeStudentTab = $(".tab.active")?.dataset?.tab;
+      if (activeStudentTab && activeStudentTab !== "notice") {
+        studentLoadState.delete(activeStudentTab);
+        activateStudentTab(activeStudentTab);
+      }
       if (isAdmin || isWorshipManager()) {
         await refreshActiveAdminTab(activeAdminTab);
       }
@@ -289,6 +328,26 @@ let youtubeApiKey = "";
 let adminWorshipRows = [];
 let youtubeSearchRows = [];
 let worshipManagerRows = [];
+
+const WORSHIP_PENDING_EMAIL_KEY = "주의울림-worship-signup-pending-email-v44";
+const WORSHIP_RESEND_AT_KEY = "주의울림-worship-signup-resend-at-v44";
+const studentLoadState = new Map();
+
+async function runStudentLoad(key, loader, maxAge = 60000, {force=false} = {}) {
+  if (ADMIN_WINDOW) return;
+  const now = Date.now();
+  const state = studentLoadState.get(key) || {};
+  if (!force && state.promise) return state.promise;
+  if (!force && state.loadedAt && now - state.loadedAt < maxAge) return;
+  const promise = Promise.resolve().then(loader).finally(() => {
+    const latest = studentLoadState.get(key) || {};
+    latest.promise = null;
+    latest.loadedAt = Date.now();
+    studentLoadState.set(key, latest);
+  });
+  studentLoadState.set(key, { ...state, promise });
+  return promise;
+}
 
 function isFullAdmin() { return adminRole === "admin"; }
 function isWorshipManager() { return adminRole === "worship_manager"; }
@@ -377,11 +436,13 @@ function activateStudentTab(tabName) {
   setStudentUtilityVisibility(tabName);
   if (tabName === "gratitude") {
     renderGratitudeChallenge();
-    void refreshGratitudeStudentFromServer();
+    void runStudentLoad("gratitude", refreshGratitudeStudentFromServer, 30000);
   } else if (tabName === "worship") {
-    void loadStudentWorshipPlaylist(null,{refreshSundays:true});
+    void runStudentLoad("worship", () => loadStudentWorshipPlaylist(null,{refreshSundays:true}), 60000);
   } else if (tabName === "newfriend") {
-    void loadNewFriendPublicList();
+    void runStudentLoad("newfriend", loadNewFriendPublicList, 60000);
+  } else if (tabName === "board") {
+    void runStudentLoad("board", loadBoard, 30000);
   }
 }
 function requireProfile(statusEl) {
@@ -2340,7 +2401,7 @@ function renderWorshipManagers() {
     <article class="worship-manager-row">
       <div>
         <strong>${escapeHtml(row.email || "이메일 없음")}</strong>
-        <small>찬양 관리자</small>
+        <small>${row.email_confirmed === false ? "⚠ 이메일 미인증" : "✅ 이메일 인증 · 찬양 관리자"}</small>
       </div>
       <button class="ghost danger-outline compact-btn" type="button" data-revoke-worship-manager="${escapeHtml(String(row.user_id))}" data-manager-email="${escapeHtml(row.email || "")}">권한 해제</button>
     </article>`).join("");
@@ -2350,11 +2411,14 @@ async function loadWorshipManagers() {
   if (!isFullAdmin() || !$("#worshipManagerList")) return;
   const status = $("#worshipManagerStatus");
   if (status) status.textContent = "찬양 관리자 목록을 불러오는 중입니다…";
-  const {data,error} = await db.rpc("youth_admin_list_worship_managers_v41");
+  let {data,error} = await db.rpc("youth_admin_list_worship_managers_v44");
+  if (error && isMissingRpc(error, "youth_admin_list_worship_managers_v44")) {
+    ({data,error} = await db.rpc("youth_admin_list_worship_managers_v41"));
+  }
   if (error) {
     worshipManagerRows = [];
     renderWorshipManagers();
-    if (status) status.textContent = dbErrorMessage(error, "찬양 관리자 목록을 불러오지 못했습니다. V41 SQL을 먼저 실행해 주세요.");
+    if (status) status.textContent = dbErrorMessage(error, "찬양 관리자 목록을 불러오지 못했습니다. V44 SQL을 먼저 실행해 주세요.");
     return;
   }
   worshipManagerRows = data || [];
@@ -2370,7 +2434,7 @@ async function approveWorshipManager() {
   const btn = $("#approveWorshipManagerBtn");
   if (btn) btn.disabled = true;
   if (status) status.textContent = "찬양 관리자 권한을 승인하는 중입니다…";
-  const {data,error} = await db.rpc("youth_admin_set_worship_manager_v41", {p_email:email, p_enabled:true});
+  const {data,error} = await db.rpc("youth_admin_set_worship_manager_v44", {p_email:email, p_enabled:true});
   if (btn) btn.disabled = false;
   if (error) { if (status) status.textContent = dbErrorMessage(error, "찬양 관리자 승인에 실패했습니다."); return; }
   if (!data?.ok) { if (status) status.textContent = data?.message || "해당 이메일의 계정을 찾지 못했습니다."; return; }
@@ -2383,7 +2447,10 @@ async function revokeWorshipManager(userId, email="") {
   if (!isFullAdmin()) return;
   if (!confirm(`${email || "이 계정"}의 찬양 관리자 권한을 해제할까요?`)) return;
   const status = $("#worshipManagerStatus");
-  const {data,error} = await db.rpc("youth_admin_set_worship_manager_v41", {p_email:email, p_enabled:false});
+  let {data,error} = await db.rpc("youth_admin_set_worship_manager_v44", {p_email:email, p_enabled:false});
+  if (error && isMissingRpc(error, "youth_admin_set_worship_manager_v44")) {
+    ({data,error} = await db.rpc("youth_admin_set_worship_manager_v41", {p_email:email, p_enabled:false}));
+  }
   if (error) { if (status) status.textContent = dbErrorMessage(error, "찬양 관리자 권한 해제에 실패했습니다."); return; }
   if (!data?.ok) { if (status) status.textContent = data?.message || "권한을 해제하지 못했습니다."; return; }
   if (status) status.textContent = `${email || "선택한 계정"}의 찬양 관리자 권한을 해제했습니다.`;
@@ -2493,12 +2560,25 @@ function applyAdminWindowMode() {
   setAdminTab(activeAdminTab, {reload:false});
 }
 applyAdminWindowMode();
+if (ADMIN_WINDOW && new URLSearchParams(window.location.search).get("auth") === "confirmed") {
+  const pendingEmail = sessionStorage.getItem(WORSHIP_PENDING_EMAIL_KEY) || "";
+  if ($("#adminLoginStatus")) {
+    $("#adminLoginStatus").textContent = `이메일 인증 링크에서 돌아왔습니다.${pendingEmail ? ` ${pendingEmail}` : ""} 전체 관리자 승인을 받은 뒤 로그인해 주세요.`;
+  }
+}
 $("#adminLoginForm").addEventListener("submit", async e => {
   e.preventDefault();
+  const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+  $("#adminLoginStatus").textContent = "로그인 중입니다…";
   const { data, error } = await db.auth.signInWithPassword({
     email:$("#adminEmail").value.trim(), password:$("#adminPassword").value
   });
-  if (error) { $("#adminLoginStatus").textContent = "로그인 정보를 확인해 주세요."; return; }
+  if (submitBtn) submitBtn.disabled = false;
+  if (error) {
+    $("#adminLoginStatus").textContent = authErrorMessage(error, "로그인에 실패했습니다.");
+    return;
+  }
   await verifyAdmin(data.user);
 });
 
@@ -2509,30 +2589,116 @@ function setWorshipSignupOpen(open) {
 }
 $("#toggleWorshipSignupBtn")?.addEventListener("click", () => setWorshipSignupOpen(true));
 $("#cancelWorshipSignupBtn")?.addEventListener("click", () => setWorshipSignupOpen(false));
+function showWorshipResendButton(show, email="") {
+  const btn = $("#resendWorshipSignupBtn");
+  if (!btn) return;
+  btn.classList.toggle("hidden", !show);
+  if (email) btn.dataset.email = email;
+}
+
+function updateWorshipResendCooldown() {
+  const btn = $("#resendWorshipSignupBtn");
+  if (!btn || btn.classList.contains("hidden")) return;
+  const lastAt = Number(localStorage.getItem(WORSHIP_RESEND_AT_KEY) || 0);
+  const remain = Math.max(0, 60 - Math.floor((Date.now() - lastAt) / 1000));
+  btn.disabled = remain > 0;
+  btn.textContent = remain > 0 ? `인증메일 다시 보내기 (${remain}초)` : "인증메일 다시 보내기";
+  if (remain > 0) setTimeout(updateWorshipResendCooldown, 1000);
+}
+
 $("#worshipSignupForm")?.addEventListener("submit", async e => {
   e.preventDefault();
   const email = clean($("#worshipSignupEmail")?.value || "").toLowerCase();
   const password = String($("#worshipSignupPassword")?.value || "");
   const confirmPassword = String($("#worshipSignupPasswordConfirm")?.value || "");
   const status = $("#worshipSignupStatus");
-  if (!email || !email.includes("@")) { if (status) status.textContent = "사용할 이메일을 정확히 입력해 주세요."; return; }
-  if (password.length < 6) { if (status) status.textContent = "비밀번호는 6자 이상으로 입력해 주세요."; return; }
-  if (password !== confirmPassword) { if (status) status.textContent = "비밀번호 확인이 일치하지 않습니다."; return; }
+  const submitBtn = e.submitter || e.target.querySelector('button[type="submit"]');
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (status) status.textContent = "사용할 이메일을 정확히 입력해 주세요.";
+    return;
+  }
+  if (password.length < 6) {
+    if (status) status.textContent = "비밀번호는 6자 이상으로 입력해 주세요.";
+    return;
+  }
+  if (password !== confirmPassword) {
+    if (status) status.textContent = "비밀번호 확인이 일치하지 않습니다.";
+    return;
+  }
+  if (submitBtn) submitBtn.disabled = true;
+  showWorshipResendButton(false);
   if (status) status.textContent = "계정을 만드는 중입니다…";
-  const {data,error} = await db.auth.signUp({email,password});
-  if (error) { if (status) status.textContent = dbErrorMessage(error, "계정을 만들지 못했습니다."); return; }
-  if (data?.session) await db.auth.signOut();
+  const {data,error} = await db.auth.signUp({
+    email,
+    password,
+    options:{ emailRedirectTo:buildAdminAuthRedirectUrl() }
+  });
+  if (submitBtn) submitBtn.disabled = false;
+  if (error) {
+    if (status) status.textContent = authErrorMessage(error, "계정을 만들지 못했습니다.");
+    return;
+  }
+
+  try { sessionStorage.setItem(WORSHIP_PENDING_EMAIL_KEY, email); } catch {}
   $("#worshipSignupPassword").value = "";
   $("#worshipSignupPasswordConfirm").value = "";
-  if (status) status.textContent = data?.session
-    ? "계정을 만들었습니다. 전체 관리자에게 이 이메일을 알려 찬양 관리자 승인을 받은 뒤 로그인해 주세요."
-    : "계정을 만들었습니다. 이메일 인증 안내가 왔다면 먼저 인증한 뒤, 전체 관리자에게 찬양 관리자 승인을 요청해 주세요.";
+
+  if (data?.session) {
+    await db.auth.signOut();
+    showWorshipResendButton(false);
+    if (status) status.textContent = "계정을 만들었습니다. 이 프로젝트는 이메일 확인 없이 가입되는 설정입니다. 전체 관리자에게 이메일을 알려 찬양 관리자 승인을 받은 뒤 로그인해 주세요.";
+    return;
+  }
+
+  const identities = Array.isArray(data?.user?.identities) ? data.user.identities : null;
+  showWorshipResendButton(true, email);
+  updateWorshipResendCooldown();
+  if (status) {
+    status.textContent = identities && identities.length === 0
+      ? "이미 가입된 이메일일 수 있습니다. 기존 계정으로 로그인하거나, 이메일 인증을 아직 하지 않았다면 아래에서 인증메일을 다시 보내 주세요."
+      : "가입 요청이 완료되었습니다. 받은편지함의 인증 메일을 열어 이메일 인증을 완료한 뒤 전체 관리자에게 승인을 요청해 주세요.";
+  }
+});
+
+$("#resendWorshipSignupBtn")?.addEventListener("click", async e => {
+  const btn = e.currentTarget;
+  const status = $("#worshipSignupStatus");
+  const email = clean(btn.dataset.email || $("#worshipSignupEmail")?.value || sessionStorage.getItem(WORSHIP_PENDING_EMAIL_KEY) || "").toLowerCase();
+  if (!email) {
+    if (status) status.textContent = "먼저 가입에 사용한 이메일을 입력해 주세요.";
+    return;
+  }
+  const lastAt = Number(localStorage.getItem(WORSHIP_RESEND_AT_KEY) || 0);
+  if (Date.now() - lastAt < 60000) {
+    updateWorshipResendCooldown();
+    return;
+  }
+  btn.disabled = true;
+  if (status) status.textContent = "인증메일을 다시 보내는 중입니다…";
+  const {error} = await db.auth.resend({
+    type:"signup",
+    email,
+    options:{ emailRedirectTo:buildAdminAuthRedirectUrl() }
+  });
+  if (error) {
+    btn.disabled = false;
+    if (status) status.textContent = authErrorMessage(error, "인증메일 재전송에 실패했습니다.");
+    return;
+  }
+  localStorage.setItem(WORSHIP_RESEND_AT_KEY, String(Date.now()));
+  if (status) status.textContent = "인증메일을 다시 보냈습니다. 스팸함도 함께 확인해 주세요.";
+  updateWorshipResendCooldown();
 });
 
 async function verifyAdmin(user) {
   if (!user) return setAdminState(null);
   const { data, error } = await db.from("admin_users").select("user_id, role").eq("user_id",user.id).maybeSingle();
   const role = data?.role || null;
+  if (role === "worship_manager" && !user.email_confirmed_at) {
+    await db.auth.signOut();
+    $("#adminLoginStatus").textContent = "찬양 관리자 계정은 이메일 인증을 완료한 뒤 사용할 수 있습니다.";
+    return setAdminState(null);
+  }
   if (error || !data || !["admin","worship_manager"].includes(role)) {
     await db.auth.signOut();
     $("#adminLoginStatus").textContent = error
@@ -3564,4 +3730,5 @@ if(session?.user) await verifyAdmin(session.user);
 
 renderGratitudeChallenge();
 void loadWeather();
-await Promise.all([loadWeekly(),loadNotices(),loadBoard(),loadPublicEventCalendar(),loadGratitudeLeaders(),loadPublicGratitudeFeed(),loadNewFriendPublicList(),loadStudentWorshipPlaylist()]);
+// 첫 화면(공지사항)에 필요한 데이터만 먼저 로드하고, 무거운 탭 데이터는 탭을 열 때 지연 로드합니다.
+await Promise.all([loadWeekly(), loadNotices(), loadPublicEventCalendar()]);

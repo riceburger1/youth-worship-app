@@ -961,3 +961,29 @@ body.worship-manager-mode .worship-admin-card{grid-column:1/-1}
 @media (max-width:640px){
   .past-notice-details>summary{padding:12px 13px}
 }
+
+
+/* V44 · 학생 찬양 관리자 인증/성능 최적화 */
+.auth-resend-btn{
+  width:auto!important;
+  min-height:36px;
+  padding:7px 11px;
+  margin-top:8px;
+  font-size:.84rem;
+}
+.auth-help{
+  margin:8px 0 0;
+  color:var(--muted, #66736d);
+  font-size:.82rem;
+  line-height:1.5;
+}
+@media (max-width:640px){
+  .auth-resend-btn{font-size:.8rem;padding:6px 9px}
+  .auth-help{font-size:.78rem}
+}
+.admin-editor-card,
+.weekly-record-groups,
+#adminRecords{
+  content-visibility:auto;
+  contain-intrinsic-size: 1px 520px;
+}
